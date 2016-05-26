@@ -67,6 +67,7 @@ and Declaration =
 and SymbolDeclaration =
   {
     Name      : Id
+    FullType  : TypeDecl
     Args      : TypeDecl
     Return    : TypeDecl
     Order     : OpOrder
@@ -76,9 +77,10 @@ and SymbolDeclaration =
     Premises : List<Premise>
   }
   with
-    static member Create(name,args,ret,order,priority,pos,ass,prem) =
+    static member Create(name,_type,args,ret,order,priority,pos,ass,prem) =
       {
         Name = name
+        FullType = _type
         Args = args
         Return = ret
         Order = order
@@ -101,7 +103,6 @@ and CallArg =
 | Id of Id * Position
 | NestedExpression of List<CallArg>
 | Lambda of LambdaConclusion * List<Premise>
-| Caret of List<CallArg>
 with
   override this.ToString() =
     match this with

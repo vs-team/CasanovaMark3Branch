@@ -245,30 +245,18 @@ and checkNormalizedArgs
   (symbolTable : SymbolContext)
   (typeDecl : TypeDecl)
   (ctxt : LocalContext)
-  (currentType : TypeDecl)
-  (returnType: TypeDecl)
   (buildLocals : bool) : TypeDecl * LocalContext =
 
-  let rec appendToArrow (a : TypeDecl) (t : TypeDecl) : TypeDecl =
-    match a with
-    | Arrow(left,right) -> Arrow(left,appendToArrow right t)
-    | _ -> Arrow(a,t)
-
   match args with
-  | [] ->
-    match currentType with
-    | Arrow(_) -> (appendToArrow currentType returnType),ctxt
-    | _ -> currentType,ctxt
+  | [] -> typeDecl,ctxt
   | x :: xs ->
       match typeDecl with
       | Arrow(left,right) ->
           let t,newCtxt = checkSingleArg x symbolTable left ctxt buildLocals
-          checkNormalizedArgs xs symbolTable right newCtxt right returnType buildLocals
-      | Zero ->
-          raise(TypeError("Type Error: the function expects no arguments"))
-      | _ -> 
-          let t,newCtxt = checkSingleArg x symbolTable typeDecl ctxt buildLocals
-          returnType, newCtxt
+          checkNormalizedArgs xs symbolTable right newCtxt buildLocals
+      | Zero -> raise(TypeError("Type Error: the function expects no arguments"))
+      | _ -> checkSingleArg x symbolTable typeDecl ctxt buildLocals
+
 
 and checkNormalizedCall 
   (call : List<ParserAST.CallArg>) 
@@ -288,9 +276,9 @@ and checkNormalizedCall
             | None ->
                 failwith "You are checking arguments that are not data constructors or functions with checkNormalizedCall"
             | Some dSym ->
-              checkNormalizedArgs args symbolTable dSym.Args ctxt (dSym.Return) (dSym.Return) buildLocals
+              checkNormalizedArgs args symbolTable dSym.FullType ctxt buildLocals
         | Some fSym ->
-            checkNormalizedArgs args symbolTable fSym.Args ctxt (fSym.Return) (fSym.Return) buildLocals
+            checkNormalizedArgs args symbolTable fSym.FullType ctxt buildLocals
       | _ ->
         failwith "Something went wrong when normalizing the function call in the typechecker. The first argument is not a function name"
   | [] -> failwith "Something went wrong with the call normalization: there are no arguments in the call"

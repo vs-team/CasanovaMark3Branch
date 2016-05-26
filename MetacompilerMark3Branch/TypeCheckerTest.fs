@@ -7,6 +7,7 @@ let (test1 : Program) =
   let f =
     {
       Name = { Namespace = []; Name = "f" }
+      FullType = (!!"int" --> !!"int") --> (!!"string" --> !!"string")
       Args = (!!"int" --> !!"int") --> !!"string"
       Return = !!"string"
       Order = Prefix
@@ -18,6 +19,7 @@ let (test1 : Program) =
   let g =
     {
       Name = { Namespace = []; Name = "g" }
+      FullType = !!"int" --> !!"int"
       Args = !!"int"
       Return = !!"int"
       Order = Prefix
@@ -29,6 +31,7 @@ let (test1 : Program) =
   let test1 =
     {
       Name = { Namespace = []; Name = "test1" }
+      FullType = (!!"int" --> !!"int") --> !!"string"
       Args = (!!"int" --> !!"int")
       Return = !!"string"
       Order = Prefix
@@ -63,6 +66,7 @@ let (tcTest : Program) =
   let plus =
     {
       Name = { Namespace = []; Name = "+" }
+      FullType = !!"expr" --> (!!"expr" --> !!"expr")
       Args = !!"expr" --> !!"expr"
       Return = !!"expr"
       Order = Infix
@@ -74,6 +78,7 @@ let (tcTest : Program) =
   let neg =
     {
       Name = { Namespace = []; Name = "-" }
+      FullType = (!!"expr" --> !!"expr") --> !!"expr"
       Args = !!"expr" --> !!"expr"
       Return = !!"expr"
       Order = Prefix
@@ -85,6 +90,7 @@ let (tcTest : Program) =
   let eval =
     {
       Name = { Namespace = []; Name = "eval" }
+      FullType = !!"expr" --> !!"expr"
       Args = !!"expr"
       Return = !!"expr"
       Order = Prefix
