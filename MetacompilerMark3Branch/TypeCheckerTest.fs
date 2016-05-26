@@ -28,6 +28,30 @@ let (test1 : Program) =
       Associativity = Left
       Premises = []
     }
+  let p =
+    {
+      Name = { Namespace = []; Name = "p" }
+      FullType = !!"int" --> (!!"int" --> !!"int")
+      Args = !!"int"
+      Return = !!"int"
+      Order = Prefix
+      Priority = 0
+      Position = emptyPos
+      Associativity = Left
+      Premises = []
+    }
+  let test2 =
+    {
+      Name = { Namespace = []; Name = "test2" }
+      FullType = !!"int" --> !!"string"
+      Args = !!"int"
+      Return = !!"string"
+      Order = Prefix
+      Priority = 0
+      Position = emptyPos
+      Associativity = Left
+      Premises = []
+    }
   let test1 =
     {
       Name = { Namespace = []; Name = "test1" }
@@ -56,7 +80,16 @@ let (test1 : Program) =
     let conclusion =
       ParserAST.ValueOutput([~~"test1";~~"g"],[~~"x"])
     premises .| conclusion
-  [],([Func f;Func g;Func test1],[rule1;rule2;rule3],[])
+  let rule4 =
+    let premises =
+      [
+        FunctionCall([~~"p";~~"x"],[!!!"r"])
+        FunctionCall([~~"test1";~~"r"],[!!!"r2"])
+      ]
+    let conclusion =
+      ParserAST.ValueOutput([~~"test2";~~"x"],[~~"r2"])
+    premises .| conclusion
+  [],([Func f;Func g;Func test1; Func p; Func test2],[rule4],[])
 let (tcTest : Program) =
   let subtypingTest =
     [

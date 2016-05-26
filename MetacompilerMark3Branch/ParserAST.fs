@@ -18,6 +18,12 @@ and TypeDecl =
 | Generic of Id * List<TypeDecl>
 | Arg of CallArg
 | Zero
+  member this.Length =
+    match this with
+    | Arrow(left,right) -> 1 + right.Length
+    | Generic(_)
+    | Arg(_) -> 1
+    | Zero -> 0
   static member op_Equality(t1 : TypeDecl,t2 : TypeDecl) =
     match t1,t2 with
     | Arg(Id(id1,_)),Arg(Id(id2,_)) ->
@@ -28,7 +34,7 @@ and TypeDecl =
         else
           r1 = r2
     | Zero, Zero -> true
-    | _ -> failwith "You are using type equality improperly"
+    | _ -> false
   static member op_Inequality (t1 : TypeDecl,t2 : TypeDecl) =
     not (t1 = t2)
   static member SubtypeOf (t1 : TypeDecl) (t2 : TypeDecl) (subtypeDefinitions : Map<TypeDecl,List<TypeDecl>>) =
@@ -48,7 +54,7 @@ and TypeDecl =
           false
         else
           TypeDecl.SubtypeOf r1 r2 subtypeDefinitions
-    | _ -> failwith "You are using type equality improperly"
+    | _ -> false
   override this.ToString() =
     match this with
     | Arrow(t1,t2) ->

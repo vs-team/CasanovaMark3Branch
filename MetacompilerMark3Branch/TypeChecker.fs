@@ -248,7 +248,8 @@ and checkNormalizedArgs
   (buildLocals : bool) : TypeDecl * LocalContext =
 
   match args with
-  | [] -> typeDecl,ctxt
+  | [] ->
+    typeDecl,ctxt
   | x :: xs ->
       match typeDecl with
       | Arrow(left,right) ->
@@ -263,6 +264,12 @@ and checkNormalizedCall
   (symbolTable : SymbolContext) 
   (ctxt : LocalContext)
   (buildLocals : bool) : TypeDecl * LocalContext =
+  
+  let checkArgsWithCorrectCardinality args (decl : SymbolDeclaration) =
+    if call.Length > decl.FullType.Length then
+      raise(TypeError(sprintf "Type Error: too many arguments passed to %s" decl.Name.Name)) 
+    else
+      checkNormalizedArgs args symbolTable decl.FullType ctxt buildLocals
 
   match call with
   | arg :: args ->
@@ -276,9 +283,9 @@ and checkNormalizedCall
             | None ->
                 failwith "You are checking arguments that are not data constructors or functions with checkNormalizedCall"
             | Some dSym ->
-              checkNormalizedArgs args symbolTable dSym.FullType ctxt buildLocals
+              checkArgsWithCorrectCardinality args dSym
         | Some fSym ->
-            checkNormalizedArgs args symbolTable fSym.FullType ctxt buildLocals
+            checkArgsWithCorrectCardinality args fSym
       | _ ->
         failwith "Something went wrong when normalizing the function call in the typechecker. The first argument is not a function name"
   | [] -> failwith "Something went wrong with the call normalization: there are no arguments in the call"
