@@ -15,7 +15,7 @@ and Associativity =
 
 and TypeDecl =
 | Arrow of TypeDecl * TypeDecl
-| Generic of Id * List<TypeDecl>
+| Generic of Id
 | Arg of CallArg
 | Zero
   member this.Length =
@@ -59,8 +59,8 @@ and TypeDecl =
     match this with
     | Arrow(t1,t2) ->
         "(" + t1.ToString() + "->" + t2.ToString() + ")"
-    | Generic(id,innerGeneric) ->
-        "<" + id.Name + (innerGeneric |> List.fold(fun s x -> s + x.ToString()) "") + ">"
+    | Generic(id) ->
+        "'" + id.Name
     | Arg(arg) -> arg.ToString()
     | Zero -> ""
 

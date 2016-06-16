@@ -8,11 +8,13 @@ exception TypeError of string
 type LocalContext =
   {
     Variables : Map<Id,TypeDecl * Position>
+    Generics  : Map<Id,TypeDecl>
   }
   with
     static member Empty =
       {
         Variables = Map.empty
+        Generics = Map.empty
       }
 
 type TypedProgramDefinition =
@@ -121,7 +123,7 @@ let rec checkType (_type : TypeDecl) (symbolTable : SymbolContext) : TypeDecl =
               | Some _ -> _type
               | None -> raise(TypeError(sprintf "Type Error: Undefined type %s at %A" (_type.ToString()) (pos.Line,pos.Col)))
       | _ -> raise(TypeError(sprintf "Type Error: You cannot use Data constructors or literals in function declarations"))
-  | _ -> failwithf "The type %A is not supported in declarations yet... Back to work Germoney T_T" _type
+  | Generic(id) -> Generic(id)
 
 let buildSymbols (declarations : List<Declaration>) (symbols : Map<Id,SymbolDeclaration>) =
 //  let check (symDecl : SymbolDeclaration) =
@@ -155,41 +157,56 @@ let checkSymbols (declarations : List<Declaration>) (symbolTable : SymbolContext
         failwith "TypeAliases not implemented yet..."
 
 
-let checkTypeEquivalence (t1: TypeDecl) (t2 : TypeDecl) (p : Position) (ctxt : SymbolContext)  =
+let checkTypeWithErrorMsg t1 t2 p ctxt msg =
   if t1 = t2 || (TypeDecl.SubtypeOf t1 t2 ctxt.Subtyping) then
     ()
   else
-    raise(TypeError(sprintf "Type Error: given %s but expected %s at %s" (t1.ToString()) (t2.ToString()) (p.ToString())))
+    raise(TypeError(msg))
+
+let checkGenericType (t1 : TypeDecl) (t2 : TypeDecl) (p : Position) (ctxt : SymbolContext) (locals : LocalContext) : LocalContext =
+  match t2 with
+  | Generic(id) ->
+    let genericOpt = locals.Generics |> Map.tryFind id
+    match genericOpt with
+    | Some g ->
+        do checkTypeWithErrorMsg t1 g p ctxt (sprintf "Generic variable %s has been bound to type %s but the given type is %s" (id.Name) (g.ToString()) (t1.ToString()))
+        locals
+    | None ->
+        { locals with Generics = locals.Generics.Add(id,t1) }
+  | _ -> failwith "checkGenericType can only check a generic argument"
+      
+
+let checkTypeEquivalence (t1: TypeDecl) (t2 : TypeDecl) (p : Position) (ctxt : SymbolContext)  =
+  checkTypeWithErrorMsg t1 t2 p ctxt (sprintf "Type Error: given %s but expected %s at %s" (t1.ToString()) (t2.ToString()) (p.ToString()))
+
+let checkTypeDecl t1 t2 p  ctxt locals =
+  match t2 with
+  | Generic(id) ->
+      checkGenericType t1 t2 p ctxt locals
+  | _ ->
+      do checkTypeEquivalence t1 t2 p ctxt
+      locals
     
-let checkLiteral (l : Literal) (typeDecl : TypeDecl) (p : Position) (ctxt : SymbolContext) : TypeDecl =
-  match l with
-  | I64(_) ->
-    do checkTypeEquivalence !!"int64" typeDecl p ctxt
-    !!"int64"
-  | I32(_) ->
-    do checkTypeEquivalence !!"int" typeDecl p ctxt
-    !!"int"
-  | U64(_) ->
-    do checkTypeEquivalence  !!"uint64" typeDecl p ctxt
-    !!"uint64"
-  | U32(_) ->
-    do checkTypeEquivalence  !!"uint32" typeDecl p ctxt
-    !!"uint32"
-  | F64(_) ->
-    do checkTypeEquivalence  !!"double" typeDecl p ctxt
-    !!"double"
-  | F32(_) ->
-    do checkTypeEquivalence  !!"float" typeDecl p ctxt
-    !!"float"
-  | String(_) ->
-    do checkTypeEquivalence  !!"string" typeDecl p ctxt
-    !!"string"
-  | Bool(_) ->
-    do checkTypeEquivalence  !!"bool" typeDecl p ctxt
-    !!"bool"
-  | Void ->
-    do checkTypeEquivalence  !!"void" typeDecl p ctxt
-    !!"void"
+let checkLiteral (l : Literal) (typeDecl : TypeDecl) (p : Position) (ctxt : SymbolContext) (locals : LocalContext) : TypeDecl * LocalContext =
+    match l with
+    | I64(_) ->
+      !!"int64", checkTypeDecl !!"int64" typeDecl p ctxt locals
+    | I32(_) ->
+      !!"int", checkTypeDecl !!"int" typeDecl p ctxt locals
+    | U64(_) ->
+      !!"uint64", checkTypeDecl !!"uint64" typeDecl p ctxt locals
+    | U32(_) ->
+      !!"uint32", checkTypeDecl !!"uint32" typeDecl p ctxt locals
+    | F64(_) ->
+      !!"double", checkTypeDecl !!"double" typeDecl p ctxt locals
+    | F32(_) ->
+      !!"float", checkTypeDecl !!"float" typeDecl p ctxt locals
+    | String(_) ->
+      !!"string", checkTypeDecl !!"string" typeDecl p ctxt locals
+    | Bool(_) ->
+      !!"bool", checkTypeDecl !!"bool" typeDecl p ctxt locals
+    | Void ->
+      !!"void", checkTypeDecl !!"void" typeDecl p ctxt locals
 
 
 let rec checkSingleArg
@@ -203,9 +220,9 @@ let rec checkSingleArg
   | Literal(l,p) ->
       match typeDecl with
       | Arg(Id(id,_)) ->        
-          checkLiteral l typeDecl p symbolTable, ctxt
+          checkLiteral l typeDecl p symbolTable ctxt
       | Generic(_) ->
-          failwith "Generics not supported yet..."
+          checkLiteral l typeDecl p symbolTable ctxt
       | _ ->
           failwith "Something went wrong: the type definition has an invalid structure"
   | Id(id,p) ->
