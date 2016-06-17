@@ -1,0 +1,2 @@
+﻿- Check the namespace when comparing types and if it is ambiguous notify it.
+- Finish debugging the declaration parser

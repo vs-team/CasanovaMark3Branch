@@ -52,13 +52,6 @@ let builtInTypes =
     "void"
   ]
 
-let emptyPos = { File = "empty"; Line = 0; Col = 0}
-let (!!) s = Arg(Id({ Namespace = []; Name = s },emptyPos))
-let (~~) s = Id({Namespace = []; Name = s},emptyPos)
-let (!!!) s = {Namespace = []; Name = s}
-let (-->) t1 t2 = Arrow(t1,t2)
-let (.|) ps c = Rule(ps,c)
-
 //extract function name from a CallArg and rearrange the term in the form: functioName arg1 arg2 ... argn. The same form data constructors
 let rec normalizeDataOrFunctionCall (_symbolTable : SymbolContext) (args : List<ParserAST.CallArg>) : List<ParserAST.CallArg> =
   let normCall =
@@ -384,7 +377,7 @@ and checkProgramDefinition ((decls,rules,subtypes) : ProgramDefinition) : TypedP
     SymbolTable = symbolTable
   }
 
-and checkProgram ((imports,def) : Program) : TypedProgramDefinition =
+and checkProgram ((moduleName,imports,def) : Program) : TypedProgramDefinition =
   //missing support for imports
   checkProgramDefinition def
 

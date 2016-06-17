@@ -9,6 +9,8 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "MetacasanovaParser", "Parse
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "AST", "AST\AST.fsproj", "{FB76E329-5D19-4C4A-96A0-1FC13F299752}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Content", "Content\Content.csproj", "{BF6819AD-0ED5-4D3C-9171-8A04F383A1FF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{FB76E329-5D19-4C4A-96A0-1FC13F299752}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FB76E329-5D19-4C4A-96A0-1FC13F299752}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FB76E329-5D19-4C4A-96A0-1FC13F299752}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BF6819AD-0ED5-4D3C-9171-8A04F383A1FF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BF6819AD-0ED5-4D3C-9171-8A04F383A1FF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BF6819AD-0ED5-4D3C-9171-8A04F383A1FF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BF6819AD-0ED5-4D3C-9171-8A04F383A1FF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

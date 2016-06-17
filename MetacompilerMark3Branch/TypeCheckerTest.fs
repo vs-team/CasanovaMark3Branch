@@ -6,7 +6,7 @@ open TypeChecker
 let (test1 : Program) =
   let f =
     {
-      Name = { Namespace = []; Name = "f" }
+      Name = { Namespace = ""; Name = "f" }
       FullType = (!!"int" --> !!"int") --> (!!"string" --> !!"string")
       Args = (!!"int" --> !!"int") --> !!"string"
       Return = !!"string"
@@ -18,7 +18,7 @@ let (test1 : Program) =
     }
   let g =
     {
-      Name = { Namespace = []; Name = "g" }
+      Name = { Namespace = ""; Name = "g" }
       FullType = !!"int" --> !!"int"
       Args = !!"int"
       Return = !!"int"
@@ -30,7 +30,7 @@ let (test1 : Program) =
     }
   let p =
     {
-      Name = { Namespace = []; Name = "p" }
+      Name = { Namespace = ""; Name = "p" }
       FullType = !!"int" --> (!!"int" --> !!"int")
       Args = !!"int"
       Return = !!"int"
@@ -42,7 +42,7 @@ let (test1 : Program) =
     }
   let test2 =
     {
-      Name = { Namespace = []; Name = "test2" }
+      Name = { Namespace = ""; Name = "test2" }
       FullType = !!"int" --> !!"string"
       Args = !!"int"
       Return = !!"string"
@@ -54,7 +54,7 @@ let (test1 : Program) =
     }
   let test1 =
     {
-      Name = { Namespace = []; Name = "test1" }
+      Name = { Namespace = ""; Name = "test1" }
       FullType = (!!"int" --> !!"int") --> !!"string"
       Args = (!!"int" --> !!"int")
       Return = !!"string"
@@ -89,7 +89,7 @@ let (test1 : Program) =
     let conclusion =
       ParserAST.ValueOutput([~~"test2";~~"x"],[~~"r2"])
     premises .| conclusion
-  [],([Func f;Func g;Func test1; Func p; Func test2],[rule4],[])
+  "",[],([Func f;Func g;Func test1; Func p; Func test2],[rule4],[])
 let (tcTest : Program) =
   let subtypingTest =
     [
@@ -98,7 +98,7 @@ let (tcTest : Program) =
     ]
   let plus =
     {
-      Name = { Namespace = []; Name = "+" }
+      Name = { Namespace = ""; Name = "+" }
       FullType = !!"expr" --> (!!"expr" --> !!"expr")
       Args = !!"expr" --> !!"expr"
       Return = !!"expr"
@@ -110,7 +110,7 @@ let (tcTest : Program) =
     }
   let neg =
     {
-      Name = { Namespace = []; Name = "-" }
+      Name = { Namespace = ""; Name = "-" }
       FullType = (!!"expr" --> !!"expr") --> !!"expr"
       Args = !!"expr" --> !!"expr"
       Return = !!"expr"
@@ -122,7 +122,7 @@ let (tcTest : Program) =
     }
   let eval =
     {
-      Name = { Namespace = []; Name = "eval" }
+      Name = { Namespace = ""; Name = "eval" }
       FullType = !!"expr" --> !!"expr"
       Args = !!"expr"
       Return = !!"expr"
@@ -141,4 +141,4 @@ let (tcTest : Program) =
     let (conclusion : Conclusion) =
       ParserAST.ValueOutput ([~~"eval";NestedExpression [~~"a";~~"+";~~"b"]],[~~"x2"])
     premises .| conclusion
-  [],([Data plus; Data neg; Func eval],[evalPlus],subtypingTest)
+  "",[],([Data plus; Data neg; Func eval],[evalPlus],subtypingTest)

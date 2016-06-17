@@ -2,8 +2,9 @@
 
 open Common
 
-type Program = List<string> * ProgramDefinition
-and ProgramDefinition = List<Declaration> * List<RuleDefinition> * List<TypeDecl*TypeDecl>
+type Program = string * List<string> * ProgramDefinition
+
+and ProgramDefinition = List<Declaration> * List<RuleDefinition> * List<TypeDecl*TypeDecl> //declarations, rules, subtyping mapping
 
 and OpOrder =
 | Prefix
@@ -62,7 +63,7 @@ and TypeDecl =
     | Generic(id) ->
         "'" + id.Name
     | Arg(arg) -> arg.ToString()
-    | Zero -> ""
+    | Zero -> "()"
 
 and Declaration =
 | Data of SymbolDeclaration
@@ -95,6 +96,20 @@ and SymbolDeclaration =
         Associativity = ass
         Premises = prem
       }
+    override this.ToString() =
+      sprintf "Name = %s\n
+               FullType = %s\n
+               Args = %s\n
+               Return = %s\n
+               Order = %A\n
+               Priority = %A\n
+               Position = %A\n
+               Associativity = %A\n
+               Premises = %A\n" 
+               (this.Name.ToString()) 
+               (this.FullType.ToString()) 
+               (this.Args.ToString()) 
+               (this.Return.ToString()) this.Order this.Priority this.Position this.Associativity this.Premises 
 
 and RuleDefinition =
 | Rule of Rule
@@ -152,3 +167,10 @@ type SymbolContext =
           TypeAliasTable = Map.empty
           Subtyping = Map.empty
         }
+
+let emptyPos = { File = "empty"; Line = 0; Col = 0}
+let (!!) s = Arg(Id({ Namespace = ""; Name = s },emptyPos))
+let (~~) s = Id({Namespace = ""; Name = s},emptyPos)
+let (!!!) s = {Namespace = ""; Name = s}
+let (-->) t1 t2 = Arrow(t1,t2)
+let (.|) ps c = Rule(ps,c)
