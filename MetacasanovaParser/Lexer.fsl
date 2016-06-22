@@ -35,6 +35,7 @@ rule tokenstream = parse
 | '(' { Parser.LBRACKET }
 | ')' { Parser.RBRACKET }
 | '#' { Parser.HASH }
+| ':' { Parser.COLON }
 | "->" { Parser.ARROW (range lexbuf) }
 | "=>" { Parser.DARROW (range lexbuf) }
 | "=" { Parser.EQUAL (range lexbuf) }

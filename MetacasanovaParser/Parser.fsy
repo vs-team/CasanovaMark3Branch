@@ -17,7 +17,7 @@ let mutable moduleName = ""
 %token <System.String> ID
 %token <System.String> STRING
 %token <System.Int32 * System.Int32> ARROW DARROW EQUAL
-%token COMMA LBRACKET RBRACKET DOT APOSTROPHE HASH
+%token COMMA LBRACKET RBRACKET DOT APOSTROPHE HASH COLON
 %token <int * int> FUNC TYPEFUNC OPEN INCLUDE DATA MODULE
 
 %token EOF
