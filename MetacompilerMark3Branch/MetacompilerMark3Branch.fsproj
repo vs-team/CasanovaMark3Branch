@@ -70,9 +70,9 @@
       <Project>{bf6819ad-0ed5-4d3c-9171-8a04f383a1ff}</Project>
       <Private>True</Private>
     </ProjectReference>
-    <ProjectReference Include="..\Parser\MetacasanovaParser.fsproj">
+    <ProjectReference Include="..\MetacasanovaParser\MetacasanovaParser.fsproj">
       <Name>MetacasanovaParser</Name>
-      <Project>{50565190-3a6f-4375-ad50-599b33ee00e3}</Project>
+      <Project>{30ac7c50-2dff-43c5-aa3c-7f22ce9e9a43}</Project>
       <Private>True</Private>
     </ProjectReference>
     <Reference Include="FsLexYacc.Runtime">

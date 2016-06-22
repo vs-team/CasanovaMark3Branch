@@ -1,0 +1,82 @@
+%{
+
+open Common
+open ParserAST
+open System
+open ParserUtils
+
+let mutable moduleName = ""
+
+%}
+
+%start start
+
+// Regular tokens
+%token <System.Int32> INT
+%token <System.Double> FLOAT
+%token <System.String> ID
+%token <System.String> STRING
+%token <System.Int32 * System.Int32> ARROW DARROW EQUAL
+%token COMMA LBRACKET RBRACKET DOT APOSTROPHE HASH
+%token <int * int> FUNC TYPEFUNC OPEN INCLUDE DATA MODULE
+
+%token EOF
+ 
+%right ARROW DARROW
+
+// This is the type of the data produced by a successful reduction of the 'start'
+// symbol:
+%type < ParserUtils.TypeDeclOrName list > start
+
+%%
+// These are the rules of the grammar along with the F# code of the 
+// actions executed as rules are reduced. 
+start: typeOrNameDeclarations { $1 }
+
+program: MODULE dottedPath includeOrOpenStmts declarations { 
+  do moduleName <- $2
+  $2,$3,($4,[],[]) }
+
+includeOrOpenStmts:
+| includeOrOpenStmt includeOrOpenStmts { $1 :: $2 }
+| { [] }
+
+includeOrOpenStmt:
+| INCLUDE dottedPath { $2 }
+| OPEN dottedPath { $2 }
+
+dottedPath:
+| ID DOT dottedPath { $1 + "." + $3 }
+| ID { $1 }
+
+declarations:
+| declaration declarations { 
+  do printfn "Declaration found"
+  $1 :: $2 }
+| { [] }
+
+declaration:
+| FUNC typeOrNameDeclarations DARROW typeDeclaration {
+    Func(processParsedArgs $2 $4 moduleName (fst $1) (snd $1)) }
+| DATA typeOrNameDeclarations DARROW typeDeclaration {
+    printfn "Data found"
+    Data(processParsedArgs $2 $4 moduleName (fst $1) (snd $1)) }
+
+typeOrNameDeclarations:
+| typeOrNameDeclaration ARROW typeOrNameDeclarations { $1 :: $3 }
+| typeOrNameDeclaration { [$1] }
+| { [] }
+
+typeOrNameDeclaration:
+| STRING { ParserUtils.Name($1) }
+| typeDeclaration { ParserUtils.Type($1) }
+
+
+typeDeclaration:
+| LBRACKET lambdaTypeDeclaration RBRACKET { printfn "lambda found"; $2 }
+| APOSTROPHE ID { printfn "Generic found"; Generic({ Namespace = moduleName; Name = $2 })}
+| ID { sprintf "Type found %s" $1; Arg(Id({ Namespace = moduleName; Name = $1 },emptyPos)) }
+
+lambdaTypeDeclaration: 
+| typeDeclaration ARROW lambdaTypeDeclaration { printfn "Arrow found"; Arrow($1,$3) }
+| typeDeclaration { $1 }

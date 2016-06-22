@@ -7,11 +7,11 @@ open System.Runtime.InteropServices
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[<assembly: AssemblyTitle("Parser")>]
+[<assembly: AssemblyTitle("MetacasanovaParser")>]
 [<assembly: AssemblyDescription("")>]
 [<assembly: AssemblyConfiguration("")>]
 [<assembly: AssemblyCompany("")>]
-[<assembly: AssemblyProduct("Parser")>]
+[<assembly: AssemblyProduct("MetacasanovaParser")>]
 [<assembly: AssemblyCopyright("Copyright ©  2016")>]
 [<assembly: AssemblyTrademark("")>]
 [<assembly: AssemblyCulture("")>]
@@ -22,7 +22,7 @@ open System.Runtime.InteropServices
 [<assembly: ComVisible(false)>]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[<assembly: Guid("50565190-3a6f-4375-ad50-599b33ee00e3")>]
+[<assembly: Guid("30ac7c50-2dff-43c5-aa3c-7f22ce9e9a43")>]
 
 // Version information for an assembly consists of the following four values:
 // 
