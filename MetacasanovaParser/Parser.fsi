@@ -50,9 +50,9 @@ type nonTerminalId =
     | NONTERM__startstart
     | NONTERM_start
     | NONTERM_program
+    | NONTERM_dottedPath
     | NONTERM_includeOrOpenStmts
     | NONTERM_includeOrOpenStmt
-    | NONTERM_dottedPath
     | NONTERM_declarations
     | NONTERM_declaration
     | NONTERM_typeOrNameDeclarations
@@ -70,4 +70,4 @@ val prodIdxToNonTerminal: int -> nonTerminalId
 
 /// This function gets the name of a token as a string
 val token_to_string: token -> string
-val start : (Microsoft.FSharp.Text.Lexing.LexBuffer<'cty> -> token) -> Microsoft.FSharp.Text.Lexing.LexBuffer<'cty> -> ( ParserUtils.TypeDeclOrName list ) 
+val start : (Microsoft.FSharp.Text.Lexing.LexBuffer<'cty> -> token) -> Microsoft.FSharp.Text.Lexing.LexBuffer<'cty> -> ( ParserAST.Program ) 

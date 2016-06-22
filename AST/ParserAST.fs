@@ -70,6 +70,13 @@ and Declaration =
 | Func of SymbolDeclaration
 | TypeFunc of SymbolDeclaration
 | TypeAlias of SymbolDeclaration
+with
+  override this.ToString() =
+    match this with
+    | Data(d) -> d.ToString()
+    | Func(f) -> f.ToString()
+    | TypeFunc(tf) -> tf.ToString()
+    | TypeAlias(ta) -> ta.ToString()
 
 and SymbolDeclaration =
   {

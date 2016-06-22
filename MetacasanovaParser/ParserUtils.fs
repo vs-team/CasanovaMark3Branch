@@ -23,7 +23,8 @@ let rec combineArgsAndRet args ret =
           Arrow(left,Arrow(right,ret))
       | _ ->
           Arrow(left,combineArgsAndRet right ret)
-  | Zero -> ret
+  | Zero
+  | Arg _ -> Arrow(args,ret)
   | _ -> failwith "Invalid arguments format in combineArgsAndRet"
 
 let opPos (parsedArgs : TypeDeclOrName list) : OpOrder =
@@ -68,24 +69,8 @@ let buildDeclarationRecord opOrder name args ret pos =
     Premises = []
   }
 
-let processParsedArgs (parsedArgs : TypeDeclOrName list) (retType : TypeDecl) (moduleName : string) (row : int) (column : int) =
+let processParsedArgs (parsedArgs : TypeDeclOrName list) (retType : TypeDecl) (row : int) (column : int) =
   let opOrder = opPos parsedArgs
   let Some(name),args = checkDecl parsedArgs row column
   let argType = buildArgType args
-  buildDeclarationRecord opOrder {Namespace =  moduleName; Name = name} argType retType (row, column)
-
-
-let testUtils() =
-  let argTest = (!!"int" --> (!!"float" --> !!"float"))
-  let retTest =  (!!"string" --> !!"string")
-  combineArgsAndRet argTest retTest
-
-let testRetAndArgs() =
-  let l =
-    [
-      Type(!!"int")
-      Name("Test")
-      Type(!!"float" --> !!"float")
-      Type(!!"float")
-    ]
-  processParsedArgs l (!!"float" --> (!!"int" --> !!"string")) "Test" 5 15
+  buildDeclarationRecord opOrder {Namespace =  ""; Name = name} argType retType (row, column)

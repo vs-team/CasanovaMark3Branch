@@ -1,4 +1,4 @@
-﻿open ParserAST
+﻿open ParserAST 
 open ParserUtils
 open TypeChecker
 open TypeCheckerTest
@@ -18,7 +18,7 @@ let main argv =
 //    let testUtils = testRetAndArgs()
 //    printfn "%s" (testUtils.ToString())
     let parsedAST = parseFile @"Content\Test\test1.mc"
-    printfn "%s" (parsedAST.ToString())
+//    printfn "%s" (parsedAST.ToString())
 //    let typedTest = checkProgram test1
 //    printfn "Type checking successful!"
 //    File.WriteAllText("TypeCheckerOutput.txt",sprintf "%A" typedTest)

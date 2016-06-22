@@ -5,8 +5,6 @@ open ParserAST
 open System
 open ParserUtils
 
-let mutable moduleName = ""
-
 %}
 
 %start start
@@ -26,16 +24,19 @@ let mutable moduleName = ""
 
 // This is the type of the data produced by a successful reduction of the 'start'
 // symbol:
-%type < ParserUtils.TypeDeclOrName list > start
+%type < ParserAST.Program > start
 
 %%
 // These are the rules of the grammar along with the F# code of the 
 // actions executed as rules are reduced. 
-start: typeOrNameDeclarations { $1 }
+start: program EOF { $1 }
 
-program: MODULE dottedPath includeOrOpenStmts declarations { 
-  do moduleName <- $2
+program: MODULE dottedPath includeOrOpenStmts declarations {
   $2,$3,($4,[],[]) }
+
+dottedPath:
+| ID DOT dottedPath { $1 + "." + $3 }
+| ID %prec MODULEPREC  { $1 }
 
 includeOrOpenStmts:
 | includeOrOpenStmt includeOrOpenStmts { $1 :: $2 }
@@ -45,22 +46,19 @@ includeOrOpenStmt:
 | INCLUDE dottedPath { $2 }
 | OPEN dottedPath { $2 }
 
-dottedPath:
-| ID DOT dottedPath { $1 + "." + $3 }
-| ID { $1 }
-
 declarations:
 | declaration declarations { 
-  do printfn "Declaration found"
+  printfn "Declaration found"
   $1 :: $2 }
 | { [] }
 
 declaration:
 | FUNC typeOrNameDeclarations DARROW typeDeclaration {
-    Func(processParsedArgs $2 $4 moduleName (fst $1) (snd $1)) }
+    printfn "Function found"
+    Func(processParsedArgs $2 $4 (fst $1) (snd $1)) }
 | DATA typeOrNameDeclarations DARROW typeDeclaration {
     printfn "Data found"
-    Data(processParsedArgs $2 $4 moduleName (fst $1) (snd $1)) }
+    Data(processParsedArgs $2 $4 (fst $1) (snd $1)) }
 
 typeOrNameDeclarations:
 | typeOrNameDeclaration ARROW typeOrNameDeclarations { $1 :: $3 }
@@ -74,8 +72,8 @@ typeOrNameDeclaration:
 
 typeDeclaration:
 | LBRACKET lambdaTypeDeclaration RBRACKET { printfn "lambda found"; $2 }
-| APOSTROPHE ID { printfn "Generic found"; Generic({ Namespace = moduleName; Name = $2 })}
-| ID { sprintf "Type found %s" $1; Arg(Id({ Namespace = moduleName; Name = $1 },emptyPos)) }
+| APOSTROPHE ID { printfn "Generic found"; Generic({ Namespace = ""; Name = $2 })}
+| ID { sprintf "Type found %s" $1; Arg(Id({ Namespace = ""; Name = $1 },emptyPos)) }
 
 lambdaTypeDeclaration: 
 | typeDeclaration ARROW lambdaTypeDeclaration { printfn "Arrow found"; Arrow($1,$3) }

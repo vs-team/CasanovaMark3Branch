@@ -44,7 +44,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Content\Test\test1.mc">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
