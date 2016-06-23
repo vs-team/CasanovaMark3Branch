@@ -48,8 +48,8 @@ rule tokenstream = parse
 | _    		{ failwith ("ParseError" + LexBuffer<_>.LexemeString lexbuf) }
 
 // --------------------------
-| ['-']?digit+   { Parser.INT (Int32.Parse(LexBuffer<_>.LexemeString lexbuf)) }
-| ['-']?digit+('.'digit+)?(['e''E']digit+)?   { Parser.FLOAT (Double.Parse(LexBuffer<_>.LexemeString lexbuf)) }
-| idBody+   { printfn "Id found"; Parser.ID (LexBuffer<_>.LexemeString lexbuf) }
-| "\"" [^'"']* "\"" { printfn "string found"; let s = LexBuffer<_>.LexemeString lexbuf in Parser.STRING (s.Trim [|'\"'|]) }
+| ['-']?digit+   { Parser.INT (Int32.Parse(LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }
+| ['-']?digit+('.'digit+)?(['e''E']digit+)?   { Parser.FLOAT (Double.Parse(LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }
+| idBody+   { printfn "Id found"; Parser.ID ((LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }
+| "\"" [^'"']* "\"" { printfn "string found"; let s = LexBuffer<_>.LexemeString lexbuf in Parser.STRING ((s.Trim [|'\"'|]),(range lexbuf)) }
 

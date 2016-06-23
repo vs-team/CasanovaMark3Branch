@@ -273,22 +273,22 @@ and _fslex_tokenstream  _fslex_state lexbuf =
           )
   | 21 -> ( 
 # 51 "Lexer.fsl"
-                                  Parser.INT (Int32.Parse(LexBuffer<_>.LexemeString lexbuf)) 
+                                  Parser.INT (Int32.Parse(LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) 
 # 277 "Lexer.fs"
           )
   | 22 -> ( 
 # 52 "Lexer.fsl"
-                                                               Parser.FLOAT (Double.Parse(LexBuffer<_>.LexemeString lexbuf)) 
+                                                               Parser.FLOAT (Double.Parse(LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) 
 # 282 "Lexer.fs"
           )
   | 23 -> ( 
 # 53 "Lexer.fsl"
-                             printfn "Id found"; Parser.ID (LexBuffer<_>.LexemeString lexbuf) 
+                             printfn "Id found"; Parser.ID ((LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) 
 # 287 "Lexer.fs"
           )
   | 24 -> ( 
 # 54 "Lexer.fsl"
-                                     printfn "string found"; let s = LexBuffer<_>.LexemeString lexbuf in Parser.STRING (s.Trim [|'\"'|]) 
+                                     printfn "string found"; let s = LexBuffer<_>.LexemeString lexbuf in Parser.STRING ((s.Trim [|'\"'|]),(range lexbuf)) 
 # 292 "Lexer.fs"
           )
   | _ -> failwith "tokenstream"

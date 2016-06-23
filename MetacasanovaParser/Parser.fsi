@@ -20,10 +20,10 @@ type token =
   | ARROW of (System.Int32 * System.Int32)
   | DARROW of (System.Int32 * System.Int32)
   | EQUAL of (System.Int32 * System.Int32)
-  | STRING of (System.String)
-  | ID of (System.String)
-  | FLOAT of (System.Double)
-  | INT of (System.Int32)
+  | STRING of (string * (int * int))
+  | ID of (System.String * (int * int))
+  | FLOAT of (float * (int * int))
+  | INT of (int * (int * int))
 type tokenId = 
     | TOKEN_EOF
     | TOKEN_FUNC
@@ -64,6 +64,15 @@ type nonTerminalId =
     | NONTERM_typeOrNameDeclaration
     | NONTERM_typeDeclaration
     | NONTERM_lambdaTypeDeclaration
+    | NONTERM_idSeq
+    | NONTERM_literal
+    | NONTERM_arg
+    | NONTERM_argSeq
+    | NONTERM_functionCall
+    | NONTERM_premises
+    | NONTERM_conclusion
+    | NONTERM_rule
+    | NONTERM_rules
 /// This function maps tokens to integer indexes
 val tagOfToken: token -> int
 
