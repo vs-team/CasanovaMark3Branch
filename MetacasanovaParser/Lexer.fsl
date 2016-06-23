@@ -26,7 +26,7 @@ let idBody = simpleId | customSymbols
 
 rule tokenstream = parse
 | whitespace	{ tokenstream lexbuf }
-| newline	{ newline lexbuf; tokenstream lexbuf }
+| newline	{ newline lexbuf; Parser.NEWLINE }
 | "open" { Parser.OPEN (range lexbuf) }
 | "include" { Parser.INCLUDE (range lexbuf) }
 | '\'' { Parser.APOSTROPHE }
@@ -36,6 +36,7 @@ rule tokenstream = parse
 | ')' { Parser.RBRACKET }
 | '#' { Parser.HASH }
 | ':' { Parser.COLON }
+| "--" { Parser.BAR }
 | "->" { Parser.ARROW (range lexbuf) }
 | "=>" { Parser.DARROW (range lexbuf) }
 | "=" { Parser.EQUAL (range lexbuf) }

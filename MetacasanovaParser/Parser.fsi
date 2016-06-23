@@ -15,6 +15,8 @@ type token =
   | APOSTROPHE
   | HASH
   | COLON
+  | NEWLINE
+  | BAR
   | ARROW of (System.Int32 * System.Int32)
   | DARROW of (System.Int32 * System.Int32)
   | EQUAL of (System.Int32 * System.Int32)
@@ -37,6 +39,8 @@ type tokenId =
     | TOKEN_APOSTROPHE
     | TOKEN_HASH
     | TOKEN_COLON
+    | TOKEN_NEWLINE
+    | TOKEN_BAR
     | TOKEN_ARROW
     | TOKEN_DARROW
     | TOKEN_EQUAL
@@ -49,6 +53,7 @@ type tokenId =
 type nonTerminalId = 
     | NONTERM__startstart
     | NONTERM_start
+    | NONTERM_newLineSeq
     | NONTERM_program
     | NONTERM_dottedPath
     | NONTERM_includeOrOpenStmts

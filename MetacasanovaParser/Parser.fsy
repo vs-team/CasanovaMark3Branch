@@ -15,7 +15,7 @@ open ParserUtils
 %token <System.String> ID
 %token <System.String> STRING
 %token <System.Int32 * System.Int32> ARROW DARROW EQUAL
-%token COMMA LBRACKET RBRACKET DOT APOSTROPHE HASH COLON
+%token COMMA LBRACKET RBRACKET DOT APOSTROPHE HASH COLON NEWLINE BAR
 %token <int * int> FUNC TYPEFUNC OPEN INCLUDE DATA MODULE
 
 %token EOF
@@ -31,8 +31,13 @@ open ParserUtils
 // actions executed as rules are reduced. 
 start: program EOF { $1 }
 
-program: MODULE dottedPath includeOrOpenStmts declarations {
-  $2,$3,($4,[],[]) }
+newLineSeq:
+| NEWLINE newLineSeq {  }
+| NEWLINE {  }
+| EOF {  }
+
+program: MODULE dottedPath newLineSeq includeOrOpenStmts declarations {
+  $2,$4,($5,[],[]) }
 
 dottedPath:
 | ID DOT dottedPath { $1 + "." + $3 }
@@ -43,8 +48,8 @@ includeOrOpenStmts:
 | { [] }
 
 includeOrOpenStmt:
-| INCLUDE dottedPath { $2 }
-| OPEN dottedPath { $2 }
+| INCLUDE dottedPath newLineSeq { $2 }
+| OPEN dottedPath newLineSeq { $2 }
 
 declarations:
 | declaration declarations { 
@@ -53,10 +58,10 @@ declarations:
 | { [] }
 
 declaration:
-| FUNC typeOrNameDeclarations DARROW typeDeclaration {
+| FUNC typeOrNameDeclarations DARROW typeDeclaration newLineSeq {
     printfn "Function found"
     Func(processParsedArgs $2 $4 (fst $1) (snd $1)) }
-| DATA typeOrNameDeclarations DARROW typeDeclaration {
+| DATA typeOrNameDeclarations DARROW typeDeclaration newLineSeq {
     printfn "Data found"
     Data(processParsedArgs $2 $4 (fst $1) (snd $1)) }
 
