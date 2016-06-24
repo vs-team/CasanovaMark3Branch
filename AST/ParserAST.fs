@@ -141,7 +141,7 @@ with
     | Lambda(_) -> failwith "Anonymous functions not supported yet"
 
 
-and Call = List<CallArg> * List<Id>
+and Call = List<CallArg> * List<CallArg>
 and Conditional = List<CallArg> *  Predicate * List<CallArg>
 and Conclusion = 
 | ValueOutput of List<CallArg> * List<CallArg>

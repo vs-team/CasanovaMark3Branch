@@ -17,11 +17,11 @@ let main argv =
   try
 //    let testUtils = testRetAndArgs()
 //    printfn "%s" (testUtils.ToString())
-    let parsedAST = parseFile @"Content\Test\test1.mc"
+//    let parsedAST = parseFile @"Content\Test\test2.mc"
 //    printfn "%s" (parsedAST.ToString())
-//    let typedTest = checkProgram test1
-//    printfn "Type checking successful!"
-//    File.WriteAllText("TypeCheckerOutput.txt",sprintf "%A" typedTest)
+    let typedTest = checkProgram test1
+    printfn "Type checking successful!"
+    File.WriteAllText("TypeCheckerOutput.txt",sprintf "%A" typedTest)
     0
   with
   | TypeError(msg) -> 

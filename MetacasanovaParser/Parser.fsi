@@ -64,13 +64,13 @@ type nonTerminalId =
     | NONTERM_typeOrNameDeclaration
     | NONTERM_typeDeclaration
     | NONTERM_lambdaTypeDeclaration
-    | NONTERM_idSeq
-    | NONTERM_literal
     | NONTERM_arg
     | NONTERM_argSeq
+    | NONTERM_literal
     | NONTERM_functionCall
     | NONTERM_premises
     | NONTERM_conclusion
+    | NONTERM_fractionLine
     | NONTERM_rule
     | NONTERM_rules
 /// This function maps tokens to integer indexes
@@ -84,4 +84,4 @@ val prodIdxToNonTerminal: int -> nonTerminalId
 
 /// This function gets the name of a token as a string
 val token_to_string: token -> string
-val start : (Microsoft.FSharp.Text.Lexing.LexBuffer<'cty> -> token) -> Microsoft.FSharp.Text.Lexing.LexBuffer<'cty> -> ( ParserAST.Program ) 
+val start : (Microsoft.FSharp.Text.Lexing.LexBuffer<'cty> -> token) -> Microsoft.FSharp.Text.Lexing.LexBuffer<'cty> -> (ParserAST.CallArg list) 

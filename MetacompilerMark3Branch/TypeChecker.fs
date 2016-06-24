@@ -302,31 +302,33 @@ and checkNormalizedCall
 
 //We need to add the position to premise calls and conclusion calls
 and checkPremise (premise : Premise) (symbolTable : SymbolContext) (locals : LocalContext) =
+  let rec checkFunctionCallResult (result : CallArg list) (funcType : TypeDecl) =
+    match result with
+    | [r] -> 
+          let _,newLocals = checkSingleArg r symbolTable funcType locals true
+          newLocals  
+      | id :: ids ->
+          let normalizedData = normalizeDataOrFunctionCall symbolTable result
+//          let normIds = normalizedData |> List.map(fun x -> match x with
+//                                                            | Id(id,_) -> id
+//                                                            | _ -> failwith "Invalid premise result format")
+          match normalizedData.Head with
+          | Id(name,pos) ->           
+            let funcOpt = symbolTable.FuncTable |> Map.tryFind (name)
+            match funcOpt with
+            | Some _ -> raise(TypeError(sprintf "Type Error: It is not allowed to call a function in the return part of a premise at %s" (pos.ToString())))
+            | None ->
+                let dataType,newLocals = checkNormalizedCall normalizedData symbolTable locals true
+                do checkTypeEquivalence dataType funcType Position.Zero symbolTable
+                newLocals
+          | _ -> failwith "Something went wrong with the function normalizer: the first element is not an id"
+      | _ -> failwith "Something went wrong: the return argument of a premise is empty"
+  
   match premise with
   | FunctionCall(func,result) ->
       let normFunc = normalizeDataOrFunctionCall symbolTable func
       let funcType,_ = checkNormalizedCall normFunc symbolTable locals false
-      match result with
-      | [r] -> 
-          let localVarOpt = locals.Variables |> Map.tryFind(r)
-          match localVarOpt with
-          | Some (_,p) ->
-              raise(TypeError(sprintf "Type Error: the variable %s is already defined at %s" r.Name (p.ToString())))
-          | None ->
-              { locals with Variables = locals.Variables |> Map.add r (funcType,Position.Zero) }
-      | id :: ids ->
-          let normalizedData = normalizeDataOrFunctionCall symbolTable (result |> List.map(fun x -> Id(id,Position.Zero)))
-          let normIds = normalizedData |> List.map(fun x -> match x with
-                                                            | Id(id,_) -> id
-                                                            | _ -> failwith "Invalid premise result format")
-          let funcOpt = symbolTable.FuncTable |> Map.tryFind (normIds.Head)
-          match funcOpt with
-          | Some _ -> raise(TypeError(sprintf "Type Error: It is not allowed to call a function in the return part of a premise: %s" id.Name))
-          | None ->
-              let dataType,newLocals = checkNormalizedCall normalizedData symbolTable locals true
-              do checkTypeEquivalence dataType funcType Position.Zero symbolTable
-              newLocals
-      | _ -> failwith "Something went wrong: the return argument of a premise is empty"
+      checkFunctionCallResult result funcType
   | Conditional(conditional) -> failwith "Conditionals not implemented yet..."
 
 and checkRule (rule : RuleDefinition) (symbolTable : SymbolContext) =

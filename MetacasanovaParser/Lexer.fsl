@@ -5,6 +5,7 @@ module Lexer
 // Opens methods related to fslex.exe
 open Microsoft.FSharp.Text.Lexing
 open System
+open ParserUtils
 
 let lexeme lexbuf =
    LexBuffer<char>.LexemeString lexbuf
@@ -36,7 +37,7 @@ rule tokenstream = parse
 | ')' { Parser.RBRACKET }
 | '#' { Parser.HASH }
 | ':' { Parser.COLON }
-| "--" { Parser.BAR }
+| '-' { Parser.BAR }
 | "->" { Parser.ARROW (range lexbuf) }
 | "=>" { Parser.DARROW (range lexbuf) }
 | "=" { Parser.EQUAL (range lexbuf) }
@@ -45,11 +46,13 @@ rule tokenstream = parse
 | "Data" { Parser.DATA (range lexbuf) }
 | "module" { Parser.MODULE (range lexbuf) }
 | eof   	{ Parser.EOF }
-| _    		{ failwith ("ParseError" + LexBuffer<_>.LexemeString lexbuf) }
 
 // --------------------------
 | ['-']?digit+   { Parser.INT (Int32.Parse(LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }
 | ['-']?digit+('.'digit+)?(['e''E']digit+)?   { Parser.FLOAT (Double.Parse(LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }
 | idBody+   { printfn "Id found"; Parser.ID ((LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }
 | "\"" [^'"']* "\"" { printfn "string found"; let s = LexBuffer<_>.LexemeString lexbuf in Parser.STRING ((s.Trim [|'\"'|]),(range lexbuf)) }
+| _    		{
+  let pos = range lexbuf 
+  raise(ParseError(sprintf "Parse Error: unidentified token %A" (LexBuffer<_>.LexemeString lexbuf), fst pos, snd pos)) }
 

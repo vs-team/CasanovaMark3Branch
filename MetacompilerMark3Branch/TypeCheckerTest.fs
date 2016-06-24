@@ -75,7 +75,7 @@ let (test1 : Program) =
   let rule3 =
     let premises =
       [
-        FunctionCall([~~"f";~~"g";Literal(Common.Literal.String("Hello world!"),emptyPos)],[!!!"x"])
+        FunctionCall([~~"f";~~"g";Literal(Common.Literal.String("Hello world!"),emptyPos)],[~~"x"])
       ]
     let conclusion =
       ParserAST.ValueOutput([~~"test1";~~"g"],[~~"x"])
@@ -83,8 +83,8 @@ let (test1 : Program) =
   let rule4 =
     let premises =
       [
-        FunctionCall([~~"p";~~"x"],[!!!"r"])
-        FunctionCall([~~"test1";~~"r"],[!!!"r2"])
+        FunctionCall([~~"p";~~"x"],[~~"r"])
+        FunctionCall([~~"test1";~~"r"],[~~"r2"])
       ]
     let conclusion =
       ParserAST.ValueOutput([~~"test2";~~"x"],[~~"r2"])
@@ -135,8 +135,8 @@ let (tcTest : Program) =
   let evalPlus =
     let premises =
       [
-        FunctionCall([~~"eval";~~"a"],[!!!"x1"])
-        FunctionCall([~~"eval";~~"b"],[!!!"x2"])
+        FunctionCall([~~"eval";~~"a"],[~~"x1"])
+        FunctionCall([~~"eval";~~"b"],[~~"x2"])
       ]
     let (conclusion : Conclusion) =
       ParserAST.ValueOutput ([~~"eval";NestedExpression [~~"a";~~"+";~~"b"]],[~~"x2"])
