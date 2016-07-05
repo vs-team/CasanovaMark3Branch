@@ -51,8 +51,8 @@ rule tokenstream = parse
 // --------------------------
 | ['-']?digit+   { Parser.INT (Int32.Parse(LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }
 | ['-']?digit+('.'digit+)?(['e''E']digit+)?   { Parser.FLOAT (Double.Parse(LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }
-| idBody+   { printfn "Id found"; Parser.ID ((LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }
-| "\"" [^'"']* "\"" { printfn "string found"; let s = LexBuffer<_>.LexemeString lexbuf in Parser.STRING ((s.Trim [|'\"'|]),(range lexbuf)) }
+| "\"" [^'"']* "\"" { let s = LexBuffer<_>.LexemeString lexbuf in Parser.STRING ((s.Trim [|'\"'|]),(range lexbuf)) }
+| idBody+   { Parser.ID ((LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }
 | _    		{
   let pos = range lexbuf 
   raise(ParseError(sprintf "Parse Error: unidentified token %A" (LexBuffer<_>.LexemeString lexbuf), fst pos, snd pos)) }
