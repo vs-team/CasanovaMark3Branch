@@ -30,6 +30,7 @@ rule tokenstream = parse
 | newline	{ newline lexbuf; Parser.NEWLINE }
 | "open" { Parser.OPEN (range lexbuf) }
 | "include" { Parser.INCLUDE (range lexbuf) }
+| "is" { Parser.IS (range lexbuf) }
 | '\'' { Parser.APOSTROPHE }
 | ',' { Parser.COMMA }
 | '.' { Parser.DOT }

@@ -1,4 +1,8 @@
-﻿- Check the namespace when comparing types and if it is ambiguous notify it.
-- Write a parser utility function that fills in the namespace after the parsing is complete.
-- Implement syntax in the parser for type functions.
-- Implement conditionals in the premises.
+﻿PARSER:
+- Parse lambdas
+- Parse type functions
+- Parse conditionals
+
+TYPE CHECKER:
+- Check the namespace when comparing types and if it is ambiguous notify it.
+- Check premises in rules.

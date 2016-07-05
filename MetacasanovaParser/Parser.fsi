@@ -8,6 +8,7 @@ type token =
   | INCLUDE of (int * int)
   | DATA of (int * int)
   | MODULE of (int * int)
+  | IS of (int * int)
   | COMMA
   | LBRACKET
   | RBRACKET
@@ -32,6 +33,7 @@ type tokenId =
     | TOKEN_INCLUDE
     | TOKEN_DATA
     | TOKEN_MODULE
+    | TOKEN_IS
     | TOKEN_COMMA
     | TOKEN_LBRACKET
     | TOKEN_RBRACKET
@@ -73,6 +75,8 @@ type nonTerminalId =
     | NONTERM_fractionLine
     | NONTERM_rule
     | NONTERM_rules
+    | NONTERM_subtype
+    | NONTERM_subtypes
 /// This function maps tokens to integer indexes
 val tagOfToken: token -> int
 
@@ -84,4 +88,4 @@ val prodIdxToNonTerminal: int -> nonTerminalId
 
 /// This function gets the name of a token as a string
 val token_to_string: token -> string
-val start : (Microsoft.FSharp.Text.Lexing.LexBuffer<'cty> -> token) -> Microsoft.FSharp.Text.Lexing.LexBuffer<'cty> -> (ParserAST.CallArg list) 
+val start : (Microsoft.FSharp.Text.Lexing.LexBuffer<'cty> -> token) -> Microsoft.FSharp.Text.Lexing.LexBuffer<'cty> -> (ParserAST.Program) 

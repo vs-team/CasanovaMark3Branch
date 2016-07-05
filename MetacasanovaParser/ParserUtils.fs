@@ -74,3 +74,68 @@ let processParsedArgs (parsedArgs : TypeDeclOrName list) (retType : TypeDecl) (r
   let Some(name),args = checkDecl parsedArgs row column
   let argType = buildArgType args
   buildDeclarationRecord opOrder {Namespace =  ""; Name = name} argType retType (row, column)
+
+let insertNamespaceAndFileName (program : Program) (fileName : string) : Program =  
+  let nameSpace,imports,parsedProgram = program
+  let declarations,rules,subtypes = parsedProgram
+  let rec processTypeDecl (t : TypeDecl) =
+    match t with
+    | Arrow(left,right) -> Arrow(processTypeDecl left,processTypeDecl right)
+    | Generic(id) -> Generic({ id with Namespace = nameSpace })
+    | Arg(arg) -> Arg(processArg arg)
+    | Zero -> Zero
+
+  and processSymbolDecl (decl : SymbolDeclaration) =
+    {
+      decl with
+        Name = { decl.Name with Namespace = nameSpace }
+        FullType = processTypeDecl decl.FullType
+        Args = processTypeDecl decl.Args
+        Return = processTypeDecl decl.Return
+        Position = { decl.Position with File = fileName }
+        Premises = decl.Premises |> List.map processPremise
+    }
+  
+  and processArg =
+    fun arg ->
+      match arg with
+      | Literal(l,p) -> Literal(l, { p with File = fileName })
+      | Id(id,p) -> Id({ id with Namespace = nameSpace },{ p with File = fileName })
+      | NestedExpression(expr) -> NestedExpression(expr |> List.map processArg)
+      | _ -> failwith "Lambdas not parsed yet"
+  and processArgs left right =
+    let processedLeft = left |> List.map processArg
+    let processedRight = right |> List.map processArg
+    processedLeft,processedRight
+  and processPremise (p : Premise) =
+    match p with
+    | FunctionCall(left,right) ->                
+        FunctionCall(processArgs left right)
+    | Conditional(left,c,right) ->
+        let processedLeft,processedRight  = processArgs left right
+        Conditional(processedLeft,c,processedRight)
+  let processConclusion (c : Conclusion) =
+    match c with
+    | ValueOutput(left,right) -> ValueOutput(processArgs left right)
+    | _ -> failwith "Modules not supported yet"
+
+  let processedDeclarations =
+    declarations |> List.map (fun d -> 
+                                  match d with
+                                  | Data(decl) -> Data(processSymbolDecl decl)
+                                  | Func(decl) -> Func(processSymbolDecl decl)
+                                  | TypeFunc(decl) -> TypeFunc(processSymbolDecl decl)
+                                  | TypeAlias(decl) -> TypeAlias(processSymbolDecl decl))
+  let processedRules =
+    rules |> List.map(fun r ->
+                        match r with
+                        | Rule(premises,conclusion) -> Rule(premises |> List.map processPremise,processConclusion conclusion)
+                        | TypeRule(premises,conclusion) -> TypeRule(premises |> List.map processPremise,processConclusion conclusion))
+  let processedSubTypes =
+    subtypes |> List.map(fun (lt,rt) -> 
+                    match lt,rt with
+                    | Arg(leftArg),Arg(rightArg) -> Arg(processArg leftArg),Arg(processArg rightArg)
+                    | _ -> failwith "Something went wrong while parsing the subtypes")
+  
+  nameSpace,imports,(processedDeclarations,processedRules,processedSubTypes)
+        

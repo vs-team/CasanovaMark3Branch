@@ -10,18 +10,19 @@ let parseFile (fileName : string) =
   let inputChannel = new StreamReader(fileName)
   let lexbuf = LexBuffer<char>.FromTextReader inputChannel
   let parsedAST = Parser.start Lexer.tokenstream lexbuf
-  parsedAST
+  let processedAST = insertNamespaceAndFileName parsedAST fileName
+  processedAST
 
 [<EntryPoint>]
 let main argv =
   try
 //    let testUtils = testRetAndArgs()
 //    printfn "%s" (testUtils.ToString())
-//    let parsedAST = parseFile @"Content\Test\test2.mc"
+    let parsedAST = parseFile @"Content\Test\test1.mc"
 //    printfn "%s" (parsedAST.ToString())
-    let typedTest = checkProgram test1
-    printfn "Type checking successful!"
-    File.WriteAllText("TypeCheckerOutput.txt",sprintf "%A" typedTest)
+//    let typedTest = checkProgram test1
+//    printfn "Type checking successful!"
+//    File.WriteAllText("TypeCheckerOutput.txt",sprintf "%A" typedTest)
     0
   with
   | TypeError(msg) -> 

@@ -1,1 +1,5 @@
-﻿(f -5) x y
+﻿Car is Vehicle
+Bird is Animal
+Spider is Insect
+
+
