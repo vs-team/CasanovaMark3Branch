@@ -1,5 +1,7 @@
 ﻿module Common
 
+open System
+
 type Position = { File : string; Line : int; Col : int }
   with 
     member pos.NextLine = { pos with Line = pos.Line + 1; Col = 1 }
@@ -14,15 +16,14 @@ type Bracket = Curly | Round | Square | Lambda | Angle
 
 type Predicate = Less | LessEqual | Equal | GreaterEqual | Greater | NotEqual
 
-type genericId<'a>= {Namespace:string;Name:'a;}
+type Id = 
+  {
+    Namespace : string
+    Name : string;
+  }
 with
-  static member op_Equality (id1,id2) =
-    id1.Name = id2.Name
-  static member (==) (id,s : string) =
-    id.Name = s
   override this.ToString() =
     this.Namespace + "." + (this.Name.ToString())
-type Id       = genericId<string>
 
 type Literal = I64 of System.Int64
              | U64 of System.UInt64

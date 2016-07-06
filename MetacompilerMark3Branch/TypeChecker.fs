@@ -151,7 +151,7 @@ let checkSymbols (declarations : List<Declaration>) (symbolTable : SymbolContext
 
 
 let checkTypeWithErrorMsg t1 t2 p ctxt msg =
-  if t1 = t2 || (TypeDecl.SubtypeOf t1 t2 ctxt.Subtyping) then
+  if t1 === t2 || (TypeDecl.SubtypeOf t1 t2 ctxt.Subtyping) then
     ()
   else
     raise(TypeError(msg))

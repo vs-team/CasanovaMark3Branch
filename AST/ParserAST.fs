@@ -1,5 +1,6 @@
 ﻿module ParserAST
 
+open System
 open Common
 
 type Program = string * List<string> * ProgramDefinition
@@ -14,6 +15,7 @@ and Associativity =
 | Left
 | Right
 
+
 and TypeDecl =
 | Arrow of TypeDecl * TypeDecl
 | Generic of Id
@@ -25,7 +27,7 @@ and TypeDecl =
     | Generic(_)
     | Arg(_) -> 1
     | Zero -> 0
-  static member op_Equality(t1 : TypeDecl,t2 : TypeDecl) =
+  static member (===) (t1, t2) =
     match t1,t2 with
     | Arg(Id(id1,_)),Arg(Id(id2,_)) ->
         id1 = id2
@@ -33,11 +35,9 @@ and TypeDecl =
         if l1 <> l2 then
           false
         else
-          r1 = r2
+          r1 === r2
     | Zero, Zero -> true
     | _ -> false
-  static member op_Inequality (t1 : TypeDecl,t2 : TypeDecl) =
-    not (t1 = t2)
   static member SubtypeOf (t1 : TypeDecl) (t2 : TypeDecl) (subtypeDefinitions : Map<TypeDecl,List<TypeDecl>>) =
     match t1,t2 with
     | Arg(Id(id1,p1)),Arg(Id(id2,p2)) ->
