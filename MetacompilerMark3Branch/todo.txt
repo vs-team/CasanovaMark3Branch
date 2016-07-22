@@ -5,4 +5,3 @@
 
 TYPE CHECKER:
 - Check the namespace when comparing types and if it is ambiguous notify it.
-- Check premises in rules.
