@@ -16,14 +16,15 @@ and Associativity =
 | Right
 
 
+//nested is used to distinguish type definitions such as (int -> int) -> string from int -> (int -> string)
 and TypeDecl =
-| Arrow of TypeDecl * TypeDecl
+| Arrow of TypeDecl * TypeDecl * bool //left, right, nested
 | Generic of Id
 | Arg of CallArg
 | Zero
   member this.Length =
     match this with
-    | Arrow(left,right) -> 1 + right.Length
+    | Arrow(left,right,_) -> 1 + right.Length
     | Generic(_)
     | Arg(_) -> 1
     | Zero -> 0
@@ -31,7 +32,7 @@ and TypeDecl =
     match t1,t2 with
     | Arg(Id(id1,_)),Arg(Id(id2,_)) ->
         id1 = id2
-    | Arrow(l1,r1),Arrow(l2,r2) ->
+    | Arrow(l1,r1,_),Arrow(l2,r2,_) ->
         if l1 <> l2 then
           false
         else
@@ -50,7 +51,7 @@ and TypeDecl =
                                           tid = id2
                                       | _ -> failwith "Error in subtyping list format")
         | None -> false
-    | Arrow(l1,r1),Arrow(l2,r2) ->
+    | Arrow(l1,r1,_),Arrow(l2,r2,_) ->
         if (l1 <> l2 && TypeDecl.SubtypeOf l1 l2 subtypeDefinitions) |> not then
           false
         else
@@ -58,7 +59,7 @@ and TypeDecl =
     | _ -> false
   override this.ToString() =
     match this with
-    | Arrow(t1,t2) ->
+    | Arrow(t1,t2,_) ->
         "(" + t1.ToString() + "->" + t2.ToString() + ")"
     | Generic(id) ->
         "'" + id.Name
@@ -179,5 +180,5 @@ let emptyPos = { File = "empty"; Line = 0; Col = 0}
 let (!!) s = Arg(Id({ Namespace = ""; Name = s },emptyPos))
 let (~~) s = Id({Namespace = ""; Name = s},emptyPos)
 let (!!!) s = {Namespace = ""; Name = s}
-let (-->) t1 t2 = Arrow(t1,t2)
+let (-->) t1 t2 = Arrow(t1,t2,false)
 let (.|) ps c = Rule(ps,c)

@@ -564,7 +564,7 @@ let _fsyacc_reductions ()  =    [|
                 (
                    (
 # 81 "Parser.fsy"
-                                                                     Arrow(_1,_3) 
+                                                                     Arrow(_1,_3,true) 
                    )
 # 81 "Parser.fsy"
                  : 'lambdaTypeDeclaration));

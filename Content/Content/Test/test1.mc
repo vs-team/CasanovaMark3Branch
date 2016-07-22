@@ -1,10 +1,25 @@
 ﻿module TestModule
 
-Func "f" -> (int -> string) -> int -> int : string
-Func "sum" -> int -> int : int
-Func "g" -> int : string
+Func "f" -> (int -> int) -> string : string
+Func "g" -> int : int
+Func "p" -> int -> int : int
+Func "test2" -> int : string
+Func "test1" -> (int -> int) : string
 
-sum x y -> res
-g res -> s
-----------------
-f g x y -> s
+
+
+----------
+g x -> x
+
+------------
+f g s -> s
+
+
+f g "Hello world!" -> x
+------------------------
+test1 g -> x
+
+p x -> r
+test1 r -> r2
+---------------
+test2 x -> r2

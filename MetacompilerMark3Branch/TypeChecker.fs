@@ -94,10 +94,10 @@ let rec normalizeDataOrFunctionCall (_symbolTable : SymbolContext) (args : List<
 let rec checkType (_type : TypeDecl) (symbolTable : SymbolContext) : TypeDecl =
   match _type with
   | Zero -> _type
-  | Arrow(left,right) ->
+  | Arrow(left,right,n) ->
       let leftType = checkType left symbolTable
       let rightType = checkType right symbolTable
-      Arrow(leftType,rightType)
+      Arrow(leftType,rightType,n)
   | Arg(arg) ->
       match arg with
       | Id(arg,pos) ->
@@ -262,7 +262,7 @@ and checkNormalizedArgs
     typeDecl,ctxt
   | x :: xs ->
       match typeDecl with
-      | Arrow(left,right) ->
+      | Arrow(left,right,_) ->
           let t,newCtxt = checkSingleArg x symbolTable left ctxt buildLocals
           checkNormalizedArgs xs symbolTable right newCtxt buildLocals
       | Zero -> raise(TypeError("Type Error: the function expects no arguments"))

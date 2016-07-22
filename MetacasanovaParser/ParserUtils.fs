@@ -16,15 +16,18 @@ with
 
 let rec combineArgsAndRet args ret =
   match args with
-  | Arrow(left,right) -> 
+  | Arrow(left,right,nested) -> 
       match right with
       | Arg _
       | Generic _ ->
-          Arrow(left,Arrow(right,ret))
+          if nested then
+            Arrow(args,ret,false)
+          else
+            Arrow(left,Arrow(right,ret,false),false)
       | _ ->
-          Arrow(left,combineArgsAndRet right ret)
+          Arrow(left,combineArgsAndRet right ret,false)
   | Zero
-  | Arg _ -> Arrow(args,ret)
+  | Arg _ -> Arrow(args,ret,false)
   | _ -> failwith "Invalid arguments format in combineArgsAndRet"
 
 let opPos (parsedArgs : TypeDeclOrName list) : OpOrder =
@@ -80,7 +83,7 @@ let insertNamespaceAndFileName (program : Program) (fileName : string) : Program
   let declarations,rules,subtypes = parsedProgram
   let rec processTypeDecl (t : TypeDecl) =
     match t with
-    | Arrow(left,right) -> Arrow(processTypeDecl left,processTypeDecl right)
+    | Arrow(left,right,n) -> Arrow(processTypeDecl left,processTypeDecl right,n)
     | Generic(id) -> Generic({ id with Namespace = nameSpace })
     | Arg(arg) -> Arg(processArg arg)
     | Zero -> Zero
