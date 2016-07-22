@@ -1,9 +1,16 @@
 ﻿module TestModule
 
-Func "f" -> (int -> int) -> string : string
-Func "g" -> int : int
-Func "test1" -> (int -> int) : string
+Data "$" -> int : Value
+Func "g" -> int : Value
+Func "test1" -> (int -> int) -> int : Value
 
-f g "Hello world!" -> x
+
+---------
+g x -> ($ 0)
+
+--------
+g x -> ($ 1)
+
+g x -> res
 ------------------------
-test1 g -> x
+test1 g x -> res

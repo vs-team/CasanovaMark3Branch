@@ -25,7 +25,7 @@ let main argv =
 //    let m = m.Add(id2,1)
 //    let idOpt = m |> Map.tryFind(id1)
 //    printfn "%s" (testUtils.ToString())
-    let parsedAST = parseFile @"Content\Test\test1.mc"
+    let parsedAST = parseFile @"Content\Test\test2.mc"
 //    printfn "%s" (parsedAST.ToString())
     let typedTest = checkProgram parsedAST
     printfn "Type checking successful!"
