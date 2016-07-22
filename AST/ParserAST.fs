@@ -3,6 +3,22 @@
 open System
 open Common
 
+let systemNamespace = "__System"
+
+let builtInTypes =
+  [
+    "int64"
+    "int"
+    "unint64"
+    "uint32"
+    "string"
+    "double"
+    "float"
+    "string"
+    "bool"
+    "void"
+  ]
+
 type Program = string * List<string> * ProgramDefinition
 
 and ProgramDefinition = List<Declaration> * List<RuleDefinition> * List<TypeDecl*TypeDecl> //declarations, rules, subtyping mapping
@@ -136,7 +152,7 @@ with
   override this.ToString() =
     match this with
     | Literal(l,_) -> l.ToString()
-    | Id(id,_) -> id.Name
+    | Id(id,_) -> id.ToString()
     | NestedExpression(args) ->
         "(" + (args |> List.fold(fun s x -> s + x.ToString()) "") + ")"
     | Lambda(_) -> failwith "Anonymous functions not supported yet"
@@ -178,7 +194,7 @@ type SymbolContext =
 
 let emptyPos = { File = "empty"; Line = 0; Col = 0}
 let (!!) s = Arg(Id({ Namespace = ""; Name = s },emptyPos))
+let (!!!) s = Arg(Id({ Namespace = systemNamespace; Name = s },emptyPos))
 let (~~) s = Id({Namespace = ""; Name = s},emptyPos)
-let (!!!) s = {Namespace = ""; Name = s}
 let (-->) t1 t2 = Arrow(t1,t2,false)
 let (.|) ps c = Rule(ps,c)

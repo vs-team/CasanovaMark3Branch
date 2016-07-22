@@ -23,7 +23,7 @@ type Id =
   }
 with
   override this.ToString() =
-    this.Namespace + "." + (this.Name.ToString())
+    (if this.Namespace = "" then "" else this.Namespace) + "." + (this.Name.ToString())
 
 type Literal = I64 of System.Int64
              | U64 of System.UInt64

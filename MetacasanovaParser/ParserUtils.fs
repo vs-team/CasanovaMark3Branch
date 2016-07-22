@@ -103,7 +103,13 @@ let insertNamespaceAndFileName (program : Program) (fileName : string) : Program
     fun arg ->
       match arg with
       | Literal(l,p) -> Literal(l, { p with File = fileName })
-      | Id(id,p) -> Id({ id with Namespace = nameSpace },{ p with File = fileName })
+      | Id(id,p) -> 
+          let nativeOpt = builtInTypes |> List.tryFind (fun x -> x = id.Name)
+          match nativeOpt with
+          | Some native ->
+              Id({ id with Namespace = systemNamespace },{ p with File = fileName })
+          | None ->
+              Id({ id with Namespace = nameSpace },{ p with File = fileName })
       | NestedExpression(expr) -> NestedExpression(expr |> List.map processArg)
       | _ -> failwith "Lambdas not parsed yet"
   and processArgs left right =

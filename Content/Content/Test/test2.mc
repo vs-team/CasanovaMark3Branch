@@ -2,9 +2,8 @@
 
 
 Func "g" -> int : int
-Func "test1" -> (int -> int) -> int -> string : string
+Func "test1" -> (int -> int) : int
 
-
-g x -> res
+g 5 -> res
 ------------------------
-test1 g x s -> s
+test1 g -> res

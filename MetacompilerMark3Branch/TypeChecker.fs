@@ -37,21 +37,6 @@ and TypedRule =
   }
 
 
-//built-in types. Maybe they are not necessary in the end because they are defined in the prelude. Leave them for debugging.
-let builtInTypes =
-  [
-    "int64"
-    "int"
-    "unint64"
-    "uint32"
-    "string"
-    "double"
-    "float"
-    "string"
-    "bool"
-    "void"
-  ]
-
 //extract function name from a CallArg and rearrange the term in the form: functioName arg1 arg2 ... argn. The same form data constructors
 let rec normalizeDataOrFunctionCall (_symbolTable : SymbolContext) (args : List<ParserAST.CallArg>) : List<ParserAST.CallArg> =
   let normCall =
@@ -183,23 +168,23 @@ let checkTypeDecl t1 t2 p  ctxt locals =
 let checkLiteral (l : Literal) (typeDecl : TypeDecl) (p : Position) (ctxt : SymbolContext) (locals : LocalContext) : TypeDecl * LocalContext =
     match l with
     | I64(_) ->
-      !!"int64", checkTypeDecl !!"int64" typeDecl p ctxt locals
+      !!!"int64", checkTypeDecl !!!"int64" typeDecl p ctxt locals
     | I32(_) ->
-      !!"int", checkTypeDecl !!"int" typeDecl p ctxt locals
+      !!!"int", checkTypeDecl !!!"int" typeDecl p ctxt locals
     | U64(_) ->
-      !!"uint64", checkTypeDecl !!"uint64" typeDecl p ctxt locals
+      !!!"uint64", checkTypeDecl !!!"uint64" typeDecl p ctxt locals
     | U32(_) ->
-      !!"uint32", checkTypeDecl !!"uint32" typeDecl p ctxt locals
+      !!!"uint32", checkTypeDecl !!!"uint32" typeDecl p ctxt locals
     | F64(_) ->
-      !!"double", checkTypeDecl !!"double" typeDecl p ctxt locals
+      !!!"double", checkTypeDecl !!!"double" typeDecl p ctxt locals
     | F32(_) ->
-      !!"float", checkTypeDecl !!"float" typeDecl p ctxt locals
+      !!!"float", checkTypeDecl !!!"float" typeDecl p ctxt locals
     | String(_) ->
-      !!"string", checkTypeDecl !!"string" typeDecl p ctxt locals
+      !!!"string", checkTypeDecl !!!"string" typeDecl p ctxt locals
     | Bool(_) ->
-      !!"bool", checkTypeDecl !!"bool" typeDecl p ctxt locals
+      !!!"bool", checkTypeDecl !!!"bool" typeDecl p ctxt locals
     | Void ->
-      !!"void", checkTypeDecl !!"void" typeDecl p ctxt locals
+      !!!"void", checkTypeDecl !!!"void" typeDecl p ctxt locals
 
 
 let rec checkSingleArg
