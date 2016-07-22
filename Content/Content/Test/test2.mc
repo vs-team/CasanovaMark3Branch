@@ -1,9 +1,9 @@
 ﻿module TestModule
 
-
+Func "f" -> (int -> int) -> string : string
 Func "g" -> int : int
-Func "test1" -> (int -> int) : int
+Func "test1" -> (int -> int) : string
 
-g 5 -> res
+f g "Hello world!" -> x
 ------------------------
-test1 g -> res
+test1 g -> x

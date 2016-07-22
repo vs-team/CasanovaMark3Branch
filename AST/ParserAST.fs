@@ -44,12 +44,13 @@ and TypeDecl =
     | Generic(_)
     | Arg(_) -> 1
     | Zero -> 0
-  static member (===) (t1, t2) =
+  static member (=!=) (t1 : TypeDecl, t2 : TypeDecl) = not (t1 === t2)
+  static member (===) (t1 : TypeDecl, t2 : TypeDecl) =
     match t1,t2 with
     | Arg(Id(id1,_)),Arg(Id(id2,_)) ->
         id1 = id2
     | Arrow(l1,r1,_),Arrow(l2,r2,_) ->
-        if l1 <> l2 then
+        if l1 =!= l2 then
           false
         else
           r1 === r2
