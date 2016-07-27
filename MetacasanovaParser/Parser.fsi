@@ -9,6 +9,7 @@ type token =
   | DATA of (int * int)
   | MODULE of (int * int)
   | IS of (int * int)
+  | FUN of (int * int)
   | COMMA
   | LBRACKET
   | RBRACKET
@@ -18,6 +19,7 @@ type token =
   | COLON
   | NEWLINE
   | BAR
+  | BIND
   | ARROW of (System.Int32 * System.Int32)
   | DARROW of (System.Int32 * System.Int32)
   | EQUAL of (System.Int32 * System.Int32)
@@ -34,6 +36,7 @@ type tokenId =
     | TOKEN_DATA
     | TOKEN_MODULE
     | TOKEN_IS
+    | TOKEN_FUN
     | TOKEN_COMMA
     | TOKEN_LBRACKET
     | TOKEN_RBRACKET
@@ -43,6 +46,7 @@ type tokenId =
     | TOKEN_COLON
     | TOKEN_NEWLINE
     | TOKEN_BAR
+    | TOKEN_BIND
     | TOKEN_ARROW
     | TOKEN_DARROW
     | TOKEN_EQUAL

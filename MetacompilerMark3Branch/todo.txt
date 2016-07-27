@@ -5,3 +5,4 @@
 
 TYPE CHECKER:
 - Check the namespace when comparing types and if it is ambiguous notify it.
+- Invert the order of evaluation in the match in checkNormalizedCall in order to give highest priority to local functions

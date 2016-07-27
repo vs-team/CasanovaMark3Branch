@@ -15,8 +15,8 @@ open ParserUtils
 %token <System.String * (int * int)> ID
 %token <string * (int * int)> STRING
 %token <System.Int32 * System.Int32> ARROW DARROW EQUAL
-%token COMMA LBRACKET RBRACKET DOT APOSTROPHE HASH COLON NEWLINE BAR
-%token <int * int> FUNC TYPEFUNC OPEN INCLUDE DATA MODULE IS
+%token COMMA LBRACKET RBRACKET DOT APOSTROPHE HASH COLON NEWLINE BAR BIND
+%token <int * int> FUNC TYPEFUNC OPEN INCLUDE DATA MODULE IS FUN
 
 %token EOF
  
@@ -100,6 +100,7 @@ functionCall:
 
 premises:
 | functionCall premises { $1 :: $2 }
+| ID BIND arg premises { (Bind(fst $1,$3)) :: $4 }
 | { [] }
 
 conclusion:

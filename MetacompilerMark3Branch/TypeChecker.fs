@@ -38,7 +38,7 @@ and TypedRule =
 
 
 //extract function name from a CallArg and rearrange the term in the form: functioName arg1 arg2 ... argn. The same form data constructors
-let rec normalizeDataOrFunctionCall (_symbolTable : SymbolContext) (args : List<ParserAST.CallArg>) : List<ParserAST.CallArg> =
+let rec normalizeDataOrFunctionCall (_symbolTable : SymbolContext) (args : List<ParserAST.CallArg>) (locals : LocalContext) : List<ParserAST.CallArg> =
   let normCall =
     args |> 
     List.fold(fun (fArg,args) arg ->
@@ -46,24 +46,33 @@ let rec normalizeDataOrFunctionCall (_symbolTable : SymbolContext) (args : List<
                 | Literal _ ->
                     (fArg,arg :: args)
                 | Id(s,_) ->
-                    match fArg with
-                    | [] ->
-                        let funcOpt = _symbolTable.FuncTable |> Map.tryFindKey(fun name sym -> name.Name = s.Name)
-                        let dataOpt = _symbolTable.DataTable |> Map.tryFindKey(fun name sym -> name.Name = s.Name)
-                        match funcOpt with
-                        | None ->
-                            match dataOpt with
-                            | Some _ ->
-                                (arg :: fArg,args)
-                            | None ->
-                                (fArg,arg :: args)
-                        | Some _ ->
-                            (arg :: fArg,args)
-                    | _ ->
-                        (fArg,arg :: args)
-                | Lambda(_) -> failwith "Anonymous functions not supported yet"
-                | NestedExpression (nestedArgs) ->
-                    (fArg,(NestedExpression(normalizeDataOrFunctionCall _symbolTable nestedArgs)) :: args)) ([],[])
+                    let localFunctionOpt = locals.Variables |> Map.tryFind(s)
+                    match localFunctionOpt with
+                    | Some localFunction ->
+                        match fArg with
+                        | [] ->
+                          (arg :: fArg,args)
+                        | _ ->
+                          (fArg,arg :: args )
+                    | None ->
+                      match fArg with
+                      | [] ->
+                          let funcOpt = _symbolTable.FuncTable |> Map.tryFindKey(fun name sym -> name.Name = s.Name)
+                          let dataOpt = _symbolTable.DataTable |> Map.tryFindKey(fun name sym -> name.Name = s.Name)
+                          match funcOpt with
+                          | None ->
+                              match dataOpt with
+                              | Some _ ->
+                                  (arg :: fArg,args)
+                              | None ->
+                                  (fArg,arg :: args)
+                          | Some _ ->
+                              (arg :: fArg,args)
+                      | _ ->
+                          (fArg,arg :: args)
+                  | Lambda(_) -> failwith "Anonymous functions not supported yet"
+                  | NestedExpression (nestedArgs) ->
+                      (fArg,(NestedExpression(normalizeDataOrFunctionCall _symbolTable nestedArgs locals)) :: args)) ([],[])
   let argList = snd normCall |> List.rev
   let fArg = fst normCall
   match fArg with
@@ -259,7 +268,7 @@ and checkNormalizedCall
   (symbolTable : SymbolContext) 
   (ctxt : LocalContext)
   (buildLocals : bool) : TypeDecl * LocalContext =
-  
+
   let checkArgsWithCorrectCardinality args (decl : SymbolDeclaration) =
     if call.Length > decl.FullType.Length then
       raise(TypeError(sprintf "Type Error: too many arguments passed to %s" decl.Name.Name)) 
@@ -271,12 +280,33 @@ and checkNormalizedCall
       match arg with
       | Id(id,pos) ->
         let funcOpt = symbolTable.FuncTable |> Map.tryFind(id)
-        let dataOpt = symbolTable.DataTable |> Map.tryFind(id)            
+        let dataOpt = symbolTable.DataTable |> Map.tryFind(id)
+        let localOpt =
+          if not buildLocals then
+            ctxt.Variables |> Map.tryFind(id)
+          else
+            None
         match funcOpt with
         | None ->
             match dataOpt with
             | None ->
-                failwith "You are checking arguments that are not data constructors or functions with checkNormalizedCall"
+                match localOpt with
+                | Some local ->
+                    let localSym =
+                      {
+                        Name = id
+                        FullType = fst local
+                        Args = fst local
+                        Return = fst local
+                        Order = Prefix
+                        Priority  = 0
+                        Position = pos
+                        Associativity = Left
+                        Premises = []
+                      }
+                    checkArgsWithCorrectCardinality args localSym
+                | None ->
+                  failwith "You are checking arguments that are not data constructors or functions with checkNormalizedCall"
             | Some dSym ->
               checkArgsWithCorrectCardinality args dSym
         | Some fSym ->
@@ -293,7 +323,7 @@ and checkPremise (premise : Premise) (symbolTable : SymbolContext) (locals : Loc
           let _,newLocals = checkSingleArg r symbolTable funcType locals true
           newLocals  
       | id :: ids ->
-          let normalizedData = normalizeDataOrFunctionCall symbolTable result
+          let normalizedData = normalizeDataOrFunctionCall symbolTable result locals
 //          let normIds = normalizedData |> List.map(fun x -> match x with
 //                                                            | Id(id,_) -> id
 //                                                            | _ -> failwith "Invalid premise result format")
@@ -311,7 +341,7 @@ and checkPremise (premise : Premise) (symbolTable : SymbolContext) (locals : Loc
   
   match premise with
   | FunctionCall(func,result) ->
-      let normFunc = normalizeDataOrFunctionCall symbolTable func
+      let normFunc = normalizeDataOrFunctionCall symbolTable func locals
       let funcType,_ = checkNormalizedCall normFunc symbolTable locals false
       checkFunctionCallResult result funcType
   | Conditional(conditional) -> failwith "Conditionals not implemented yet..."
@@ -321,7 +351,7 @@ and checkRule (rule : RuleDefinition) (symbolTable : SymbolContext) =
   | Rule(premises,conclusion) ->
     match conclusion with
     | ValueOutput(call,result) ->
-        let normalizedCall = normalizeDataOrFunctionCall symbolTable call
+        let normalizedCall = normalizeDataOrFunctionCall symbolTable call LocalContext.Empty
         let callType,locals = checkNormalizedCall normalizedCall symbolTable LocalContext.Empty true
         let localsAfterPremises =
           premises |> List.fold(fun l p -> checkPremise p symbolTable l) locals
@@ -329,7 +359,7 @@ and checkRule (rule : RuleDefinition) (symbolTable : SymbolContext) =
         | [arg] ->
             checkSingleArg arg symbolTable callType localsAfterPremises false
         | x :: xs ->
-            let normalizedRes = normalizeDataOrFunctionCall symbolTable result
+            let normalizedRes = normalizeDataOrFunctionCall symbolTable result LocalContext.Empty
             checkNormalizedCall normalizedRes symbolTable localsAfterPremises false 
         | _ -> failwith "Why is the result of a conclusion empty?"          
     | ModuleOutput(_) ->

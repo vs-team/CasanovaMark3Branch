@@ -31,6 +31,7 @@ rule tokenstream = parse
 | "open" { Parser.OPEN (range lexbuf) }
 | "include" { Parser.INCLUDE (range lexbuf) }
 | "is" { Parser.IS (range lexbuf) }
+| "fun" { Parser.FUN (range lexbuf) }
 | '\'' { Parser.APOSTROPHE }
 | ',' { Parser.COMMA }
 | '.' { Parser.DOT }
@@ -38,6 +39,7 @@ rule tokenstream = parse
 | ')' { Parser.RBRACKET }
 | '#' { Parser.HASH }
 | ':' { Parser.COLON }
+| ":=" { Parser.BIND }
 | '-' { Parser.BAR }
 | "->" { Parser.ARROW (range lexbuf) }
 | "=>" { Parser.DARROW (range lexbuf) }

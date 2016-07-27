@@ -142,6 +142,7 @@ and RuleDefinition =
 
 and Premise =
 | FunctionCall of Call
+| Bind of string * CallArg
 | Conditional of Conditional
 
 and CallArg =
