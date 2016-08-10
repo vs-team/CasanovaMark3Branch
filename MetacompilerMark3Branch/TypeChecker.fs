@@ -19,6 +19,7 @@ type LocalContext =
 
 type TypedProgramDefinition =
   {
+    Module            : string
     Declarations      : List<Declaration>
     TypedRules        : List<TypedRuleDefinition>
     SymbolTable       : SymbolContext
@@ -286,33 +287,33 @@ and checkNormalizedCall
             ctxt.Variables |> Map.tryFind(id)
           else
             None
-        match funcOpt with
+        match localOpt with
+        | Some local ->
+            let localSym =
+              {
+                Name = id
+                FullType = fst local
+                Args = fst local
+                Return = fst local
+                Order = Prefix
+                Priority  = 0
+                Position = pos
+                Associativity = Left
+                Premises = []
+              }
+            checkArgsWithCorrectCardinality args localSym
         | None ->
-            match dataOpt with
-            | None ->
-                match localOpt with
-                | Some local ->
-                    let localSym =
-                      {
-                        Name = id
-                        FullType = fst local
-                        Args = fst local
-                        Return = fst local
-                        Order = Prefix
-                        Priority  = 0
-                        Position = pos
-                        Associativity = Left
-                        Premises = []
-                      }
-                    checkArgsWithCorrectCardinality args localSym
-                | None ->
+          match funcOpt with
+          | None ->
+              match dataOpt with
+              | None ->
                   failwith "You are checking arguments that are not data constructors or functions with checkNormalizedCall"
-            | Some dSym ->
-              checkArgsWithCorrectCardinality args dSym
-        | Some fSym ->
-            checkArgsWithCorrectCardinality args fSym
+              | Some dSym ->
+                checkArgsWithCorrectCardinality args dSym
+          | Some fSym ->
+              checkArgsWithCorrectCardinality args fSym
       | _ ->
-        failwith "Something went wrong when normalizing the function call in the typechecker. The first argument is not a function name"
+          failwith "Something went wrong when normalizing the function call in the typechecker. The first argument is not a function name"
   | [] -> failwith "Something went wrong with the call normalization: there are no arguments in the call"
 
 //We need to add the position to premise calls and conclusion calls
@@ -376,7 +377,7 @@ and buildSubTypes (subTypesDef : List<TypeDecl * TypeDecl>) : Map<TypeDecl,List<
                               | None ->
                                   sts |> Map.add t [alias]) Map.empty
 
-and checkProgramDefinition ((decls,rules,subtypes) : ProgramDefinition) : TypedProgramDefinition = 
+and checkProgramDefinition (_module : string) ((decls,rules,subtypes) : ProgramDefinition) : TypedProgramDefinition = 
   let symbolTable = buildSymbols decls Map.empty
   do checkSymbols decls symbolTable
   let symbolTable = { symbolTable with Subtyping = buildSubTypes subtypes }
@@ -389,6 +390,7 @@ and checkProgramDefinition ((decls,rules,subtypes) : ProgramDefinition) : TypedP
             yield TypedRule(typedRule)
         | TypeRule(r) -> failwith "Type rule not supported yet..."]
   {
+    Module = _module
     Declarations = decls
     TypedRules = typedRules
     SymbolTable = symbolTable
@@ -396,6 +398,6 @@ and checkProgramDefinition ((decls,rules,subtypes) : ProgramDefinition) : TypedP
 
 and checkProgram ((moduleName,imports,def) : Program) : TypedProgramDefinition =
   //missing support for imports
-  checkProgramDefinition def
+  checkProgramDefinition moduleName def
 
 

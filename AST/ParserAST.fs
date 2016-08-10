@@ -9,14 +9,13 @@ let builtInTypes =
   [
     "int64"
     "int"
-    "unint64"
+    "uint64"
     "uint32"
     "string"
     "double"
     "float"
-    "string"
     "bool"
-    "void"
+    "unit"
   ]
 
 type Program = string * List<string> * ProgramDefinition

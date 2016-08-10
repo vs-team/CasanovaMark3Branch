@@ -1,7 +1,7 @@
 ﻿module TestModule
 
 Func "f" -> (int -> int) -> string : string
-Func "g" -> int : int
+Func "g" -> int : string
 Func "p" -> int -> int : int
 Func "test2" -> int : string
 Func "test1" -> (int -> int) : string
@@ -9,7 +9,7 @@ Func "test1" -> (int -> int) : string
 
 
 ----------
-g x -> x
+g x -> "Metacompilers rule!"
 
 ------------
 f g s -> s

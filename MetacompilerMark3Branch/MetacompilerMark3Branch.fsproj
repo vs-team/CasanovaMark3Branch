@@ -57,8 +57,10 @@
   <Import Project="$(FSharpTargetsPath)" />
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="DefaultMappings.fs" />
     <Compile Include="TypeChecker.fs" />
     <Compile Include="TypeCheckerTest.fs" />
+    <Compile Include="CodeGenerationCsharp.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
     <Content Include="packages.config" />
