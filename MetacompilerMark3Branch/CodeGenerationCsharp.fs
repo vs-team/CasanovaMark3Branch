@@ -13,6 +13,7 @@ type CodeGenerationCtxt =
     ArgIndex          : int
     RuleIndex         : int
   }
+  static member Init(program : TypedProgramDefinition) = {Program = program; Code = ""; CurrentTabs = 0; ArgIndex = 0; RuleIndex = 0}
 
 let rec emitTabs tabs =
    if tabs = 0 then
@@ -41,33 +42,73 @@ let emitLocals (ctxt : CodeGenerationCtxt) (vars : Map<Id,TypeDecl * Position>) 
   Map.fold(fun code id (t,_) ->
                 code + (emitTabs ctxt.CurrentTabs) + "public " + (emitType t) + " " + (emitId id false) + ";\n") "" vars
 
-//let emitArg (ctxt : CodeGenerationCtxt) (arg : CallArg) (locals : LocalContext) =
-//  match arg with
-//  | Literal(l,_) -> (string l)
-//  | Id(id,_) -> 
-//  | NestedExpression _ -> "Nested Expression code generation not implemented yet"
-//  | CallArg.Lambda _-> "Lambda code generation not implemented yet"
-//
-//let emitArgs (ctxt : CodeGenerationCtxt) (args : CallArg list) (locals : LocalContext) =
-//  match args with
-//  | [Id(fName,_)] ->  
-//
-//let emitPremise (ctxt : CodeGenerationCtxt) (premise : Premise) (locals : LocalContext) =
-//  match premise with
-//  | FunctionCall(call,res) ->
-//      List.fold (fun newCtxt arg ->
-//                    { newCtxt
-//                        with
-//                          Code = newCtxt.Code + (emitArg ctxt arg locals)
-//                    }) ctxt call
-//  | Bind _ -> failwith "Bind code generation not implemented yet"
-//  | Conditional _ -> failwith "Conditional code generation not implemented yet"
+//let emitCheckCallStructure (ctxt : CodeGenerationCtxt) (args : CallArg list) =
+//  List.fold (fun newCtxt arg ->
+//              match arg with
+//              | Id _ ->
+//                  ctxt
+//              | Literal(l,_) ->
+//                  
+//                ) ctxt args
+
+let rec findArgType (index : int) (t : TypeDecl) =
+  match t with
+  | Arrow(t1,t2,_) ->
+      if index = 0 then t1 else (findArgType (index - 1) t2)
+  | _ ->
+      if index > 0 then failwith "Something went wrong with the type argument lookup" else t
+
+let emitNonVariableArgs (ctxt : CodeGenerationCtxt) (conclusion : Conclusion) =
+  match conclusion with
+  | ValueOutput(call,_) ->
+    match call with
+    | [fName] -> ""
+    | fName :: args ->
+      match fName with
+      | Id(id,_) ->
+        let argType = (ctxt.Program.SymbolTable.FuncTable |> Map.find id).Args
+        List.fold(fun code arg ->
+                let argIndex = args |> List.findIndex(fun x -> x = arg)
+                let tabs = emitTabs ctxt.CurrentTabs
+                let t = findArgType argIndex argType
+                match arg with
+                | Id _ -> code + ""
+                | Literal(l,_)->
+                    code + tabs + "public " + (emitType t) + " __arg" + (string argIndex) + ";\n"
+                | NestedExpression _ -> failwith "To be implemented"
+                | CallArg.Lambda _ -> failwith "To be implemented"
+                    ) "" args
+      | _ -> failwith "Function name is not an id???"
+    | _ -> failwith "No arguments in the left part of the conclusion????"
+  | ModuleOutput _ -> failwith "Modules not supported yet"
+
+let emitConclusion (ctxt : CodeGenerationCtxt) (conclusion : Conclusion) =
+  let tabs = emitTabs ctxt.CurrentTabs
+  match conclusion with
+  | ValueOutput(call,res) ->
+      match call with
+      | [arg] ->
+          { ctxt
+              with
+                Code = ctxt.Code +  tabs + "public void Run()\n{"(*+ emitConclusion ... *) + "\n}"
+          }
+      | fName :: args ->
+          { ctxt
+              with
+                Code = ctxt.Code + tabs + "public void Run()\n{"(* + emitCheckCallStructure ... *) + "\n}"
+          }
+  | ModuleOutput _ -> failwith "Module generation not supported yet"
 
 let emitRule (ctxt : CodeGenerationCtxt) (rule : TypedRule) =
   let tabs = emitTabs ctxt.CurrentTabs
   let locals = emitLocals { ctxt with CurrentTabs = ctxt.CurrentTabs + 1 } rule.Locals.Variables
+  let nonVarArgs =
+    match rule.Conclusion with
+    | ValueOutput(call,res) ->
+        emitNonVariableArgs { ctxt with CurrentTabs = ctxt.CurrentTabs + 1 } rule.Conclusion
+    | ModuleOutput _ -> failwith "Modules not supported yet"
   let returnArg =  emitReturnArg { ctxt with CurrentTabs = ctxt.CurrentTabs + 1 } rule.ReturnType
-  sprintf "%spublic class %s\n%s{\n%s%s%s}\n" tabs ("Rule" + (string ctxt.RuleIndex)) tabs locals returnArg tabs
+  sprintf "%spublic class %s\n%s{\n%s%s%s%s}\n" tabs ("Rule" + (string ctxt.RuleIndex)) tabs locals nonVarArgs returnArg tabs
 
 let emitRules (ctxt : CodeGenerationCtxt) : CodeGenerationCtxt =
   List.fold (fun newCtxt r -> 
@@ -82,7 +123,23 @@ let emitRules (ctxt : CodeGenerationCtxt) : CodeGenerationCtxt =
 let defaultHeader =
   "using System;\n"
 
+let emitDataStructures (ctxt : CodeGenerationCtxt) : string =
+  let dataTable = ctxt.Program.SymbolTable.DataTable
+  Map.fold(fun code data decl ->
+              let subtypes = ctxt.Program.SymbolTable.Subtyping
+              let tabs = emitTabs ctxt.CurrentTabs
+              let retName =
+                match decl.Return with
+                | Arg(Id(id,_)) -> id.Name
+                | _ -> failwith "The return argument of a Data structure should be an identifier..."
+              if subtypes |> Map.exists(fun _ ts -> ts |> List.exists(fun t -> t === decl.Return)) then
+                code + tabs + "public interface I" + retName + "{ }\n" //+ emitDataStructure ...
+              else
+                //PLACEHOLDER: emitDataStructure goes here
+                code + "") "" dataTable
+
 let emitProgram (program : TypedProgramDefinition) =
+  let startingCtxt = CodeGenerationCtxt.Init program
   sprintf
-    "%s\nnamespace %s\n {\n%s\n}"
-    defaultHeader (program.Module) ((emitRules {Program = program; Code = ""; CurrentTabs = 0; ArgIndex = 0; RuleIndex = 0}).Code)
+    "%s\nnamespace %s\n {\n%s%s\n}"
+    defaultHeader (program.Module) (emitDataStructures startingCtxt) ((emitRules startingCtxt).Code)

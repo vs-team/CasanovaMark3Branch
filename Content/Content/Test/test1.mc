@@ -1,5 +1,9 @@
 ﻿module TestModule
 
+Value is Expr
+
+Data "A" -> int : Value
+Data "B" -> string : Expr
 Func "f" -> (int -> int) -> string : string
 Func "g" -> int : string
 Func "p" -> int -> int : int
@@ -9,7 +13,7 @@ Func "test1" -> (int -> int) : string
 
 
 ----------
-g x -> "Metacompilers rule!"
+g 0 -> "Metacompilers rule!"
 
 ------------
 f g s -> s

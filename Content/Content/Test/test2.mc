@@ -4,6 +4,6 @@ Data "$" -> int : Value
 Func "test0" -> int : Value
 Func "test1" -> (int -> int) -> int : Value
 
-g x -> res
+g 0 -> res
 ------------------------
-test1 g x -> ($ res)
+test1 g 1 -> ($ res)
