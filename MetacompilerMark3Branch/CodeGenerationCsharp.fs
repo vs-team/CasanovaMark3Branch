@@ -42,15 +42,6 @@ let emitLocals (ctxt : CodeGenerationCtxt) (vars : Map<Id,TypeDecl * Position>) 
   Map.fold(fun code id (t,_) ->
                 code + (emitTabs ctxt.CurrentTabs) + "public " + (emitType t) + " " + (emitId id false) + ";\n") "" vars
 
-//let emitCheckCallStructure (ctxt : CodeGenerationCtxt) (args : CallArg list) =
-//  List.fold (fun newCtxt arg ->
-//              match arg with
-//              | Id _ ->
-//                  ctxt
-//              | Literal(l,_) ->
-//                  
-//                ) ctxt args
-
 let rec findArgType (index : int) (t : TypeDecl) =
   match t with
   | Arrow(t1,t2,_) ->
@@ -123,20 +114,60 @@ let emitRules (ctxt : CodeGenerationCtxt) : CodeGenerationCtxt =
 let defaultHeader =
   "using System;\n"
 
+let symbolUsedInSubtypes (decl : SymbolDeclaration) (subtypes : Map<TypeDecl,List<TypeDecl>>) =
+  subtypes |> Map.exists(fun _ ts -> ts |> List.exists(fun t -> t === decl.Return))
+
+let getTypeSimpleName (t : TypeDecl) =
+  match t with
+  | Arg(Id(id,_)) -> id.Name
+  | _ -> failwith "The return argument of a Data structure should be an identifier..."
+
+let getTypeInterface (t : TypeDecl) = "I" + (getTypeSimpleName t)
+
+let getReturnTypeSimpleName (decl : SymbolDeclaration) = getTypeSimpleName decl.Return
+
+let getDeclInterface (decl : SymbolDeclaration) =
+  "I" + (getReturnTypeSimpleName decl)
+
+let rec emitDataArgs (ctxt : CodeGenerationCtxt) (t : TypeDecl) (currentIndex : int) : string =
+  let tabs = emitTabs ctxt.CurrentTabs
+  match t with
+  | Arrow(t1,t2,false) ->
+      tabs + "public " + (emitType t1) + " __arg" + (string currentIndex) + ";\n" + (emitDataArgs ctxt t2 (currentIndex + 1))
+  | Arrow(t1,t2,true) ->
+      match t2 with
+      | Arg(_) -> tabs + "public " + (emitType t) + " __arg" + (string currentIndex) + ";\n"
+      | Arrow _ -> tabs + "public " + (emitType t1) + " __arg" + (string currentIndex) + ";\n" + (emitDataArgs ctxt t2 (currentIndex + 1))
+      | _ ->  failwith "Invalid type format in data declaration..."
+  | Arg(Id(_)) -> tabs + "public " + (emitType t) + " __arg" + (string currentIndex) + ";\n"
+  | _ -> failwith "Invalid type format in data declaration..."
+  
+
+let emitDataStructure (ctxt : CodeGenerationCtxt) (decl : SymbolDeclaration) : string =
+  let tabs = emitTabs ctxt.CurrentTabs
+  let subtypes = ctxt.Program.SymbolTable.Subtyping
+  let interfaces =
+    (if symbolUsedInSubtypes decl subtypes then getDeclInterface decl else "") +
+    (match subtypes |> Map.tryFindKey (fun t _ -> t === decl.Return) with
+     | Some _ ->
+        let types = subtypes.[subtypes |> Map.findKey (fun t _ -> t === decl.Return)]
+        types |> 
+        List.map(fun t -> getTypeInterface t) |>
+        List.reduce(fun t1 t2 ->
+                            t1 + "," + t2)
+     | None -> "")
+  "public class " + decl.Name.Name + (if interfaces <> "" then " : " + interfaces else "") + "\n" + tabs + "{\n" + (emitDataArgs {ctxt with CurrentTabs = ctxt.CurrentTabs + 1 } decl.Args 0) + tabs + "}\n"
+
 let emitDataStructures (ctxt : CodeGenerationCtxt) : string =
   let dataTable = ctxt.Program.SymbolTable.DataTable
   Map.fold(fun code data decl ->
               let subtypes = ctxt.Program.SymbolTable.Subtyping
               let tabs = emitTabs ctxt.CurrentTabs
-              let retName =
-                match decl.Return with
-                | Arg(Id(id,_)) -> id.Name
-                | _ -> failwith "The return argument of a Data structure should be an identifier..."
-              if subtypes |> Map.exists(fun _ ts -> ts |> List.exists(fun t -> t === decl.Return)) then
-                code + tabs + "public interface I" + retName + "{ }\n" //+ emitDataStructure ...
+              let retName = getReturnTypeSimpleName decl
+              if symbolUsedInSubtypes decl subtypes then
+                code + tabs + "public interface I" + retName + "{ }\n" + tabs + (emitDataStructure ctxt decl)
               else
-                //PLACEHOLDER: emitDataStructure goes here
-                code + "") "" dataTable
+                code + tabs + (emitDataStructure ctxt decl)) "" dataTable
 
 let emitProgram (program : TypedProgramDefinition) =
   let startingCtxt = CodeGenerationCtxt.Init program

@@ -3,7 +3,7 @@
 Value is Expr
 
 Data "A" -> int : Value
-Data "B" -> string : Expr
+Data "B" -> (string -> string) -> int : Expr
 Func "f" -> (int -> int) -> string : string
 Func "g" -> int : string
 Func "p" -> int -> int : int
