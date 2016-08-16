@@ -5,6 +5,10 @@ open TypeChecker
 open Common
 open DefaultMappings
 
+let resultInterface = "__MetaCnvResult"
+let resultValue = "__MetaCnvValue"
+let resultError = "__MetaCnvError"
+
 type CodeGenerationCtxt =
   {
     Program           : TypedProgramDefinition
@@ -52,7 +56,7 @@ let emitId (id : Id) (useNameSpace : bool) =
   if useNameSpace then id.ToString() else id.Name
 
 let emitReturnArg (ctxt : CodeGenerationCtxt) (retType : TypeDecl) =
-  (emitTabs ctxt.CurrentTabs) + "public " + "Result<" + 
+  (emitTabs ctxt.CurrentTabs) + "public " +  resultInterface + "<" + 
   (emitType retType) +
   ">" + " __res" + ";\n"
 
@@ -151,9 +155,9 @@ let defaultHeader =
 
 let defaultClasses =
   "//-- BEGIN COMPILER-GENERATED CODE --\n\n
-   public interface __CnvResult<T> {  }\n
-   public class __CnvValue<T> : __CnvResult<T> { public T Value; }\n
-   public class __CnvError<T> : __CnvResult<T> { public string Message; }\n
+   public interface " +  resultInterface  + "<T> {  }\n
+   public class " + resultValue + "<T> : " + resultInterface + "<T> { public T Value; }\n
+   public class " + resultError + "<T> : " + resultInterface + "<T> { public string Message; }\n
    //-- END OF COMPILER-GENERATED CODE --\n\n"
 
 let rec emitDataArgs (ctxt : CodeGenerationCtxt) (t : TypeDecl) (currentIndex : int) : string =

@@ -58,7 +58,11 @@ and TypeDecl =
   static member SubtypeOf (t1 : TypeDecl) (t2 : TypeDecl) (subtypeDefinitions : Map<TypeDecl,List<TypeDecl>>) =
     match t1,t2 with
     | Arg(Id(id1,p1)),Arg(Id(id2,p2)) ->
-        let subtypesOpt = subtypeDefinitions.TryFind t1
+        let subtypesOpt = 
+          let tOpt = subtypeDefinitions |> Map.tryFindKey(fun t _ -> t === t1)
+          match tOpt with
+          | Some k -> Some subtypeDefinitions.[k]
+          | _ -> None
         match subtypesOpt with
         | Some subtypes ->
             subtypes |> List.exists(fun t -> 
