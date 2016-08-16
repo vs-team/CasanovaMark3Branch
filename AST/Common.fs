@@ -25,12 +25,26 @@ with
   override this.ToString() =
     (if this.Namespace = "" then "" else this.Namespace) + "." + (this.Name.ToString())
 
-type Literal = I64 of System.Int64
-             | U64 of System.UInt64
-             | I32 of System.Int32
-             | U32 of System.Int32
-             | F64 of System.Double
-             | F32 of System.Single
-             | String of System.String
-             | Bool of System.Boolean
-             | Void
+type Literal = 
+  | I64 of System.Int64
+  | U64 of System.UInt64
+  | I32 of System.Int32
+  | U32 of System.Int32
+  | F64 of System.Double
+  | F32 of System.Single
+  | String of System.String
+  | Bool of System.Boolean
+  | Void
+  with
+    override this.ToString() =
+      match this with
+      | I64 x -> string x
+      | U64 x -> string x
+      | I32 x -> string x
+      | U32 x -> string x
+      | F64 x -> string x
+      | F32 x -> string x
+      | String x -> x
+      | Bool x -> string x
+      | Void -> "()"
+

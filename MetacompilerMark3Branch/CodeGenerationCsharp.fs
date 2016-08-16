@@ -7,17 +7,25 @@ open DefaultMappings
 
 let resultInterface = "__MetaCnvResult"
 let resultValue = "__MetaCnvValue"
-let resultError = "__MetaCnvError"
+let resultNone = "__MetaCnvNone"
 
 type CodeGenerationCtxt =
   {
-    Program           : TypedProgramDefinition
-    Code              : string
-    CurrentTabs       : int
-    ArgIndex          : int
-    RuleIndex         : int
+    Program                   : TypedProgramDefinition
+    Code                      : string
+    CurrentTabs               : int
+    ArgIndex                  : int
+    RuleIndex                 : int
+    CurrentRuleRetType        : TypeDecl
   }
-  static member Init(program : TypedProgramDefinition) = {Program = program; Code = ""; CurrentTabs = 0; ArgIndex = 0; RuleIndex = 0}
+  static member Init(program : TypedProgramDefinition) = 
+    {
+      Program = program; Code = ""
+      CurrentTabs = 0
+      ArgIndex = 0
+      RuleIndex = 0
+      CurrentRuleRetType = Zero
+    }
 
 let symbolUsedInSubtypes (decl : SymbolDeclaration) (subtypes : Map<TypeDecl,List<TypeDecl>>) =
   subtypes |> Map.exists(fun _ ts -> ts |> List.exists(fun t -> t === decl.Return))
@@ -101,7 +109,16 @@ let rec emitStructuralCheck (ctxt : CodeGenerationCtxt) (args : CallArg list) =
               let tabs = emitTabs ctxt.CurrentTabs
               match arg with
               | Literal(l,_) ->
-                  code + (sprintf "%sif (_arg%d != %s) \n{%s return; \n%s}" tabs index (l.ToString()) (emitTabs (ctxt.CurrentTabs + 1)) tabs),index + 1
+                  code + 
+                   (sprintf "\n%sif (_arg%d != %s)\n%s{\n%s __res = new %s<%s>();\n%sreturn;\n%s}" 
+                   tabs 
+                   index 
+                   (l.ToString()) 
+                   tabs 
+                   (emitTabs (ctxt.CurrentTabs + 1))
+                   resultNone
+                   (emitType ctxt.CurrentRuleRetType) 
+                   (emitTabs (ctxt.CurrentTabs + 1)) tabs),index + 1
               | NestedExpression nestedArgs ->
 //                  code +
 //                  sprintf "%sif (!()) ",index + 1
@@ -110,7 +127,7 @@ let rec emitStructuralCheck (ctxt : CodeGenerationCtxt) (args : CallArg list) =
               | Id _
               | CallArg.Lambda _ -> code,(index + 1)) ("",0)
 
-let emitConclusion (ctxt : CodeGenerationCtxt) (conclusion : Conclusion) =
+let emitConclusionCheck (ctxt : CodeGenerationCtxt) (conclusion : Conclusion) =
   let tabs = emitTabs ctxt.CurrentTabs
   match conclusion with
   | ValueOutput(call,res) ->
@@ -119,13 +136,13 @@ let emitConclusion (ctxt : CodeGenerationCtxt) (conclusion : Conclusion) =
           { ctxt
               with
                 //TODO: emit of the premises inside Run
-                Code = ctxt.Code +  tabs + "public void Run()\n{" + "\n}"
+                Code = ctxt.Code +  tabs + "public void Run()\n" + tabs + "{" + "\n" + tabs + "}\n"
           }
       | fName :: args ->
           { ctxt
               with
                 //TODO: emit the code to check the structural equality if there are Data constructor arguments or literal and the code for premises inside Run
-                Code = ctxt.Code + tabs + "public void Run()\n{" + (fst (emitStructuralCheck ctxt args)) + "\n}"
+                Code = ctxt.Code + tabs + "public void Run()\n" + tabs + "{" + (fst (emitStructuralCheck {ctxt with CurrentTabs = ctxt.CurrentTabs + 1 } args)) + "\n" + tabs + "}\n"
           }
   | ModuleOutput _ -> failwith "Module generation not supported yet"
 
@@ -138,15 +155,17 @@ let emitRule (ctxt : CodeGenerationCtxt) (rule : TypedRule) =
         emitNonVariableArgs { ctxt with CurrentTabs = ctxt.CurrentTabs + 1 } rule.Conclusion
     | ModuleOutput _ -> failwith "Modules not supported yet"
   let returnArg =  emitReturnArg { ctxt with CurrentTabs = ctxt.CurrentTabs + 1 } rule.ReturnType
-  sprintf "%spublic class %s\n%s{\n%s%s%s%s}\n" tabs ("Rule" + (string ctxt.RuleIndex)) tabs locals nonVarArgs returnArg tabs
+  let check = (emitConclusionCheck { ctxt with CurrentTabs = ctxt.CurrentTabs + 1 } rule.Conclusion).Code
+  sprintf "%spublic class %s\n%s{\n%s%s%s%s%s}\n" tabs ("Rule" + (string ctxt.RuleIndex)) tabs locals nonVarArgs returnArg check tabs
 
 let emitRules (ctxt : CodeGenerationCtxt) : CodeGenerationCtxt =
   List.fold (fun newCtxt r -> 
                 match r with
                 | TypedRule tr ->
                     { newCtxt with 
-                        Code = newCtxt.Code + (emitRule newCtxt tr)
+                        Code = newCtxt.Code + (emitRule { newCtxt with CurrentRuleRetType = tr.ReturnType } tr)
                         RuleIndex = newCtxt.RuleIndex + 1
+                        CurrentRuleRetType = tr.ReturnType
                     }
                 | TypedTypeRule _ -> newCtxt) ctxt ctxt.Program.TypedRules
 
@@ -157,7 +176,7 @@ let defaultClasses =
   "//-- BEGIN COMPILER-GENERATED CODE --\n\n
    public interface " +  resultInterface  + "<T> {  }\n
    public class " + resultValue + "<T> : " + resultInterface + "<T> { public T Value; }\n
-   public class " + resultError + "<T> : " + resultInterface + "<T> { public string Message; }\n
+   public class " + resultNone + "<T> : " + resultInterface + "<T> { public string Message; }\n
    //-- END OF COMPILER-GENERATED CODE --\n\n"
 
 let rec emitDataArgs (ctxt : CodeGenerationCtxt) (t : TypeDecl) (currentIndex : int) : string =
