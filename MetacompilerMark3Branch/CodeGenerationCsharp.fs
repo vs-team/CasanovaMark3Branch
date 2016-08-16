@@ -176,7 +176,7 @@ let defaultClasses =
   "//-- BEGIN COMPILER-GENERATED CODE --\n\n
    public interface " +  resultInterface  + "<T> {  }\n
    public class " + resultValue + "<T> : " + resultInterface + "<T> { public T Value; }\n
-   public class " + resultNone + "<T> : " + resultInterface + "<T> { public string Message; }\n
+   public class " + resultNone + "<T> : " + resultInterface + "<T>  { }\n
    //-- END OF COMPILER-GENERATED CODE --\n\n"
 
 let rec emitDataArgs (ctxt : CodeGenerationCtxt) (t : TypeDecl) (currentIndex : int) : string =
