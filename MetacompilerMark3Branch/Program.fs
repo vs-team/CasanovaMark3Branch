@@ -26,7 +26,7 @@ let main argv =
 //    let m = m.Add(id2,1) 
 //    let idOpt = m |> Map.tryFind(id1)
 //    printfn "%s" (testUtils.ToString())
-    let fileName = @"Content\Test\test1.mc"
+    let fileName = @"Content\Test\test2.mc"
     let outputFileName = @"Content\Test\codeGeneration.cs"
     let parsedAST = parseFile fileName
 //    printfn "%s" (parsedAST.ToString())

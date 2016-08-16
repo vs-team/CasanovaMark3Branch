@@ -22,3 +22,17 @@ let typeMappingsCsharp =
     !!!"bool", "bool"
     !!!"unit", "__unit"
   ] |> Map.ofList
+
+let operatorRenaming =
+  [
+    '$', "__opDollar"
+    '%', "__opMod"
+  ] |> Map.ofList
+
+let renameOperator (name : string) =
+  name.ToCharArray() |> 
+  Array.fold(fun symbol c ->
+                let replacement = operatorRenaming |> Map.tryFind c
+                match replacement with
+                | Some name -> symbol + name
+                | None -> symbol + c.ToString()) ""
