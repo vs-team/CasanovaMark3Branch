@@ -94,25 +94,40 @@ let emitNonVariableArgs (ctxt : CodeGenerationCtxt) (conclusion : Conclusion) =
                 let t = findArgType argIndex argType
                 match arg with
                 | Id _ -> code + ""
-                | Literal(l,_)->
-                    code + tabs + "public " + (emitType t) + " __arg" + (string argIndex) + ";\n"
-                | NestedExpression _ -> failwith "To be implemented"
+                | Literal _
+                | NestedExpression _ ->
+                    code + tabs + "public " + (emitType t) + " __arg" + (string argIndex) + ";\n"            
                 | CallArg.Lambda _ -> failwith "To be implemented"
                     ) "" args
       | _ -> failwith "Function name is not an id???"
     | _ -> failwith "No arguments in the left part of the conclusion????"
   | ModuleOutput _ -> failwith "Modules not supported yet"
 
-let rec emitStructuralCheck (ctxt : CodeGenerationCtxt) (args : CallArg list) =
+
+let emitReflectionStructuralCheck (ctxt : CodeGenerationCtxt) (dataSymbol : SymbolDeclaration) (index : int) (superArgName : string) =
+  let tabs = emitTabs ctxt.CurrentTabs
+  (sprintf "\n%sif (!(%s is %s)) \n%s{\n%s _res = new %s<%s>();\n%sreturn;\n%s}" 
+    tabs 
+    superArgName
+    (renameOperator dataSymbol.Name.Name )
+    tabs
+    (emitTabs (ctxt.CurrentTabs + 1))
+    resultNone
+    (emitType ctxt.CurrentRuleRetType)
+    (emitTabs (ctxt.CurrentTabs + 1))
+    tabs)
+
+let rec emitStructuralCheck (ctxt : CodeGenerationCtxt) (args : CallArg list) (superArgName : string) =
   args |>
   List.fold(fun (code,index) arg ->
               let tabs = emitTabs ctxt.CurrentTabs
+              let composedArg = superArgName + (if superArgName <> "" then "." else "") + "__arg" + (string index)
               match arg with
               | Literal(l,_) ->
                   code + 
-                   (sprintf "\n%sif (_arg%d != %s)\n%s{\n%s __res = new %s<%s>();\n%sreturn;\n%s}" 
+                   (sprintf "\n%sif (%s != %s)\n%s{\n%s __res = new %s<%s>();\n%sreturn;\n%s}" 
                    tabs 
-                   index 
+                   composedArg
                    (l.ToString()) 
                    tabs 
                    (emitTabs (ctxt.CurrentTabs + 1))
@@ -120,11 +135,18 @@ let rec emitStructuralCheck (ctxt : CodeGenerationCtxt) (args : CallArg list) =
                    (emitType ctxt.CurrentRuleRetType) 
                    (emitTabs (ctxt.CurrentTabs + 1)) tabs),index + 1
               | NestedExpression nestedArgs ->
-//                  code +
-//                  sprintf "%sif (!()) ",index + 1
-                    (code,index + 1)
-//                  fst (emitStructuralCheck { ctxt with CurrentTabs = ctxt.CurrentTabs + 1 } nestedArgs),index + 1
-              | Id _
+                  let dataName = nestedArgs.Head
+                  let arguments = nestedArgs.Tail
+                  match dataName with
+                  | Id(id,_) ->
+                    let dataSymbol = ctxt.Program.SymbolTable.DataTable.[id]
+                    code + (emitReflectionStructuralCheck ctxt dataSymbol index composedArg) + (fst (emitStructuralCheck ctxt nestedArgs composedArg)), index + 1
+                  | _ -> failwith "Data name is not an id???"
+              //if you have a constructor with zero arguments it is an id, so remember to put here the code to check if the structure is correct if the id is a data constructor.
+              | Id(id,_) ->
+                  match ctxt.Program.SymbolTable.DataTable |> Map.tryFind id with
+                  | Some symbol -> code + (emitReflectionStructuralCheck ctxt symbol index composedArg),(index + 1)
+                  | None -> code,(index + 1)
               | CallArg.Lambda _ -> code,(index + 1)) ("",0)
 
 let emitConclusionCheck (ctxt : CodeGenerationCtxt) (conclusion : Conclusion) =
@@ -142,7 +164,7 @@ let emitConclusionCheck (ctxt : CodeGenerationCtxt) (conclusion : Conclusion) =
           { ctxt
               with
                 //TODO: emit the code to check the structural equality if there are Data constructor arguments or literal and the code for premises inside Run
-                Code = ctxt.Code + tabs + "public void Run()\n" + tabs + "{" + (fst (emitStructuralCheck {ctxt with CurrentTabs = ctxt.CurrentTabs + 1 } args)) + "\n" + tabs + "}\n"
+                Code = ctxt.Code + tabs + "public void Run()\n" + tabs + "{" + (fst (emitStructuralCheck {ctxt with CurrentTabs = ctxt.CurrentTabs + 1 } args "")) + "\n" + tabs + "}\n"
           }
   | ModuleOutput _ -> failwith "Module generation not supported yet"
 
