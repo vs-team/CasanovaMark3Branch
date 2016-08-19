@@ -39,7 +39,8 @@ type CodeGenerationCtxt =
         TempIndex = newIndex
         GeneratedTemps = this.CurrentTempCode :: this.GeneratedTemps |> List.rev 
     }
-  member this.TempDottedPath = if this.GeneratedTemps.Length = 0 then "" else this.GeneratedTemps |> List.reduce(fun temp1 temp2 -> temp1 + "." + temp2)
+//  member this.TempDottedPath = if this.GeneratedTemps.Length = 0 then "" else this.LastTempCode//this.GeneratedTemps |> List.reduce(fun temp1 temp2 -> temp1 + "." + temp2)
+  member this.ResetArgs = { this with ArgIndex = 0 }
 
 let symbolUsedInSubtypes (decl : SymbolDeclaration) (subtypes : Map<TypeDecl,List<TypeDecl>>) =
   subtypes |> Map.exists(fun _ ts -> ts |> List.exists(fun t -> t === decl.Return))
@@ -118,7 +119,7 @@ let emitNonVariableArgs (ctxt : CodeGenerationCtxt) (conclusion : Conclusion) =
   | ModuleOutput _ -> failwith "Modules not supported yet"
 
 let composeArgPath (ctxt : CodeGenerationCtxt) (argIndex : int) =
- ctxt.TempDottedPath + (if ctxt.TempDottedPath = "" then "" else ".") + "__arg" + (string argIndex)
+  (if ctxt.GeneratedTemps.Length = 0 then "" else ctxt.LastTempCode + ".") + "__arg" + (string argIndex)
 
 
 let emitReflectionStructuralCheck (ctxt : CodeGenerationCtxt) (dataSymbol : SymbolDeclaration) (index : int) =
@@ -166,7 +167,7 @@ let rec emitStructuralCheck (ctxt : CodeGenerationCtxt) (args : CallArg list) =
                   | Id(id,_) ->
                     let dataSymbol = newCtxt.Program.SymbolTable.DataTable.[id]
                     let checkCode,updatedCtxt = emitReflectionStructuralCheck newCtxt dataSymbol index
-                    let structCode,_,nestedCtxt = emitStructuralCheck updatedCtxt nestedArgs
+                    let structCode,_,nestedCtxt = emitStructuralCheck updatedCtxt arguments
                     code + checkCode + structCode,index + 1,{ updatedCtxt with TempIndex = nestedCtxt.TempIndex; GeneratedTemps = nestedCtxt.GeneratedTemps }
                   | _ -> failwith "Data name is not an id???"
               //if you have a constructor with zero arguments it is an id, so remember to put here the code to check if the structure is correct if the id is a data constructor.
