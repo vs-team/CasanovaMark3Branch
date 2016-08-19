@@ -58,8 +58,8 @@ let rec normalizeDataOrFunctionCall (_symbolTable : SymbolContext) (args : List<
                     | None ->
                       match fArg with
                       | [] ->
-                          let funcOpt = _symbolTable.FuncTable |> Map.tryFindKey(fun name sym -> name.Name = s.Name)
-                          let dataOpt = _symbolTable.DataTable |> Map.tryFindKey(fun name sym -> name.Name = s.Name)
+                          let funcOpt = _symbolTable.FuncTable |> Map.tryFindKey(fun name sym -> name = s)
+                          let dataOpt = _symbolTable.DataTable |> Map.tryFindKey(fun name sym -> name = s)
                           match funcOpt with
                           | None ->
                               match dataOpt with
