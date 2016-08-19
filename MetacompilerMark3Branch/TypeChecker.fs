@@ -273,6 +273,8 @@ and checkNormalizedCall
   let checkArgsWithCorrectCardinality args (decl : SymbolDeclaration) =
     if call.Length > decl.FullType.Length then
       raise(TypeError(sprintf "Type Error: too many arguments passed to %s" decl.Name.Name)) 
+    elif call.Length = 1 then
+      decl.Return,ctxt
     else
       checkNormalizedArgs args symbolTable decl.FullType ctxt buildLocals
 

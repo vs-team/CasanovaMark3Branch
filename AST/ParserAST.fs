@@ -84,7 +84,7 @@ and TypeDecl =
     | Generic(id) ->
         "'" + id.Name
     | Arg(arg) -> arg.ToString()
-    | Zero -> "()"
+    | Zero -> "zero"
 
 and Declaration =
 | Data of SymbolDeclaration
