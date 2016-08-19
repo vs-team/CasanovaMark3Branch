@@ -191,13 +191,43 @@ let emitConclusionCheck (ctxt : CodeGenerationCtxt) (conclusion : Conclusion) =
                 Code = ctxt.Code +  tabs + "public void Run()\n" + tabs + "{" + "\n" + tabs + "}\n"
           }
       | fName :: args ->
-          let checkCode,_,_ = emitStructuralCheck {ctxt with CurrentTabs = ctxt.CurrentTabs + 1 } args
+          let checkCode,_,updatedCtxt = emitStructuralCheck {ctxt with CurrentTabs = ctxt.CurrentTabs + 1 } args
           { ctxt
               with
                 //TODO: emit the code to check the structural equality if there are Data constructor arguments or literal and the code for premises inside Run
                 Code = ctxt.Code + tabs + "public void Run()\n" + tabs + "{" + checkCode + "\n" + tabs + "}\n"
+                TempIndex = updatedCtxt.TempIndex
+                GeneratedTemps = updatedCtxt.GeneratedTemps
           }
+      | _ -> failwith "Call is empty?!!"
   | ModuleOutput _ -> failwith "Module generation not supported yet"
+
+let emitCallArgumentsCopy (ctxt : CodeGenerationCtxt) (args : CallArg list) (rules : TypedRuleDefinition list) =
+  ctxt
+  
+// When implementing lambdas, here you should check if the argument is among the local variables and if it is a lambda. If that is the case then just call the lambda.
+let emitFunctionCall (ctxt : CodeGenerationCtxt) (functionCall : CallArg list * CallArg list) =
+  let call,ret = functionCall
+  let matchingRules = ctxt.Program.TypedRules |> 
+                      List.filter(fun ruleDef ->
+                                    match ruleDef with
+                                    | TypedRule(tr) -> 
+                                        match tr.Conclusion with
+                                        | ValueOutput(c,_) ->
+                                            match call.Head,c.Head with
+                                            | Id(id1,_),Id(id2,_) -> id1.Name = id2.Name
+                                            | _ -> failwith "The first argument is not an id??!!"
+                                        | ModuleOutput _ -> failwith "Module generation not supported yet"
+                                    | TypedTypeRule(tr) -> failwith "Type Rules not supported yet")
+  call |> List.fold(fun newCtxt c -> emitCallArgumentsCopy newCtxt call matchingRules) ctxt
+
+let emitPremises (ctxt : CodeGenerationCtxt) (premises : Premise list) =
+  premises |>
+  List.fold (fun newCtxt p ->
+                match p with
+                | FunctionCall(args,res) -> emitFunctionCall ctxt (args,res)
+                | Bind _
+                | Conditional _ -> failwith "Not implemented yet...") ctxt
 
 let emitRule (ctxt : CodeGenerationCtxt) (rule : TypedRule) =
   let tabs = emitTabs ctxt.CurrentTabs
@@ -208,7 +238,9 @@ let emitRule (ctxt : CodeGenerationCtxt) (rule : TypedRule) =
         emitNonVariableArgs { ctxt with CurrentTabs = ctxt.CurrentTabs + 1 } rule.Conclusion
     | ModuleOutput _ -> failwith "Modules not supported yet"
   let returnArg =  emitReturnArg { ctxt with CurrentTabs = ctxt.CurrentTabs + 1 } rule.ReturnType
-  let check = (emitConclusionCheck { ctxt with CurrentTabs = ctxt.CurrentTabs + 1 } rule.Conclusion).Code
+  let conclusionCtxt = emitConclusionCheck { ctxt with CurrentTabs = ctxt.CurrentTabs + 1 } rule.Conclusion
+  let premiseCtxt = emitPremises conclusionCtxt rule.Premises
+  let check = conclusionCtxt.Code
   sprintf "%spublic class %s\n%s{\n%s%s%s%s%s}\n" tabs ("Rule" + (string ctxt.RuleIndex)) tabs locals nonVarArgs returnArg check tabs
 
 let emitRules (ctxt : CodeGenerationCtxt) : CodeGenerationCtxt =
