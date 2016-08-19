@@ -16,6 +16,8 @@ type CodeGenerationCtxt =
     CurrentTabs               : int
     ArgIndex                  : int
     RuleIndex                 : int
+    TempIndex                 : int
+    GeneratedTemps            : string list
     CurrentRuleRetType        : TypeDecl
   }
   static member Init(program : TypedProgramDefinition) = 
@@ -24,8 +26,20 @@ type CodeGenerationCtxt =
       CurrentTabs = 0
       ArgIndex = 0
       RuleIndex = 0
+      TempIndex = 0
+      GeneratedTemps = []
       CurrentRuleRetType = Zero
     }
+  member private this.TempName index = "__tmp" + (string index)
+  member this.LastTempCode = if (this.TempIndex -  1) < 0 then "" else (this.TempName (this.TempIndex - 1))
+  member this.CurrentTempCode = this.TempName this.TempIndex
+  member this.AddTemp =
+    let newIndex = this.TempIndex + 1 
+    { this with 
+        TempIndex = newIndex
+        GeneratedTemps = this.CurrentTempCode :: this.GeneratedTemps |> List.rev 
+    }
+  member this.TempDottedPath = if this.GeneratedTemps.Length = 0 then "" else this.GeneratedTemps |> List.reduce(fun temp1 temp2 -> temp1 + "." + temp2)
 
 let symbolUsedInSubtypes (decl : SymbolDeclaration) (subtypes : Map<TypeDecl,List<TypeDecl>>) =
   subtypes |> Map.exists(fun _ ts -> ts |> List.exists(fun t -> t === decl.Return))
@@ -103,25 +117,36 @@ let emitNonVariableArgs (ctxt : CodeGenerationCtxt) (conclusion : Conclusion) =
     | _ -> failwith "No arguments in the left part of the conclusion????"
   | ModuleOutput _ -> failwith "Modules not supported yet"
 
+let composeArgPath (ctxt : CodeGenerationCtxt) (argIndex : int) =
+ ctxt.TempDottedPath + (if ctxt.TempDottedPath = "" then "" else ".") + "__arg" + (string argIndex)
 
-let emitReflectionStructuralCheck (ctxt : CodeGenerationCtxt) (dataSymbol : SymbolDeclaration) (index : int) (superArgName : string) =
+
+let emitReflectionStructuralCheck (ctxt : CodeGenerationCtxt) (dataSymbol : SymbolDeclaration) (index : int) =
   let tabs = emitTabs ctxt.CurrentTabs
-  (sprintf "\n%sif (!(%s is %s)) \n%s{\n%s _res = new %s<%s>();\n%sreturn;\n%s}" 
+  let fullName = composeArgPath ctxt index
+  let opName = renameOperator dataSymbol.Name.Name
+  let updatedCtxt = ctxt.AddTemp
+  (sprintf "\n%sif (!(%s is %s)) \n%s{\n%s _res = new %s<%s>();\n%sreturn;\n%s}\n%s%s %s = (%s)%s;" 
     tabs 
-    superArgName
+    fullName
     (renameOperator dataSymbol.Name.Name )
     tabs
     (emitTabs (ctxt.CurrentTabs + 1))
     resultNone
     (emitType ctxt.CurrentRuleRetType)
     (emitTabs (ctxt.CurrentTabs + 1))
-    tabs)
+    tabs
+    tabs
+    opName
+    ctxt.CurrentTempCode
+    opName
+    fullName),updatedCtxt
 
-let rec emitStructuralCheck (ctxt : CodeGenerationCtxt) (args : CallArg list) (superArgName : string) =
+let rec emitStructuralCheck (ctxt : CodeGenerationCtxt) (args : CallArg list) =
   args |>
-  List.fold(fun (code,index) arg ->
-              let tabs = emitTabs ctxt.CurrentTabs
-              let composedArg = superArgName + (if superArgName <> "" then "." else "") + "__arg" + (string index)
+  List.fold(fun (code,index,newCtxt) arg ->
+              let tabs = emitTabs newCtxt.CurrentTabs
+              let composedArg = composeArgPath ctxt index
               match arg with
               | Literal(l,_) ->
                   code + 
@@ -130,24 +155,28 @@ let rec emitStructuralCheck (ctxt : CodeGenerationCtxt) (args : CallArg list) (s
                    composedArg
                    (l.ToString()) 
                    tabs 
-                   (emitTabs (ctxt.CurrentTabs + 1))
+                   (emitTabs (newCtxt.CurrentTabs + 1))
                    resultNone
-                   (emitType ctxt.CurrentRuleRetType) 
-                   (emitTabs (ctxt.CurrentTabs + 1)) tabs),index + 1
+                   (emitType newCtxt.CurrentRuleRetType) 
+                   (emitTabs (newCtxt.CurrentTabs + 1)) tabs),index + 1,newCtxt
               | NestedExpression nestedArgs ->
                   let dataName = nestedArgs.Head
                   let arguments = nestedArgs.Tail
                   match dataName with
                   | Id(id,_) ->
-                    let dataSymbol = ctxt.Program.SymbolTable.DataTable.[id]
-                    code + (emitReflectionStructuralCheck ctxt dataSymbol index composedArg) + (fst (emitStructuralCheck ctxt nestedArgs composedArg)), index + 1
+                    let dataSymbol = newCtxt.Program.SymbolTable.DataTable.[id]
+                    let checkCode,updatedCtxt = emitReflectionStructuralCheck newCtxt dataSymbol index
+                    let structCode,_,nestedCtxt = emitStructuralCheck updatedCtxt nestedArgs
+                    code + checkCode + structCode,index + 1,{ updatedCtxt with TempIndex = nestedCtxt.TempIndex; GeneratedTemps = nestedCtxt.GeneratedTemps }
                   | _ -> failwith "Data name is not an id???"
               //if you have a constructor with zero arguments it is an id, so remember to put here the code to check if the structure is correct if the id is a data constructor.
               | Id(id,_) ->
-                  match ctxt.Program.SymbolTable.DataTable |> Map.tryFind id with
-                  | Some symbol -> code + (emitReflectionStructuralCheck ctxt symbol index composedArg),(index + 1)
-                  | None -> code,(index + 1)
-              | CallArg.Lambda _ -> code,(index + 1)) ("",0)
+                  match newCtxt.Program.SymbolTable.DataTable |> Map.tryFind id with
+                  | Some symbol when symbol.Args = Zero ->
+                      let checkCode,updatedCtxt = emitReflectionStructuralCheck newCtxt symbol index
+                      code + checkCode,(index + 1),updatedCtxt
+                  | _ -> code,(index + 1),newCtxt
+              | CallArg.Lambda _ -> code,(index + 1),newCtxt) ("",0,ctxt)
 
 let emitConclusionCheck (ctxt : CodeGenerationCtxt) (conclusion : Conclusion) =
   let tabs = emitTabs ctxt.CurrentTabs
@@ -161,10 +190,11 @@ let emitConclusionCheck (ctxt : CodeGenerationCtxt) (conclusion : Conclusion) =
                 Code = ctxt.Code +  tabs + "public void Run()\n" + tabs + "{" + "\n" + tabs + "}\n"
           }
       | fName :: args ->
+          let checkCode,_,_ = emitStructuralCheck {ctxt with CurrentTabs = ctxt.CurrentTabs + 1 } args
           { ctxt
               with
                 //TODO: emit the code to check the structural equality if there are Data constructor arguments or literal and the code for premises inside Run
-                Code = ctxt.Code + tabs + "public void Run()\n" + tabs + "{" + (fst (emitStructuralCheck {ctxt with CurrentTabs = ctxt.CurrentTabs + 1 } args "")) + "\n" + tabs + "}\n"
+                Code = ctxt.Code + tabs + "public void Run()\n" + tabs + "{" + checkCode + "\n" + tabs + "}\n"
           }
   | ModuleOutput _ -> failwith "Module generation not supported yet"
 
@@ -187,6 +217,8 @@ let emitRules (ctxt : CodeGenerationCtxt) : CodeGenerationCtxt =
                     { newCtxt with 
                         Code = newCtxt.Code + (emitRule { newCtxt with CurrentRuleRetType = tr.ReturnType } tr)
                         RuleIndex = newCtxt.RuleIndex + 1
+                        ArgIndex = 0
+                        TempIndex = 0
                         CurrentRuleRetType = tr.ReturnType
                     }
                 | TypedTypeRule _ -> newCtxt) ctxt ctxt.Program.TypedRules
