@@ -245,6 +245,7 @@ let rec emitDataArgs (ctxt : CodeGenerationCtxt) (t : TypeDecl) (currentIndex : 
       | Arrow _ -> tabs + "public " + (emitType t1) + " __arg" + (string currentIndex) + ";\n" + (emitDataArgs ctxt t2 (currentIndex + 1))
       | _ ->  failwith "Invalid type format in data declaration..."
   | Arg(Id(_)) -> tabs + "public " + (emitType t) + " __arg" + (string currentIndex) + ";\n"
+  | Zero -> ""
   | _ -> failwith "Invalid type format in data declaration..."
   
 

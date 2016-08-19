@@ -27,6 +27,18 @@ let operatorRenaming =
   [
     '$', "__opDollar"
     '%', "__opMod"
+    '#', "__opSharp"
+    '@', "__opAt"
+    '^', "__opCaret"
+    '*', "__opStar"
+    '?', "__opQuestionMark"
+    '<', "__opLess"
+    '>', "__opGreater"
+    '=', "__opEqual"
+    '+', "__opPlus"
+    '-', "__opMinus"
+    '.', "__opDot"
+    '/', "_opDivision"
   ] |> Map.ofList
 
 let renameOperator (name : string) =
