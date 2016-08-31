@@ -5,9 +5,9 @@ open TypeChecker
 open Common
 open DefaultMappings
 
-let resultInterface = "__MetaCnvResult"
-let resultValue = "__MetaCnvValue"
-let resultNone = "__MetaCnvNone"
+let resultStruct = "__MetaCnvResult"
+let resultValue tabs typeSymbol valueSymbol = sprintf "%s__res = new %s<%s>();\n%s__res.Value = %s;\n__res.HasValue = true;" tabs resultStruct typeSymbol tabs valueSymbol
+let resultNone tabs typeSymbol =  sprintf "%s__res = new %s<%s>();\n%s__res.Value = default(%s); __res.HasValue = false;" tabs resultStruct typeSymbol tabs typeSymbol
 
 type CodeGenerationCtxt =
   {
@@ -81,7 +81,7 @@ let emitId (id : Id) (useNameSpace : bool) =
   if useNameSpace then id.ToString() else id.Name
 
 let emitReturnArg (ctxt : CodeGenerationCtxt) (retType : TypeDecl) =
-  (emitTabs ctxt.CurrentTabs) + "public " +  resultInterface + "<" + 
+  (emitTabs ctxt.CurrentTabs) + "public " +  resultStruct + "<" + 
   (emitType retType) +
   ">" + " __res" + ";\n"
 
@@ -129,14 +129,12 @@ let emitReflectionStructuralCheck (ctxt : CodeGenerationCtxt) (dataSymbol : Symb
   let fullName = composeArgPath ctxt index
   let opName = renameOperator dataSymbol.Name.Name
   let updatedCtxt = ctxt.AddTemp
-  (sprintf "\n%sif (!(%s is %s)) \n%s{\n%s __res = new %s<%s>();\n%sreturn;\n%s}\n%s%s %s = (%s)%s;" 
+  (sprintf "\n%sif (!(%s is %s)) \n%s{\n%s\n%sreturn;\n%s}\n%s%s %s = (%s)%s;" 
     tabs 
     fullName
     (renameOperator dataSymbol.Name.Name )
     tabs
-    (emitTabs (ctxt.CurrentTabs + 1))
-    resultNone
-    (emitType ctxt.CurrentRuleRetType)
+    (resultNone (emitTabs (ctxt.CurrentTabs + 1)) ((emitType ctxt.CurrentRuleRetType)))
     (emitTabs (ctxt.CurrentTabs + 1))
     tabs
     tabs
@@ -153,14 +151,12 @@ let rec emitStructuralCheck (ctxt : CodeGenerationCtxt) (args : CallArg list) =
               match arg with
               | Literal(l,_) ->
                   code + 
-                   (sprintf "\n%sif (%s != %s)\n%s{\n%s __res = new %s<%s>();\n%sreturn;\n%s}" 
+                   (sprintf "\n%sif (%s != %s)\n%s{\n%s\n%sreturn;\n%s}" 
                    tabs 
                    composedArg
                    (l.ToString()) 
                    tabs 
-                   (emitTabs (newCtxt.CurrentTabs + 1))
-                   resultNone
-                   (emitType newCtxt.CurrentRuleRetType) 
+                   (resultNone (emitTabs (newCtxt.CurrentTabs + 1)) (emitType newCtxt.CurrentRuleRetType))
                    (emitTabs (newCtxt.CurrentTabs + 1)) tabs),index + 1,newCtxt
               | NestedExpression nestedArgs ->
                   let dataName = nestedArgs.Head
@@ -263,9 +259,7 @@ let defaultHeader =
 
 let defaultClasses =
   "//-- BEGIN COMPILER-GENERATED CODE --\n\n
-   public interface " +  resultInterface  + "<T> {  }\n
-   public class " + resultValue + "<T> : " + resultInterface + "<T> { public T Value; }\n
-   public class " + resultNone + "<T> : " + resultInterface + "<T>  { }\n
+   public struct " +  resultStruct  + "<T> { public T Value; public bool HasValue;  }\n
    //-- END OF COMPILER-GENERATED CODE --\n\n"
 
 let rec emitDataArgs (ctxt : CodeGenerationCtxt) (t : TypeDecl) (currentIndex : int) : string =
@@ -305,12 +299,12 @@ let emitDataStructures (ctxt : CodeGenerationCtxt) : CodeGenerationCtxt =
   let dataTable = ctxt.Program.SymbolTable.DataTable
   Map.fold(fun newCtxt data decl ->
               let retName = getReturnTypeSimpleName decl
+              let tabs = emitTabs ctxt.CurrentTabs
               match newCtxt.GeneratedInterfaces |> List.tryFind(fun x -> retName = x) with
               | Some _ ->
-                  newCtxt
+                  { newCtxt with Code = newCtxt.Code + tabs + (emitDataStructure newCtxt decl) }
               | None ->
                 let subtypes = ctxt.Program.SymbolTable.Subtyping
-                let tabs = emitTabs ctxt.CurrentTabs
                 { newCtxt with 
                     Code = newCtxt.Code + tabs + "public interface " + retName + "{ }\n" + tabs + emitDataStructure newCtxt decl
                     GeneratedInterfaces = retName :: newCtxt.GeneratedInterfaces }) ctxt dataTable
