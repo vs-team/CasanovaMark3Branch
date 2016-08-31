@@ -10,6 +10,10 @@ Func "test1" -> Value : Value
 Func "h" -> int : Expr
 Func "k" -> Value : int
 
+
+-----------
+h 0 -> $ 1
+
 h 0 -> $ a
 k ($ a) -> res
 ------------------------

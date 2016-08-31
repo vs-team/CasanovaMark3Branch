@@ -6,8 +6,8 @@ open Common
 open DefaultMappings
 
 let resultStruct = "__MetaCnvResult"
-let resultValue tabs typeSymbol valueSymbol = sprintf "%s__res = new %s<%s>();\n%s__res.Value = %s;\n__res.HasValue = true;" tabs resultStruct typeSymbol tabs valueSymbol
-let resultNone tabs typeSymbol =  sprintf "%s__res = new %s<%s>();\n%s__res.Value = default(%s); __res.HasValue = false;" tabs resultStruct typeSymbol tabs typeSymbol
+let resultValue tabs typeSymbol valueSymbol = sprintf "%s__res = new %s<%s>();\n%s__res.Value = %s;\n%s__res.HasValue = true;" tabs resultStruct typeSymbol tabs valueSymbol tabs
+let resultNone tabs typeSymbol =  sprintf "%s__res = new %s<%s>();\n%s__res.Value = default(%s);\n%s __res.HasValue = false;" tabs resultStruct typeSymbol tabs typeSymbol tabs
 
 type CodeGenerationCtxt =
   {
@@ -236,10 +236,10 @@ let emitRule (ctxt : CodeGenerationCtxt) (rule : TypedRule) =
         emitNonVariableArgs { ctxt with CurrentTabs = ctxt.CurrentTabs + 1 } rule.Conclusion
     | ModuleOutput _ -> failwith "Modules not supported yet"
   let returnArg =  emitReturnArg { ctxt with CurrentTabs = ctxt.CurrentTabs + 1 } rule.ReturnType
-  let conclusionCtxt = emitConclusionCheck { ctxt with CurrentTabs = ctxt.CurrentTabs + 1 } rule.Conclusion
+  let conclusionCtxt = emitConclusionCheck { ctxt with CurrentTabs = ctxt.CurrentTabs + 1; Code = "" } rule.Conclusion
   let premiseCtxt = emitPremises conclusionCtxt rule.Premises
-  let check = conclusionCtxt.Code
-  sprintf "%spublic class %s\n%s{\n%s%s%s%s%s}\n" tabs ("Rule" + (string ctxt.RuleIndex)) tabs locals nonVarArgs returnArg check tabs
+  let runFunction = conclusionCtxt.Code
+  sprintf "%spublic class %s\n%s{\n%s%s%s%s%s}\n" tabs ("Rule" + (string ctxt.RuleIndex)) tabs locals nonVarArgs returnArg runFunction tabs
 
 let emitRules (ctxt : CodeGenerationCtxt) : CodeGenerationCtxt =
   List.fold (fun newCtxt r -> 
