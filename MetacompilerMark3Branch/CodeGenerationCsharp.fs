@@ -18,6 +18,7 @@ type CodeGenerationCtxt =
     RuleIndex                 : int
     TempIndex                 : int
     GeneratedTemps            : string list
+    GeneratedInterfaces       : string list
     CurrentRuleRetType        : TypeDecl
   }
   static member Init(program : TypedProgramDefinition) = 
@@ -28,6 +29,7 @@ type CodeGenerationCtxt =
       RuleIndex = 0
       TempIndex = 0
       GeneratedTemps = []
+      GeneratedInterfaces = []
       CurrentRuleRetType = Zero
     }
   member private this.TempName index = "__tmp" + (string index)
@@ -127,7 +129,7 @@ let emitReflectionStructuralCheck (ctxt : CodeGenerationCtxt) (dataSymbol : Symb
   let fullName = composeArgPath ctxt index
   let opName = renameOperator dataSymbol.Name.Name
   let updatedCtxt = ctxt.AddTemp
-  (sprintf "\n%sif (!(%s is %s)) \n%s{\n%s _res = new %s<%s>();\n%sreturn;\n%s}\n%s%s %s = (%s)%s;" 
+  (sprintf "\n%sif (!(%s is %s)) \n%s{\n%s __res = new %s<%s>();\n%sreturn;\n%s}\n%s%s %s = (%s)%s;" 
     tabs 
     fullName
     (renameOperator dataSymbol.Name.Name )
@@ -299,16 +301,22 @@ let emitDataStructure (ctxt : CodeGenerationCtxt) (decl : SymbolDeclaration) : s
      | None -> "")
   "public class " + (renameOperator decl.Name.Name) + (if interfaces <> "" then " : " + interfaces else "") + "\n" + tabs + "{\n" + (emitDataArgs {ctxt with CurrentTabs = ctxt.CurrentTabs + 1 } decl.Args 0) + tabs + "}\n"
 
-let emitDataStructures (ctxt : CodeGenerationCtxt) : string =
+let emitDataStructures (ctxt : CodeGenerationCtxt) : CodeGenerationCtxt =
   let dataTable = ctxt.Program.SymbolTable.DataTable
-  Map.fold(fun code data decl ->
-              let subtypes = ctxt.Program.SymbolTable.Subtyping
-              let tabs = emitTabs ctxt.CurrentTabs
+  Map.fold(fun newCtxt data decl ->
               let retName = getReturnTypeSimpleName decl
-              code + tabs + "public interface " + retName + "{ }\n" + tabs + emitDataStructure ctxt decl) "" dataTable
+              match newCtxt.GeneratedInterfaces |> List.tryFind(fun x -> retName = x) with
+              | Some _ ->
+                  newCtxt
+              | None ->
+                let subtypes = ctxt.Program.SymbolTable.Subtyping
+                let tabs = emitTabs ctxt.CurrentTabs
+                { newCtxt with 
+                    Code = newCtxt.Code + tabs + "public interface " + retName + "{ }\n" + tabs + emitDataStructure newCtxt decl
+                    GeneratedInterfaces = retName :: newCtxt.GeneratedInterfaces }) ctxt dataTable
 
 let emitProgram (program : TypedProgramDefinition) =
   let startingCtxt = CodeGenerationCtxt.Init program
   sprintf
     "%s\nnamespace %s\n {\n%s%s%s\n}"
-    defaultHeader (program.Module) defaultClasses (emitDataStructures startingCtxt) ((emitRules startingCtxt).Code)
+    defaultHeader (program.Module) defaultClasses (emitDataStructures startingCtxt).Code ((emitRules startingCtxt).Code)
