@@ -200,14 +200,54 @@ let emitConclusionCheck (ctxt : CodeGenerationCtxt) (conclusion : Conclusion) =
       | _ -> failwith "Call is empty?!!"
   | ModuleOutput _ -> failwith "Module generation not supported yet"
 
-let emitCallArgumentsCopy (ctxt : CodeGenerationCtxt) (args : CallArg list) (rules : TypedRuleDefinition list) =
-  ctxt
+let emitRuleCall (ctxt : CodeGenerationCtxt) (args : CallArg list) (rule : TypedRuleDefinition) (matchingRuleIndex : int) =
+  match rule with
+  | TypedRule(tr) ->
+      match tr.Conclusion with
+      | ValueOutput(call,res) ->
+          let tabs = emitTabs ctxt.CurrentTabs
+          let updatedCtxt = ctxt.AddTemp
+          let ruleCreation =
+            sprintf "%sRule%d %s = new Rule%d();\n" tabs matchingRuleIndex updatedCtxt.CurrentTempCode matchingRuleIndex
+          let outputLiteralOrId (ctxt : CodeGenerationCtxt) (ruleArg : CallArg) (valueString : string) =
+            match ruleArg with
+            | Literal _ -> 
+                let literalArg = sprintf "%s%s.__arg%d = %s;\n" tabs ctxt.CurrentTempCode ctxt.ArgIndex valueString
+                { ctxt with 
+                    Code = ctxt.Code + ruleCreation + literalArg
+                    ArgIndex = ctxt.ArgIndex + 1 }
+            | Id(id,_) ->
+                let idArg = sprintf "%s%s.%s = %s;\n" tabs ctxt.CurrentTempCode id.Name valueString
+                { ctxt with 
+                    Code = ctxt.Code + ruleCreation + idArg
+                    ArgIndex = ctxt.ArgIndex + 1 }
+            | _ -> failwith "Matching rule argument is not a literal or a variable?!!!"
+          let ctxtAfterArgumentCopy =
+            List.fold2(fun newCtxt callArg ruleArg ->
+                          match callArg with
+                          | Literal(l,_) ->
+                              let literalArg = outputLiteralOrId updatedCtxt ruleArg (l.ToString())
+                              literalArg
+                          | Id(id,_) ->
+                              let idArg = outputLiteralOrId updatedCtxt ruleArg id.Name
+                              idArg
+                          | NestedExpression _ -> { newCtxt with ArgIndex = newCtxt.ArgIndex + 1 }
+                          | CallArg.Lambda _ -> failwith "Lambdas not supported yet...") updatedCtxt args.Tail call.Tail
+          let runCode = sprintf "%s%s.Run();\n" tabs updatedCtxt.CurrentTempCode
+          { ctxtAfterArgumentCopy with Code = ctxtAfterArgumentCopy.Code + runCode }
+      | ModuleOutput _ -> failwith "A normal rule outputs a module???"
+  | TypedTypeRule _ -> failwith "Type Rules not supported yet"
+
+let emitRulesCall (ctxt : CodeGenerationCtxt) (args : CallArg list) (rules : (TypedRuleDefinition * int) list) = 
+  rules |> 
+  List.fold (fun newCtxt (rule,ruleIndex) -> emitRuleCall newCtxt args rule ruleIndex) ctxt
   
 // When implementing lambdas, here you should check if the argument is among the local variables and if it is a lambda. If that is the case then just call the lambda.
 let emitFunctionCall (ctxt : CodeGenerationCtxt) (functionCall : CallArg list * CallArg list) =
   let call,ret = functionCall
-  let matchingRules = ctxt.Program.TypedRules |> 
-                      List.filter(fun ruleDef ->
+  let matchingRules = ctxt.Program.TypedRules |>
+                      List.mapi (fun i x -> (x,i)) |> 
+                      List.filter(fun (ruleDef,ruleIndex) ->
                                     match ruleDef with
                                     | TypedRule(tr) -> 
                                         match tr.Conclusion with
@@ -217,7 +257,7 @@ let emitFunctionCall (ctxt : CodeGenerationCtxt) (functionCall : CallArg list * 
                                             | _ -> failwith "The first argument is not an id??!!"
                                         | ModuleOutput _ -> failwith "Module generation not supported yet"
                                     | TypedTypeRule(tr) -> failwith "Type Rules not supported yet")
-  call |> List.fold(fun newCtxt c -> emitCallArgumentsCopy newCtxt call matchingRules) ctxt
+  call.Tail |> List.fold(fun newCtxt c -> emitRulesCall newCtxt call matchingRules) ctxt
 
 let emitPremises (ctxt : CodeGenerationCtxt) (premises : Premise list) =
   premises |>
