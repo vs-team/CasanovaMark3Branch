@@ -9,4 +9,3 @@ TYPE CHECKER:
 - Instead of returning an option, return a struct containing a value and a boolean saying if the value exists for performance reasons.
 
 CODE GENERATION:
-- Fix the code generation for premises being created after closing the bracket of the run method. Leave the bracket open in the code generation for the structural equality.
