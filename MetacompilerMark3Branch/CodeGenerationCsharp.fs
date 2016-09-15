@@ -208,31 +208,44 @@ let emitRuleCall (ctxt : CodeGenerationCtxt) (args : CallArg list) (rule : Typed
           //let updatedCtxt = ctxt.AddTemp
           let ruleCreation =
             sprintf "%sRule%d %s = new Rule%d();\n" tabs matchingRuleIndex ctxt.CurrentTempCode matchingRuleIndex
-          let outputLiteralOrId (ctxt : CodeGenerationCtxt) (ruleArg : CallArg) (valueString : string) =
+          let outputLiteralOrId (ctxt : CodeGenerationCtxt) (ruleArg : CallArg) (valueString : string) (isConstructor : bool) =
             match ruleArg with
             | Literal _ -> 
-                let literalArg = sprintf "%s%s.__arg%d = %s;\n" tabs ctxt.CurrentTempCode ctxt.ArgIndex valueString
+                let literalArg = sprintf "%s%s.__arg%d = %s;\n" tabs ctxt.CurrentTempCode (ctxt.ArgIndex - 1) valueString
                 { ctxt with 
                     Code = ctxt.Code + ruleCreation + literalArg
-                    ArgIndex = ctxt.ArgIndex + 1 }
+                    ArgIndex = ctxt.ArgIndex + 1 }.AddTemp
             | Id(id,_) ->
-                let idArg = sprintf "%s%s.%s = %s;\n" tabs ctxt.CurrentTempCode id.Name valueString
+                let idArg =
+                  if isConstructor then
+                    sprintf "%s%s.__arg%d = %s;\n" tabs ctxt.CurrentTempCode (ctxt.ArgIndex - 1) valueString
+                  else 
+                    sprintf "%s%s.%s = %s;\n" tabs ctxt.CurrentTempCode id.Name valueString
                 { ctxt with 
                     Code = ctxt.Code + ruleCreation + idArg
-                    ArgIndex = ctxt.ArgIndex + 1 }
+                    ArgIndex = ctxt.ArgIndex + 1 }.AddTemp
             | _ -> failwith "Matching rule argument is not a literal or a variable?!!!"
-          let ctxtAfterArgumentCopy =
+          let rec outputArgumentCopy (ctxt : CodeGenerationCtxt) (args : CallArg list) (call : CallArg list) (isConstructor : bool) =
             List.fold2(fun newCtxt callArg ruleArg ->
                           match callArg with
                           | Literal(l,_) ->
-                              let literalArg = outputLiteralOrId ctxt ruleArg (l.ToString())
+                              let literalArg = outputLiteralOrId newCtxt ruleArg (l.ToString()) isConstructor
                               literalArg
                           | Id(id,_) ->
-                              let idArg = outputLiteralOrId ctxt ruleArg id.Name
+                              let idArg = outputLiteralOrId newCtxt ruleArg id.Name isConstructor
                               idArg
-                          | NestedExpression _ -> { newCtxt with ArgIndex = newCtxt.ArgIndex + 1 } //placeholder
+                          | NestedExpression expr ->
+                              let constructorSymbol = expr.Head
+                              let newCtxt = newCtxt.AddTemp
+                              match constructorSymbol with
+                              | Id(symbol,_) ->
+                                  let constructorCode = sprintf "%s%s %s = new %s();\n" tabs symbol.Name newCtxt.CurrentTempCode symbol.Name
+                                  let innerCtxt = outputArgumentCopy newCtxt.ResetArgs.AddTemp expr expr true
+                                  { innerCtxt with ArgIndex = newCtxt.ArgIndex }
+                              | _ -> failwith "First argument of nested expression is not an id???"
                           | CallArg.Lambda _ -> failwith "Lambdas not supported yet...") ctxt args.Tail call.Tail
           //System.IO.File.WriteAllText("debug_log.txt", ctxtAfterArgumentCopy.Code)
+          let ctxtAfterArgumentCopy = outputArgumentCopy ctxt args call false
           let runCode = sprintf "%s%s.Run();\n" tabs ctxt.CurrentTempCode
           { ctxtAfterArgumentCopy with Code = ctxtAfterArgumentCopy.Code + runCode }
       | ModuleOutput _ -> failwith "A normal rule outputs a module???"
