@@ -185,15 +185,14 @@ let emitConclusionCheck (ctxt : CodeGenerationCtxt) (conclusion : Conclusion) =
       | [arg] ->
           { ctxt
               with
-                //TODO: emit of the premises inside Run
-                Code = ctxt.Code +  tabs + "public void Run()\n" + tabs + "{" + "\n" + tabs + "}\n"
+                Code = ctxt.Code +  tabs + "public void Run()\n" + tabs + "{" + "\n" + tabs + "\n" //leave the bracket open because it will be completed in a following generation function
           }
       | fName :: args ->
           let checkCode,_,updatedCtxt = emitStructuralCheck {ctxt with CurrentTabs = ctxt.CurrentTabs + 1 } args
           { ctxt
               with
                 //TODO: emit the code to check the structural equality if there are Data constructor arguments or literal and the code for premises inside Run
-                Code = ctxt.Code + tabs + "public void Run()\n" + tabs + "{" + checkCode + "\n" + tabs + "}\n"
+                Code = ctxt.Code + tabs + "public void Run()\n" + tabs + "{" + checkCode + "\n" + tabs + "\n" //leave the bracket open because it will be completed in a following generation function
                 TempIndex = updatedCtxt.TempIndex
                 GeneratedTemps = updatedCtxt.GeneratedTemps
           }
@@ -205,10 +204,10 @@ let emitRuleCall (ctxt : CodeGenerationCtxt) (args : CallArg list) (rule : Typed
   | TypedRule(tr) ->
       match tr.Conclusion with
       | ValueOutput(call,res) ->
-          let tabs = emitTabs ctxt.CurrentTabs
-          let updatedCtxt = ctxt.AddTemp
+          let tabs = emitTabs (ctxt.CurrentTabs + 1)
+          //let updatedCtxt = ctxt.AddTemp
           let ruleCreation =
-            sprintf "%sRule%d %s = new Rule%d();\n" tabs matchingRuleIndex updatedCtxt.CurrentTempCode matchingRuleIndex
+            sprintf "%sRule%d %s = new Rule%d();\n" tabs matchingRuleIndex ctxt.CurrentTempCode matchingRuleIndex
           let outputLiteralOrId (ctxt : CodeGenerationCtxt) (ruleArg : CallArg) (valueString : string) =
             match ruleArg with
             | Literal _ -> 
@@ -226,15 +225,15 @@ let emitRuleCall (ctxt : CodeGenerationCtxt) (args : CallArg list) (rule : Typed
             List.fold2(fun newCtxt callArg ruleArg ->
                           match callArg with
                           | Literal(l,_) ->
-                              let literalArg = outputLiteralOrId updatedCtxt ruleArg (l.ToString())
+                              let literalArg = outputLiteralOrId ctxt ruleArg (l.ToString())
                               literalArg
                           | Id(id,_) ->
-                              let idArg = outputLiteralOrId updatedCtxt ruleArg id.Name
+                              let idArg = outputLiteralOrId ctxt ruleArg id.Name
                               idArg
                           | NestedExpression _ -> { newCtxt with ArgIndex = newCtxt.ArgIndex + 1 } //placeholder
-                          | CallArg.Lambda _ -> failwith "Lambdas not supported yet...") updatedCtxt args.Tail call.Tail
+                          | CallArg.Lambda _ -> failwith "Lambdas not supported yet...") ctxt args.Tail call.Tail
           //System.IO.File.WriteAllText("debug_log.txt", ctxtAfterArgumentCopy.Code)
-          let runCode = sprintf "%s%s.Run();\n" tabs updatedCtxt.CurrentTempCode
+          let runCode = sprintf "%s%s.Run();\n" tabs ctxt.CurrentTempCode
           { ctxtAfterArgumentCopy with Code = ctxtAfterArgumentCopy.Code + runCode }
       | ModuleOutput _ -> failwith "A normal rule outputs a module???"
   | TypedTypeRule _ -> failwith "Type Rules not supported yet"
@@ -279,7 +278,7 @@ let emitRule (ctxt : CodeGenerationCtxt) (rule : TypedRule) =
   let returnArg =  emitReturnArg { ctxt with CurrentTabs = ctxt.CurrentTabs + 1 } rule.ReturnType
   let conclusionCtxt = emitConclusionCheck { ctxt with CurrentTabs = ctxt.CurrentTabs + 1; Code = "" } rule.Conclusion
   let premiseCtxt = emitPremises conclusionCtxt rule.Premises
-  let runFunction = premiseCtxt.Code
+  let runFunction = premiseCtxt.Code + (emitTabs (premiseCtxt.CurrentTabs)) + "}\n" 
   sprintf "%spublic class %s\n%s{\n%s%s%s%s%s}\n" tabs ("Rule" + (string ctxt.RuleIndex)) tabs locals nonVarArgs returnArg runFunction tabs
 
 let emitRules (ctxt : CodeGenerationCtxt) : CodeGenerationCtxt =
