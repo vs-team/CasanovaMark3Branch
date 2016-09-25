@@ -199,6 +199,30 @@ let emitConclusionCheck (ctxt : CodeGenerationCtxt) (conclusion : Conclusion) =
       | _ -> failwith "Call is empty?!!"
   | ModuleOutput _ -> failwith "Module generation not supported yet"
 
+
+let emitExistingResultCheck (ctxt : CodeGenerationCtxt) (rule : TypedRule) (arg : CallArg) =
+  let tabs = emitTabs ctxt.CurrentTabs
+  let blockTabs = emitTabs (ctxt.CurrentTabs + 1)
+  let resultCheck =
+    sprintf "%sif (!(%s.__res.HasValue))\n%s{%s__res = new %s<%s>();\n%s__res.Value = default(%s);\n%s__res.HasValue = false;\n%sreturn;" 
+            tabs 
+            ctxt.CurrentTempCode 
+            tabs 
+            blockTabs
+            resultStruct
+            (emitType rule.ReturnType)
+            blockTabs
+            (emitType rule.ReturnType)
+            blockTabs
+            blockTabs
+  { ctxt with Code = ctxt.Code + resultCheck }
+
+//let emitPremiseResultCheck (ctxt : CodeGenerationCtxt) (resultArgs : CallArg list) =
+//  match resultArgs with
+//  | [arg] ->
+
+
+
 let emitRuleCall (ctxt : CodeGenerationCtxt) (args : CallArg list) (rule : TypedRuleDefinition) (matchingRuleIndex : int) =
   match rule with
   | TypedRule(tr) ->

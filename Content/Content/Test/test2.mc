@@ -2,6 +2,7 @@
 
 Value is Expr
 
+Data int -> "!" -> int : Expr
 Data "$" -> int : Value
 Data "%" -> int : Expr
 Data "dataTest" -> Value : Value
@@ -10,6 +11,10 @@ Func "test0" -> int : Value
 Func "test1" -> Value : Value
 Func "h" -> int : Expr
 Func "k" -> Value : int
+
+
+--------------
+0 ! 0 -> ($ 0)
 
 ------------
 h x -> ($ 5)

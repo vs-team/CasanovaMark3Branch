@@ -39,6 +39,7 @@ let operatorRenaming =
     '-', "__opMinus"
     '.', "__opDot"
     '/', "_opDivision"
+    '!', "_opBang" 
   ] |> Map.ofList
 
 let renameOperator (name : string) =
