@@ -201,13 +201,13 @@ let emitConclusionCheck (ctxt : CodeGenerationCtxt) (rule : TypedRule) =
 
 
 let emitExistingResultCheck (ctxt : CodeGenerationCtxt) =
-  let tabs = emitTabs ctxt.CurrentTabs
-  let blockTabs = emitTabs (ctxt.CurrentTabs + 1)
-  let newCtxt = ctxt.AddTemp
+  let tabs = emitTabs (ctxt.CurrentTabs + 1)
+  let blockTabs = emitTabs (ctxt.CurrentTabs + 2)
+  //let newCtxt = ctxt.AddTemp
   let resultCheck =
     sprintf "%sif (!(%s.__res.HasValue))\n%s{%s__res = new %s<%s>();\n%s__res.Value = default(%s);\n%s__res.HasValue = false;\n%sreturn;\n%s}\n" 
             tabs 
-            ctxt.CurrentTempCode 
+            ctxt.LastTempCode 
             tabs 
             blockTabs
             resultStruct
@@ -239,26 +239,29 @@ let emitResultCopy (ctxt : CodeGenerationCtxt) (matchingRule : TypedRule) (args 
       ctxt //placeholder
   | _ -> failwith "The data constructor does not exist??!! TypeChecker pls..."
 
-let emitPremiseResultCheck (ctxt : CodeGenerationCtxt) (matchingRule : TypedRule) (resultArgs : CallArg list) =
+let emitPremiseResultCheck (ctxt : CodeGenerationCtxt) (matchingRuleDef : TypedRuleDefinition) (resultArgs : CallArg list) =
+  match matchingRuleDef with
+  | TypedRule(matchingRule) ->
   match resultArgs with
-  | [arg] ->
-      let ctxtAfterResCheck = emitExistingResultCheck ctxt
-      let ctxtAfterResultCopy = emitResultCopy ctxtAfterResCheck matchingRule resultArgs
-      ctxtAfterResultCopy
+    | [arg] ->
+        let ctxtAfterResCheck = emitExistingResultCheck ctxt
+        let ctxtAfterResultCopy = emitResultCopy ctxtAfterResCheck matchingRule resultArgs
+        ctxtAfterResultCopy
 
-  | arg :: args ->
-      resultArgs |> 
-      List.fold (fun newCtxt arg ->
-                    match arg with
-                    | Id(id,_) ->
-                        let dataOpt = ctxt.Program.SymbolTable.DataTable.TryFind(id)
-                        match dataOpt with
-                        | Some decl ->
-                            let structuralCheck,_,innerCtxt = emitStructuralCheck newCtxt args
-                            innerCtxt
-                        | None -> failwith "The data constructor does not exist??!! TypeChecker pls..."
-                    | _ -> failwith "Not an id ??!!") ctxt
-  | _ -> failwith "Premise return expression is empty??!!!"
+    | arg :: args ->
+        resultArgs |> 
+        List.fold (fun newCtxt arg ->
+                      match arg with
+                      | Id(id,_) ->
+                          let dataOpt = ctxt.Program.SymbolTable.DataTable.TryFind(id)
+                          match dataOpt with
+                          | Some decl ->
+                              let structuralCheck,_,innerCtxt = emitStructuralCheck newCtxt args
+                              innerCtxt
+                          | None -> failwith "The data constructor does not exist??!! TypeChecker pls..."
+                      | _ -> failwith "Not an id ??!!") ctxt
+    | _ -> failwith "Premise return expression is empty??!!!"
+  | TypedTypeRule _ -> failwith "Type rule not supported yet"
 
 
 
@@ -309,8 +312,9 @@ let emitRuleCall (ctxt : CodeGenerationCtxt) (args : CallArg list) (rule : Typed
                           | CallArg.Lambda _ -> failwith "Lambdas not supported yet...") ctxt args.Tail call.Tail
           //System.IO.File.WriteAllText("debug_log.txt", ctxtAfterArgumentCopy.Code)
           let ctxtAfterArgumentCopy = outputArgumentCopy ctxt args call false
+          let ctxtAfterPremiseResultCheck = emitPremiseResultCheck ctxtAfterArgumentCopy rule res
           let runCode = sprintf "%s%s.Run();\n" tabs ctxt.CurrentTempCode
-          { ctxtAfterArgumentCopy with Code = ctxtAfterArgumentCopy.Code + runCode }
+          { ctxtAfterPremiseResultCheck with Code = ctxtAfterPremiseResultCheck.Code + runCode }
       | ModuleOutput _ -> failwith "A normal rule outputs a module???"
   | TypedTypeRule _ -> failwith "Type Rules not supported yet"
 

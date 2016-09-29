@@ -12,10 +12,6 @@ Func "test1" -> Value : Value
 Func "h" -> int : Expr
 Func "k" -> Value : int
 
-
------------
-0 ! 0 -> ($ 0)
-
 ------------
 h x -> ($ 5)
 
