@@ -324,7 +324,7 @@ and checkPremise (premise : Premise) (symbolTable : SymbolContext) (locals : Loc
     match result with
     | [r] -> 
           let _,newLocals = checkSingleArg r symbolTable funcType locals true
-          newLocals  
+          newLocals,[r] 
       | id :: ids ->
           let normalizedData = normalizeDataOrFunctionCall symbolTable result locals
 //          let normIds = normalizedData |> List.map(fun x -> match x with
@@ -338,7 +338,7 @@ and checkPremise (premise : Premise) (symbolTable : SymbolContext) (locals : Loc
             | None ->
                 let dataType,newLocals = checkNormalizedCall normalizedData symbolTable locals true
                 do checkTypeEquivalence dataType funcType Position.Zero symbolTable
-                newLocals
+                newLocals,normalizedData
           | _ -> failwith "Something went wrong with the function normalizer: the first element is not an id"
       | _ -> failwith "Something went wrong: the return argument of a premise is empty"
   
@@ -346,7 +346,8 @@ and checkPremise (premise : Premise) (symbolTable : SymbolContext) (locals : Loc
   | FunctionCall(func,result) ->
       let normFunc = normalizeDataOrFunctionCall symbolTable func locals
       let funcType,_ = checkNormalizedCall normFunc symbolTable locals false
-      checkFunctionCallResult result funcType
+      let locals,normalizedRes = checkFunctionCallResult result funcType
+      locals,FunctionCall(normFunc,normalizedRes)
   | Conditional(conditional) -> failwith "Conditionals not implemented yet..."
 
 and checkRule (rule : RuleDefinition) (symbolTable : SymbolContext) =
@@ -356,14 +357,16 @@ and checkRule (rule : RuleDefinition) (symbolTable : SymbolContext) =
     | ValueOutput(call,result) ->
         let normalizedCall = normalizeDataOrFunctionCall symbolTable call LocalContext.Empty
         let callType,locals = checkNormalizedCall normalizedCall symbolTable LocalContext.Empty true
-        let localsAfterPremises =
-          premises |> List.fold(fun l p -> checkPremise p symbolTable l) locals
+        let localsAfterPremises,normPremises =
+          premises |> List.fold(fun (l,pr) p -> 
+                                  let loc,prem = checkPremise p symbolTable l
+                                  loc,prem :: pr) (locals,[])
         match result with
         | [arg] ->
-            checkSingleArg arg symbolTable callType localsAfterPremises false
+            (Rule(normPremises,ValueOutput(normalizedCall,result))),checkSingleArg arg symbolTable callType localsAfterPremises false
         | x :: xs ->
             let normalizedRes = normalizeDataOrFunctionCall symbolTable result LocalContext.Empty
-            checkNormalizedCall normalizedRes symbolTable localsAfterPremises false 
+            (Rule(normPremises,ValueOutput(normalizedCall,normalizedRes))),checkNormalizedCall normalizedRes symbolTable localsAfterPremises false 
         | _ -> failwith "Why is the result of a conclusion empty?"          
     | ModuleOutput(_) ->
         raise(TypeError("You can only output modules in a type rule"))
@@ -387,9 +390,12 @@ and checkProgramDefinition (_module : string) ((decls,rules,subtypes) : ProgramD
     [for r in rules do
         match r with
         | Rule(r1) ->
-            let _type,locals = checkRule r symbolTable
-            let typedRule = { Premises = fst r1; Conclusion = snd r1; Locals = locals; ReturnType = _type }
-            yield TypedRule(typedRule)
+            let normRule,(_type,locals) = checkRule r symbolTable
+            match normRule with
+            | Rule(nr1) ->
+                let typedRule = { Premises = fst nr1; Conclusion = snd nr1; Locals = locals; ReturnType = _type }
+                yield TypedRule(typedRule)
+            | TypeRule(nr) -> failwith "Type rule not supported yet..."
         | TypeRule(r) -> failwith "Type rule not supported yet..."]
   {
     Module = _module
