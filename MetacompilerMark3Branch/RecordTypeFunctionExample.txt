@@ -1,0 +1,129 @@
+﻿Module "Record" : Record {
+  TypeFunc "RecordType"  => * }
+
+Module "Getter" => string => Record : Getter name r {
+  TypeFunc "GetType" => *
+  Func "get" -> r.RecordType -> GetType }
+}
+
+Module "Setter" => string => Record : Setter lt r => {
+  TypeFunc "SetType" : *
+  Func "set" -> (r.RecordType) -> SetType : (r.RecordType) 
+}
+
+TypeFunc "EmptyRecord" : Record
+TypeFunc "RecordField" => string => * => Record : Record
+TypeFunc "GetField" => string => Record : Getter
+TypeFunc "SetField" => string => Record : Record
+
+-----------------------
+EmptyRecord => Record {
+
+  -------------------
+  RecordType => unit
+  
+  -----------
+  cons -> ()
+}
+
+
+-----------------------------------
+RecordField name type r => Record {
+  Func "cons" -> type -> r.RecordType : RecordType
+
+  ------------------------------------
+  RecordType => (type * r.RecordType)
+
+  ------------------------
+  cons x xs -> (x,xs)
+}
+
+name = lt
+-------------------------------
+GetField lt (Recordfield type r) => Getter name r {
+  GetType => type
+  get (x,xs) -> x
+}
+
+name <> lt
+-----------------------------------
+GetField lt (RecordField name type r) => Getter name r {
+  TypeFunc "Getfield1" : Getter
+
+  -----------------------------
+  GetType => GetField1.GetType
+ 
+  --------------------------------
+  get (x.xs) -> GetField1.get xs
+}
+
+name = lt
+--------------------------------
+SetField lt (RecordField name type r) => Setter name r{
+  
+  -----------------
+  SetType => type
+
+  -------------------
+  set (x,xs) v  (v,xs)
+}
+
+name <> lt
+-----------------------------------------------
+SetField lt (RecordField name type r) => Setter name r {
+  TypeFunc "SetField1" : Setter
+
+  -------------------------
+  SetField1 => SetField lt r
+
+  ----------------------------
+  SetType => SetField1.SetType
+
+  ----------------------------------
+  set (x,xs) v -> SetField1.set xs v
+}
+
+
+
+======================================
+Ship
+{
+  Position : Vector3
+  Velocity : Vector3
+}
+
+TypeFunc "Ship" : Record
+
+------------------------------------------------------------------------------------
+Ship => RecordField "Position" Vector3 (RecordField "Velocity" Vector3 EmptyRecord)
+
+let ship =
+  {
+    Position = Vector3.Zero
+    Velocity = Vector3.Zero
+  }
+
+Func "ship" : Ship.RecordType
+
+------------------------
+ship -> Ship.cons(Vector3.Zero,(Vector3.zero,()))
+
+let getPos = Ship.Position
+
+
+Func "getPos" -> Ship : Vector3
+
+GetField "Position" Ship => getter
+getter.get ship -> f
+------------------- 
+getPos -> f
+
+let new_ship = { ship with Velocity = Vector3(0,1,0) }
+
+Func "setVel" : Ship.RecordType
+
+SetField "Velocity" Ship => setter
+setter.set ship -> s
+--------------------
+setVel -> s
+

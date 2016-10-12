@@ -65,6 +65,7 @@
     <None Include="App.config" />
     <Content Include="packages.config" />
     <Content Include="todo.txt" />
+    <Content Include="RecordTypeFunctionExample.txt" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Content\Content.csproj">

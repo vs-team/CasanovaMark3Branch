@@ -220,47 +220,49 @@ let emitExistingResultCheck (ctxt : CodeGenerationCtxt) =
   { ctxt with Code = ctxt.Code + resultCheck }
 
 let emitResultCopy (ctxt : CodeGenerationCtxt) (matchingRule : TypedRule) (args : CallArg list) =
-  match args with
-  | [Id(id,_)] ->
-      let tabs = emitTabs ctxt.CurrentTabs
-      let newCtxt = ctxt.AddTemp
-      let copyCode =
-        sprintf "%s%s %s = %s.__res.Value;\n%s%s %s = %s"
-          tabs
-          (emitType matchingRule.ReturnType) 
-          id.Name
-          ctxt.LastTempCode
-          tabs
-          (emitType matchingRule.ReturnType)
-          newCtxt.LastTempCode
-          id.Name
-      { newCtxt with Code = newCtxt.Code + copyCode }
-  | arg :: args ->
-      ctxt //placeholder
-  | _ -> failwith "The data constructor does not exist??!! TypeChecker pls..."
+      match args with
+      | [Id(id,_)] ->
+          let tabs = emitTabs ctxt.CurrentTabs
+          let newCtxt = ctxt.AddTemp
+          let copyCode =
+            sprintf "%s%s %s = %s.__res.Value;\n%s%s %s = %s"
+              tabs
+              (emitType matchingRule.ReturnType) 
+              id.Name
+              ctxt.LastTempCode
+              tabs
+              (emitType matchingRule.ReturnType)
+              newCtxt.LastTempCode
+              id.Name
+          { newCtxt with Code = newCtxt.Code + copyCode }
+      | arg :: args ->
+          ctxt //placeholder
+      | _ -> failwith "The data constructor does not exist??!! TypeChecker pls..."
 
-let emitPremiseResultCheck (ctxt : CodeGenerationCtxt) (matchingRuleDef : TypedRuleDefinition) (resultArgs : CallArg list) =
+let rec emitPremiseResultCheck (ctxt : CodeGenerationCtxt) (matchingRuleDef : TypedRuleDefinition) (resultArgs : CallArg list) =
   match matchingRuleDef with
   | TypedRule(matchingRule) ->
-  match resultArgs with
-    | [arg] ->
-        let ctxtAfterResCheck = emitExistingResultCheck ctxt
-        let ctxtAfterResultCopy = emitResultCopy ctxtAfterResCheck matchingRule resultArgs
-        ctxtAfterResultCopy
-
-    | arg :: args ->
-        resultArgs |> 
-        List.fold (fun newCtxt arg ->
-                      match arg with
-                      | Id(id,_) ->
-                          let dataOpt = ctxt.Program.SymbolTable.DataTable.TryFind(id)
-                          match dataOpt with
-                          | Some decl ->
-                              let structuralCheck,_,innerCtxt = emitStructuralCheck newCtxt args
-                              innerCtxt
-                          | None -> failwith "The data constructor does not exist??!! TypeChecker pls..."
-                      | _ -> failwith "Not an id ??!!") ctxt
-    | _ -> failwith "Premise return expression is empty??!!!"
+    match resultArgs with
+      | [NestedExpression (expr)] -> 
+          emitPremiseResultCheck ctxt matchingRuleDef expr
+      | [arg] ->
+          let ctxtAfterResCheck = emitExistingResultCheck ctxt
+          let ctxtAfterResultCopy = emitResultCopy ctxtAfterResCheck matchingRule resultArgs
+          ctxtAfterResultCopy
+      | arg :: args ->
+          resultArgs |> 
+          List.fold (fun newCtxt arg ->
+                        //TODO: add code to manage nested expressions
+                        match arg with
+                        | Id(id,_) ->
+                            let dataOpt = ctxt.Program.SymbolTable.DataTable.TryFind(id)
+                            match dataOpt with
+                            | Some decl ->
+                                let structuralCheck,_,innerCtxt = emitStructuralCheck newCtxt args
+                                innerCtxt
+                            | None -> failwith "The data constructor does not exist??!! TypeChecker pls..."
+                        | _ -> failwith "Not an id ??!!") ctxt
+      | _ -> failwith "Premise return expression is empty??!!!"
   | TypedTypeRule _ -> failwith "Type rule not supported yet"
 
 
