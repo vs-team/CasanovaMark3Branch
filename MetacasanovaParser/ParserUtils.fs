@@ -120,9 +120,9 @@ let insertNamespaceAndFileName (program : Program) (fileName : string) : Program
     match p with
     | FunctionCall(left,right) ->                
         FunctionCall(processArgs left right)
+    | Bind(id,pos,arg) -> Bind({ id with Namespace = nameSpace },{ pos with File = fileName },processArg arg)
     | Conditional(left,c,right) ->
-        let processedLeft,processedRight  = processArgs left right
-        Conditional(processedLeft,c,processedRight)
+        Conditional(processArg left,c,processArg right)
   let processConclusion (c : Conclusion) =
     match c with
     | ValueOutput(left,right) -> ValueOutput(processArgs left right)

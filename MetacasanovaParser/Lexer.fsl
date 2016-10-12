@@ -44,10 +44,16 @@ rule tokenstream = parse
 | "->" { Parser.ARROW (range lexbuf) }
 | "=>" { Parser.DARROW (range lexbuf) }
 | "=" { Parser.EQUAL (range lexbuf) }
+| ">" { Parser.GT (range lexbuf) }
+| ">=" { Parser.GEQ (range lexbuf) }
+| "<" { Parser.LT (range lexbuf) }
+| "<=" { Parser.LEQ (range lexbuf) }
+| "<>" { Parser.NEQ (range lexbuf) }
+| "()" { Parser.UNIT (range lexbuf) }
 | "Func" { Parser.FUNC (range lexbuf) } 
 | "TypeFunc" { Parser.TYPEFUNC (range lexbuf) }
 | "Data" { Parser.DATA (range lexbuf) }
-| "module" { Parser.MODULE (range lexbuf) }
+| "namespace" { Parser.NAMESPACE (range lexbuf) }
 | eof   	{ Parser.EOF }
 
 // --------------------------

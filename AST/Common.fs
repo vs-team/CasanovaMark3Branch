@@ -34,7 +34,7 @@ type Literal =
   | F32 of System.Single
   | String of System.String
   | Bool of System.Boolean
-  | Void
+  | Unit
   with
     override this.ToString() =
       match this with
@@ -46,5 +46,5 @@ type Literal =
       | F32 x -> string x
       | String x -> x
       | Bool x -> string x
-      | Void -> "()"
+      | Unit -> "()"
 

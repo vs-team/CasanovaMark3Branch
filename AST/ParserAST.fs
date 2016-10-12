@@ -145,7 +145,7 @@ and RuleDefinition =
 
 and Premise =
 | FunctionCall of Call
-| Bind of string * CallArg
+| Bind of Id * Position * CallArg
 | Conditional of Conditional
 
 and CallArg =
@@ -164,7 +164,7 @@ with
 
 
 and Call = List<CallArg> * List<CallArg>
-and Conditional = List<CallArg> *  Predicate * List<CallArg>
+and Conditional = CallArg *  Predicate * CallArg
 and Conclusion = 
 | ValueOutput of List<CallArg> * List<CallArg>
 | ModuleOutput of List<CallArg> * List<CallArg> * Program

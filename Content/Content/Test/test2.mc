@@ -1,4 +1,4 @@
-﻿module TestModule
+﻿namespace TestModule
 
 Value is Expr
 
@@ -12,8 +12,9 @@ Func "test1" -> Value : Value
 Func "h" -> int : Expr
 Func "k" -> Value : int
 
+k := ($ 5)
 ------------
-h x -> ($ 5)
+h x -> k
 
 ----------
 h 0 -> ($ 0)

@@ -7,9 +7,14 @@ type token =
   | OPEN of (int * int)
   | INCLUDE of (int * int)
   | DATA of (int * int)
-  | MODULE of (int * int)
+  | NAMESPACE of (int * int)
   | IS of (int * int)
   | FUN of (int * int)
+  | GT of (int * int)
+  | GEQ of (int * int)
+  | LT of (int * int)
+  | LEQ of (int * int)
+  | NEQ of (int * int)
   | COMMA
   | LBRACKET
   | RBRACKET
@@ -23,6 +28,7 @@ type token =
   | ARROW of (System.Int32 * System.Int32)
   | DARROW of (System.Int32 * System.Int32)
   | EQUAL of (System.Int32 * System.Int32)
+  | UNIT of ((int * int))
   | STRING of (string * (int * int))
   | ID of (System.String * (int * int))
   | FLOAT of (float * (int * int))
@@ -34,9 +40,14 @@ type tokenId =
     | TOKEN_OPEN
     | TOKEN_INCLUDE
     | TOKEN_DATA
-    | TOKEN_MODULE
+    | TOKEN_NAMESPACE
     | TOKEN_IS
     | TOKEN_FUN
+    | TOKEN_GT
+    | TOKEN_GEQ
+    | TOKEN_LT
+    | TOKEN_LEQ
+    | TOKEN_NEQ
     | TOKEN_COMMA
     | TOKEN_LBRACKET
     | TOKEN_RBRACKET
@@ -50,6 +61,7 @@ type tokenId =
     | TOKEN_ARROW
     | TOKEN_DARROW
     | TOKEN_EQUAL
+    | TOKEN_UNIT
     | TOKEN_STRING
     | TOKEN_ID
     | TOKEN_FLOAT
@@ -74,6 +86,7 @@ type nonTerminalId =
     | NONTERM_argSeq
     | NONTERM_literal
     | NONTERM_functionCall
+    | NONTERM_comparisonOp
     | NONTERM_premises
     | NONTERM_conclusion
     | NONTERM_fractionLine

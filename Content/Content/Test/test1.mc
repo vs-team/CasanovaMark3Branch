@@ -1,4 +1,4 @@
-﻿module TestModule
+﻿namespace TestModule
 
 Value is Expr
 

@@ -37,6 +37,9 @@ and TypedRule =
     ReturnType      : TypeDecl
   }
 
+let undefinedVarError name pos =
+  raise(TypeError(sprintf "Type Error: undefined variable %s at %s" name (pos.ToString())))
+
 
 //extract function name from a CallArg and rearrange the term in the form: functioName arg1 arg2 ... argn. The same form data constructors
 let rec normalizeDataOrFunctionCall (_symbolTable : SymbolContext) (args : List<ParserAST.CallArg>) (locals : LocalContext) : List<ParserAST.CallArg> =
@@ -193,8 +196,8 @@ let checkLiteral (l : Literal) (typeDecl : TypeDecl) (p : Position) (ctxt : Symb
       !!!"string", checkTypeDecl !!!"string" typeDecl p ctxt locals
     | Bool(_) ->
       !!!"bool", checkTypeDecl !!!"bool" typeDecl p ctxt locals
-    | Void ->
-      !!!"void", checkTypeDecl !!!"void" typeDecl p ctxt locals
+    | Unit ->
+      !!!"unit", checkTypeDecl !!!"unit" typeDecl p ctxt locals
 
 
 let rec checkSingleArg
@@ -223,7 +226,7 @@ let rec checkSingleArg
             do checkTypeEquivalence t typeDecl p symbolTable
             t,ctxt             
         | None ->
-            raise(TypeError(sprintf "Type Error: undefined variable %s at %s" id.Name (p.ToString())))
+            undefinedVarError id.Name p
   | Lambda(_) -> failwith "Anonymous functions not supported yet"   
   | NestedExpression(call) ->
       let nestedType,nestedCtxt = checkNormalizedCall call symbolTable ctxt buildLocals
@@ -348,7 +351,45 @@ and checkPremise (premise : Premise) (symbolTable : SymbolContext) (locals : Loc
       let funcType,_ = checkNormalizedCall normFunc symbolTable locals false
       let locals,normalizedRes = checkFunctionCallResult result funcType
       locals,FunctionCall(normFunc,normalizedRes)
-  | Conditional(conditional) -> failwith "Conditionals not implemented yet..."
+  | Bind(id,pos,expr) ->
+      match expr with
+      | NestedExpression(expr) ->
+          let normData = normalizeDataOrFunctionCall symbolTable expr locals
+          let dataType,_ = checkNormalizedCall normData symbolTable locals false
+          { locals with Variables = locals.Variables |> Map.add id (dataType,pos) },Bind(id,pos,NestedExpression(normData))
+      | Literal(l,p) ->
+          let litType =
+            match l with
+            | I64 _ -> !!!"int64"
+            | U64 _ -> !!!"uint64"
+            | I32 _ -> !!!"int"
+            | U32 _ -> !!!"uint32"
+            | F64 _ -> !!!"double"
+            | F32 _ -> !!!"float"
+            | String _ -> !!!"string"
+            | Bool _ -> !!!"bool"
+            | Unit -> !!!"unit"
+          { locals with Variables = locals.Variables |> Map.add id (litType,pos) },premise
+      | Id(rightId,pos) ->
+          let idOpt = locals.Variables.TryFind(rightId)
+          match idOpt with
+          | Some(idType,_) -> 
+              { locals with Variables = locals.Variables |> Map.add id (idType,pos) },premise
+          | None ->
+              undefinedVarError id.Name pos
+      | Lambda _ -> failwith "Anonymous functions not supported yet"
+              
+  | Conditional(left,op,right) -> failwith "Conditionals not implemented yet"
+//      match left with
+//      | NestedExpression(leftExpr) ->
+//          let normLeft = normalizeDataOrFunctionCall symbolTable leftExpr locals
+//          let funcOpt = symbolTable.FuncTable |> Map.tryFindKey(fun name sym -> name = normLeft.Head)
+//          let dataOpt = symbolTable.DataTable |> Map.tryFindKey(fun name sym -> name = normLeft.Head)
+//          match funcOpt with
+//          | Some fCall ->
+//              let fRetType = symbolTable.FuncTable.[fCall].Return
+
+
 
 and checkRule (rule : RuleDefinition) (symbolTable : SymbolContext) =
   match rule with
