@@ -8,20 +8,15 @@ Data "%" -> int : Expr
 Data "dataTest" -> Value : Value
 Data "$$" : Value
 Func "test0" -> int : Value
-Func "test1" -> Value : Value
+Func "test1" -> Value : Expr
 Func "h" -> int : Expr
 Func "k" -> Value : int
 
-------------
-h x -> ($ 5)
 
-----------
-h 0 -> ($ 0)
+-----------
+h 0 -> ($ 5)
 
-
-h 0 -> $ a
+h 0 -> x
 ------------------------
-test1 (dataTest ($ 2)) -> ($ a)
+test1 (dataTest ($ 2)) -> x
 
-------------------
-k x -> 10

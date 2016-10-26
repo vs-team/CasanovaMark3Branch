@@ -250,7 +250,7 @@ let rec emitPremiseResultCheck (ctxt : CodeGenerationCtxt) (matchingRuleDef : Ty
           let ctxtAfterResultCopy = emitResultCopy ctxtAfterResCheck matchingRule resultArgs
           ctxtAfterResultCopy
       | arg :: args ->
-          resultArgs |> 
+          args |> 
           List.fold (fun newCtxt arg ->
                         //TODO: add code to manage nested expressions
                         match arg with
@@ -268,10 +268,11 @@ let rec emitPremiseResultCheck (ctxt : CodeGenerationCtxt) (matchingRuleDef : Ty
 
 
 let emitRuleCall (ctxt : CodeGenerationCtxt) (args : CallArg list) (rule : TypedRuleDefinition) (matchingRuleIndex : int) =
-  match rule with
-  | TypedRule(tr) ->
-      match tr.Conclusion with
-      | ValueOutput(call,res) ->
+  let currentRuleDef = ctxt.Program.TypedRules.[ctxt.RuleIndex]
+  match currentRuleDef,rule with
+  | TypedRule(ctr),TypedRule(tr) ->
+      match ctr.Conclusion,tr.Conclusion with
+      | ValueOutput(_,currentRes),ValueOutput(call,res) ->
           let tabs = emitTabs (ctxt.CurrentTabs + 1)
           //let updatedCtxt = ctxt.AddTemp
           let ruleCreation =
@@ -279,14 +280,14 @@ let emitRuleCall (ctxt : CodeGenerationCtxt) (args : CallArg list) (rule : Typed
           let outputLiteralOrId (ctxt : CodeGenerationCtxt) (ruleArg : CallArg) (valueString : string) (isConstructor : bool) =
             match ruleArg with
             | Literal _ -> 
-                let literalArg = sprintf "%s%s.__arg%d = %s;\n" tabs ctxt.CurrentTempCode (ctxt.ArgIndex - 1) valueString
+                let literalArg = sprintf "%s%s.__arg%d = %s;\n" tabs ctxt.CurrentTempCode ctxt.ArgIndex valueString
                 { ctxt with 
                     Code = ctxt.Code + ruleCreation + literalArg
                     ArgIndex = ctxt.ArgIndex + 1 }.AddTemp
             | Id(id,_) ->
                 let idArg =
                   if isConstructor then
-                    sprintf "%s%s.__arg%d = %s;\n" tabs ctxt.CurrentTempCode (ctxt.ArgIndex - 1) valueString
+                    sprintf "%s%s.__arg%d = %s;\n" tabs ctxt.CurrentTempCode ctxt.ArgIndex valueString
                   else 
                     sprintf "%s%s.%s = %s;\n" tabs ctxt.CurrentTempCode id.Name valueString
                 { ctxt with 
@@ -314,11 +315,14 @@ let emitRuleCall (ctxt : CodeGenerationCtxt) (args : CallArg list) (rule : Typed
                           | CallArg.Lambda _ -> failwith "Lambdas not supported yet...") ctxt args.Tail call.Tail
           //System.IO.File.WriteAllText("debug_log.txt", ctxtAfterArgumentCopy.Code)
           let ctxtAfterArgumentCopy = outputArgumentCopy ctxt args call false
-          let ctxtAfterPremiseResultCheck = emitPremiseResultCheck ctxtAfterArgumentCopy rule res
-          let runCode = sprintf "%s%s.Run();\n" tabs ctxt.CurrentTempCode
-          { ctxtAfterPremiseResultCheck with Code = ctxtAfterPremiseResultCheck.Code + runCode }
-      | ModuleOutput _ -> failwith "A normal rule outputs a module???"
-  | TypedTypeRule _ -> failwith "Type Rules not supported yet"
+          let runCode = sprintf "%s%s.Run();\n" tabs ctxtAfterArgumentCopy.LastTempCode
+          let ctxtAfterArgumentCopy = { ctxtAfterArgumentCopy with Code = ctxtAfterArgumentCopy.Code + runCode }
+          let ctxtAfterPremiseResultCheck = emitPremiseResultCheck ctxtAfterArgumentCopy rule currentRes
+          ctxtAfterPremiseResultCheck
+      | ModuleOutput _,ModuleOutput _ -> failwith "A normal rule outputs a module???"
+      | _ -> failwith "Something is VERY wrong!"
+  | TypedTypeRule _, TypedTypeRule _ -> failwith "Type Rules not supported yet"
+  | _ -> failwith "Mixed rule definitions???? Something went very wrong!"
 
 let emitRulesCall (ctxt : CodeGenerationCtxt) (args : CallArg list) (rules : (TypedRuleDefinition * int) list) = 
   rules |> 

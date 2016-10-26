@@ -18,7 +18,7 @@ let parseFile (fileName : string) =
 [<EntryPoint>]
 let main argv =
 //  try
-    let fileName = @"Content\Test\test2.mc"
+    let fileName = @"Content\Test\test3.mc"
     let outputFileName = @"Content\Test\codeGeneration.cs"
     let parsedAST = parseFile fileName
 //    printfn "%s" (parsedAST.ToString())
