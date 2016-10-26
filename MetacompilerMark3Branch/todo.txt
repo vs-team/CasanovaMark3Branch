@@ -5,7 +5,9 @@
 
 TYPE CHECKER:
 - Check the namespace when comparing types and if it is ambiguous notify it.
-- Invert the order of evaluation in the match in checkNormalizedCall in order to give highest priority to local functions
-- Instead of returning an option, return a struct containing a value and a boolean saying if the value exists for performance reasons.
 
 CODE GENERATION:
+- Generate an empty result before generating the premises.
+- A rule call should be executed only when the result is still empty.
+- Remove the return statement at the end of the result check of each premise.
+- At the end of all the possible rule calls check if the result is empty, and then return.

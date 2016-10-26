@@ -5,6 +5,8 @@ open TypeChecker
 open Common
 open DefaultMappings
 
+exception CodeGenerationError of string
+
 let resultStruct = "__MetaCnvResult"
 let resultValue tabs typeSymbol valueSymbol = sprintf "%s__res = new %s<%s>();\n%s__res.Value = %s;\n%s__res.HasValue = true;" tabs resultStruct typeSymbol tabs valueSymbol tabs
 let resultNone tabs typeSymbol =  sprintf "%s__res = new %s<%s>();\n%s__res.Value = default(%s);\n%s __res.HasValue = false;" tabs resultStruct typeSymbol tabs typeSymbol tabs
@@ -355,7 +357,10 @@ let emitFunctionCall (ctxt : CodeGenerationCtxt) (functionCall : CallArg list * 
                                             | _ -> failwith "The first argument is not an id??!!"
                                         | ModuleOutput _ -> failwith "Module generation not supported yet"
                                     | TypedTypeRule(tr) -> failwith "Type Rules not supported yet")
-  emitRulesCall ctxt call matchingRules
+  if matchingRules.Length > 0 then
+    emitRulesCall ctxt call matchingRules
+  else
+    raise(CodeGenerationError(sprintf "A premise in Rule %d will never be executed" ctxt.RuleIndex))
 
 let emitPremises (ctxt : CodeGenerationCtxt) (premises : Premise list) =
   premises |>
