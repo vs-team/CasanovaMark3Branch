@@ -1,9 +1,9 @@
 ﻿Module "Record" : Record {
-  TypeFunc "RecordType"  => * }
+  TypeFunc "RecordType"  : * }
 
 Module "Getter" => string => Record : Getter name r {
-  TypeFunc "GetType" => *
-  Func "get" -> r.RecordType -> GetType }
+  TypeFunc "GetType" : *
+  Func "get" -> r.RecordType : GetType }
 }
 
 Module "Setter" => string => Record : Setter lt r => {
@@ -14,7 +14,7 @@ Module "Setter" => string => Record : Setter lt r => {
 TypeFunc "EmptyRecord" : Record
 TypeFunc "RecordField" => string => * => Record : Record
 TypeFunc "GetField" => string => Record : Getter
-TypeFunc "SetField" => string => Record : Record
+TypeFunc "SetField" => string => Record : Setter
 
 -----------------------
 EmptyRecord => Record {
@@ -39,8 +39,8 @@ RecordField name type r => Record {
 }
 
 name = lt
--------------------------------
-GetField lt (Recordfield type r) => Getter name r {
+-------------------------------------
+GetField lt (Recordfield name type r) => Getter name r {
   GetType => type
   get (x,xs) -> x
 }
@@ -49,6 +49,9 @@ name <> lt
 -----------------------------------
 GetField lt (RecordField name type r) => Getter name r {
   TypeFunc "Getfield1" : Getter
+
+  -----------------------------
+  GetField1 => GetField lt r
 
   -----------------------------
   GetType => GetField1.GetType
@@ -65,7 +68,7 @@ SetField lt (RecordField name type r) => Setter name r{
   SetType => type
 
   -------------------
-  set (x,xs) v  (v,xs)
+  set (x,xs) v -> (v,xs)
 }
 
 name <> lt
