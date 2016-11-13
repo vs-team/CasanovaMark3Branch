@@ -423,7 +423,30 @@ and checkPremise (premise : Premise) (symbolTable : SymbolContext) (locals : Loc
               locals,premise
           // Add the case of the comparison of two nested expressions
           | _ -> failwith "Equality case not implemented yet"
-
+      | Less
+      | LessEqual
+      | Greater
+      | GreaterEqual ->
+          match left,right with
+          | Id(id,pos),Literal(l,litPos)
+          | Literal(l,litPos),Id(id,pos) ->
+              let literalType = getLiteralType l   
+              match l with
+              | I64 _
+              | U64 _
+              | I32 _
+              | U32 _
+              | F64 _
+              | F32 _ ->              
+                  let idType,_ = checkSingleArg (Id(id,pos)) symbolTable literalType locals false
+                  locals,premise
+              | _ ->
+                  raise(TypeError(sprintf "The type %s at %s is not valid for this comparison" (literalType.ToString()) (litPos.ToString())))
+          | Literal(l1,p1),Literal(l2,p2) ->
+              let type1 = getLiteralType l1
+              let type2,_ = checkSingleArg right symbolTable type1 locals false
+              locals,premise
+          | _ -> raise(TypeError("With this operator you cannot compare data structures"))
       | _ -> failwith "Predicate not implemented yet..."
 
 

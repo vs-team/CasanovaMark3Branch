@@ -17,7 +17,7 @@ let parseFile (fileName : string) =
 
 [<EntryPoint>]
 let main argv =
-//  try
+  try
     let fileName = @"Content\Test\test3.mc"
     let outputFileName = @"Content\Test\codeGeneration.cs"
     let parsedAST = parseFile fileName
@@ -28,10 +28,10 @@ let main argv =
 //    File.WriteAllText("TypeCheckerOutput.txt",sprintf "%A" typedTest)
 //    File.WriteAllText(outputFileName, sprintf "%s" codeGenerationTest)
     0
-//  with
-//  | TypeError(msg) -> 
-//      printfn "%s" msg
-//      1
-//  | ParseError(msg, row, col) ->
-//      printfn "%s at row %d column %d" msg row col
-//      1
+  with
+  | TypeError(msg) -> 
+      printfn "%s" msg
+      1
+  | ParseError(msg, row, col) ->
+      printfn "%s at row %d column %d" msg row col
+      1
