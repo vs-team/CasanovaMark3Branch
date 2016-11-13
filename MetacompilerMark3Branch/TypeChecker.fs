@@ -41,6 +41,8 @@ let undefinedVarError name pos =
   raise(TypeError(sprintf "Type Error: undefined variable %s at %s" name (pos.ToString())))
 
 
+
+
 //extract function name from a CallArg and rearrange the term in the form: functioName arg1 arg2 ... argn. The same form data constructors
 let rec normalizeDataOrFunctionCall (_symbolTable : SymbolContext) (args : List<ParserAST.CallArg>) (locals : LocalContext) : List<ParserAST.CallArg> =
   let normCall =
@@ -170,6 +172,14 @@ let checkGenericType (t1 : TypeDecl) (t2 : TypeDecl) (p : Position) (ctxt : Symb
 let checkTypeEquivalence (t1: TypeDecl) (t2 : TypeDecl) (p : Position) (ctxt : SymbolContext)  =
   checkTypeWithErrorMsg t1 t2 p ctxt (sprintf "Type Error: given %s but expected %s at %s" (t1.ToString()) (t2.ToString()) (p.ToString()))
 
+let getLocalType id locals p =
+  let idOpt = locals.Variables |> Map.tryFind id
+  match idOpt with
+  | Some (t,_) ->
+      t             
+  | None ->
+      undefinedVarError id.Name p
+
 let checkTypeDecl t1 t2 p  ctxt locals =
   match t2 with
   | Generic(id) ->
@@ -220,13 +230,9 @@ let rec checkSingleArg
       if buildLocals then
         Arg(Id(id,p)),{ctxt with Variables = ctxt.Variables |> Map.add id (typeDecl,p)}
       else
-        let idOpt = ctxt.Variables |> Map.tryFind id
-        match idOpt with
-        | Some (t,_) ->
-            do checkTypeEquivalence t typeDecl p symbolTable
-            t,ctxt             
-        | None ->
-            undefinedVarError id.Name p
+        let t = getLocalType id ctxt p
+        do checkTypeEquivalence t typeDecl p symbolTable
+        t,ctxt             
   | Lambda(_) -> failwith "Anonymous functions not supported yet"   
   | NestedExpression(call) ->
       let nestedType,nestedCtxt = checkNormalizedCall call symbolTable ctxt buildLocals
@@ -344,6 +350,18 @@ and checkPremise (premise : Premise) (symbolTable : SymbolContext) (locals : Loc
                 newLocals,normalizedData
           | _ -> failwith "Something went wrong with the function normalizer: the first element is not an id"
       | _ -> failwith "Something went wrong: the return argument of a premise is empty"
+
+  let getLiteralType l =
+    match l with
+    | I64 _ -> !!!"int64"
+    | U64 _ -> !!!"uint64"
+    | I32 _ -> !!!"int"
+    | U32 _ -> !!!"uint32"
+    | F64 _ -> !!!"double"
+    | F32 _ -> !!!"float"
+    | String _ -> !!!"string"
+    | Bool _ -> !!!"bool"
+    | Unit -> !!!"unit"
   
   match premise with
   | FunctionCall(func,result) ->
@@ -358,17 +376,7 @@ and checkPremise (premise : Premise) (symbolTable : SymbolContext) (locals : Loc
           let dataType,_ = checkNormalizedCall normData symbolTable locals false
           { locals with Variables = locals.Variables |> Map.add id (dataType,pos) },Bind(id,pos,NestedExpression(normData))
       | Literal(l,p) ->
-          let litType =
-            match l with
-            | I64 _ -> !!!"int64"
-            | U64 _ -> !!!"uint64"
-            | I32 _ -> !!!"int"
-            | U32 _ -> !!!"uint32"
-            | F64 _ -> !!!"double"
-            | F32 _ -> !!!"float"
-            | String _ -> !!!"string"
-            | Bool _ -> !!!"bool"
-            | Unit -> !!!"unit"
+          let litType = getLiteralType l
           { locals with Variables = locals.Variables |> Map.add id (litType,pos) },premise
       | Id(rightId,pos) ->
           let idOpt = locals.Variables.TryFind(rightId)
@@ -379,15 +387,44 @@ and checkPremise (premise : Premise) (symbolTable : SymbolContext) (locals : Loc
               undefinedVarError id.Name pos
       | Lambda _ -> failwith "Anonymous functions not supported yet"
               
-  | Conditional(left,op,right) -> failwith "Conditionals not implemented yet"
-//      match left with
-//      | NestedExpression(leftExpr) ->
-//          let normLeft = normalizeDataOrFunctionCall symbolTable leftExpr locals
-//          let funcOpt = symbolTable.FuncTable |> Map.tryFindKey(fun name sym -> name = normLeft.Head)
-//          let dataOpt = symbolTable.DataTable |> Map.tryFindKey(fun name sym -> name = normLeft.Head)
-//          match funcOpt with
-//          | Some fCall ->
-//              let fRetType = symbolTable.FuncTable.[fCall].Return
+  | Conditional(left,op,right) ->
+      match op with
+      | Equal
+      | NotEqual ->
+          match left,right with
+          | Id(id,p),Literal(l,_)
+          | Literal(l,_),Id(id,p) ->
+              let litType = getLiteralType l
+              let idType,_ = checkSingleArg (Id(id,p)) symbolTable litType locals false
+              locals,premise
+          | Literal(l1,p1),Literal(l2,p2) ->
+              let t1 = getLiteralType l1
+              let litType,_ = checkLiteral l2 t1 p2 symbolTable locals
+              locals,premise
+          | NestedExpression(expr),Id(id,p)
+          | Id(id,p),NestedExpression(expr) ->
+              let idType = getLocalType id locals p
+              let dataType = checkSingleArg (Id(id,p)) symbolTable idType locals false
+              locals,premise
+          | NestedExpression(expr1),NestedExpression(expr2) ->
+              //use checkNormalizedCall to extract one of the types and then compare it with the other
+              let normData = normalizeDataOrFunctionCall symbolTable expr1 locals
+              let dataType1,_ = checkNormalizedCall normData symbolTable locals false
+              let dataType2,_ = checkSingleArg right symbolTable dataType1 locals false
+              locals,premise
+          | Id(id1,p1),Id(id2,p2) ->
+              let idType1 = getLocalType id1 locals p1
+              let idType2 = checkSingleArg (Id(id2,p2)) symbolTable idType1 locals false
+              locals,premise
+          | NestedExpression(expr),Literal(l,_)
+          | Literal(l,_), NestedExpression expr ->
+              let literalType = getLiteralType l
+              let dataType,_ = checkSingleArg (NestedExpression(expr)) symbolTable literalType locals false
+              locals,premise
+          // Add the case of the comparison of two nested expressions
+          | _ -> failwith "Equality case not implemented yet"
+
+      | _ -> failwith "Predicate not implemented yet..."
 
 
 

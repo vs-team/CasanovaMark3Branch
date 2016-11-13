@@ -23,10 +23,10 @@ let main argv =
     let parsedAST = parseFile fileName
 //    printfn "%s" (parsedAST.ToString())
     let typedTest = checkProgram parsedAST
-    let codeGenerationTest = emitProgram typedTest
-    printfn "Type checking successful!"
-    File.WriteAllText("TypeCheckerOutput.txt",sprintf "%A" typedTest)
-    File.WriteAllText(outputFileName, sprintf "%s" codeGenerationTest)
+//    let codeGenerationTest = emitProgram typedTest
+//    printfn "Type checking successful!"
+//    File.WriteAllText("TypeCheckerOutput.txt",sprintf "%A" typedTest)
+//    File.WriteAllText(outputFileName, sprintf "%s" codeGenerationTest)
     0
 //  with
 //  | TypeError(msg) -> 
