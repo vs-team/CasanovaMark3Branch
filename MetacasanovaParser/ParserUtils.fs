@@ -27,8 +27,8 @@ let rec combineArgsAndRet args ret =
       | _ ->
           Arrow(left,combineArgsAndRet right ret,false)
   | Zero
-  | Arg _ -> Arrow(args,ret,false)
-  | _ -> failwith "Invalid arguments format in combineArgsAndRet"
+  | Arg _ 
+  | Generic _ -> Arrow(args,ret,false)
 
 let opPos (parsedArgs : TypeDeclOrName list) : OpOrder =
   match parsedArgs with
@@ -59,7 +59,7 @@ let rec buildArgType (args : TypeDecl list) =
       | Zero -> failwith "Invalid arg type in buildArgType"
       | _ -> x --> (buildArgType xs)
 
-let buildDeclarationRecord opOrder name args ret pos =
+let buildDeclarationRecord opOrder name args ret pos gen =
   {
     Name = name
     FullType = combineArgsAndRet args ret
@@ -70,13 +70,14 @@ let buildDeclarationRecord opOrder name args ret pos =
     Position = Position.Create(pos, "missing")
     Associativity = Left
     Premises = []
+    Generics = gen
   }
 
-let processParsedArgs (parsedArgs : TypeDeclOrName list) (retType : TypeDecl) (row : int) (column : int) =
+let processParsedArgs (parsedArgs : TypeDeclOrName list) (retType : TypeDecl) (row : int) (column : int) (gen : List<Id>) =
   let opOrder = opPos parsedArgs
   let Some(name),args = checkDecl parsedArgs row column
   let argType = buildArgType args
-  buildDeclarationRecord opOrder {Namespace =  ""; Name = name} argType retType (row, column)
+  buildDeclarationRecord opOrder {Namespace =  ""; Name = name} argType retType (row, column) gen
 
 let insertNamespaceAndFileName (program : Program) (fileName : string) : Program =  
   let nameSpace,imports,parsedProgram = program
@@ -97,6 +98,7 @@ let insertNamespaceAndFileName (program : Program) (fileName : string) : Program
         Return = processTypeDecl decl.Return
         Position = { decl.Position with File = fileName }
         Premises = decl.Premises |> List.map processPremise
+        Generics = decl.Generics |> List.map (fun id -> { id with Namespace = nameSpace })
     }
   
   and processArg =

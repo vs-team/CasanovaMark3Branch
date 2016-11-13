@@ -25,6 +25,8 @@ type token =
   | NEWLINE
   | BAR
   | BIND
+  | LGENERICBRACKET
+  | RGENERICBRACKET
   | ARROW of (System.Int32 * System.Int32)
   | DARROW of (System.Int32 * System.Int32)
   | EQUAL of (System.Int32 * System.Int32)
@@ -58,6 +60,8 @@ type tokenId =
     | TOKEN_NEWLINE
     | TOKEN_BAR
     | TOKEN_BIND
+    | TOKEN_LGENERICBRACKET
+    | TOKEN_RGENERICBRACKET
     | TOKEN_ARROW
     | TOKEN_DARROW
     | TOKEN_EQUAL
@@ -74,6 +78,8 @@ type nonTerminalId =
     | NONTERM_newLineSeq
     | NONTERM_program
     | NONTERM_dottedPath
+    | NONTERM_commaPath
+    | NONTERM_genericSeq
     | NONTERM_includeOrOpenStmts
     | NONTERM_includeOrOpenStmt
     | NONTERM_declarations

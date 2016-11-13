@@ -311,6 +311,7 @@ and checkNormalizedCall
                 Position = pos
                 Associativity = Left
                 Premises = []
+                Generics = []
               }
             checkArgsWithCorrectCardinality args localSym
         | None ->

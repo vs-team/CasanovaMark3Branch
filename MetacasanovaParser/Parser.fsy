@@ -16,7 +16,7 @@ open ParserUtils
 %token <string * (int * int)> STRING
 %token <(int * int)> UNIT
 %token <System.Int32 * System.Int32> ARROW DARROW EQUAL
-%token COMMA LBRACKET RBRACKET DOT APOSTROPHE HASH COLON NEWLINE BAR BIND
+%token COMMA LBRACKET RBRACKET DOT APOSTROPHE HASH COLON NEWLINE BAR BIND LGENERICBRACKET RGENERICBRACKET
 %token <int * int> FUNC TYPEFUNC OPEN INCLUDE DATA NAMESPACE IS FUN GT GEQ LT LEQ NEQ
 
 %token EOF
@@ -44,6 +44,14 @@ dottedPath:
 | ID DOT dottedPath { (fst $1) + "." + $3 }
 | ID { (fst $1) }
 
+commaPath:
+| ID COMMA commaPath { ({Namespace = ""; Name = fst $1}) :: $3 }
+| ID { [{Namespace = "";Name = fst $1}] }
+
+genericSeq:
+| LGENERICBRACKET commaPath RGENERICBRACKET { $2 }
+| { [] }
+
 includeOrOpenStmts:
 | includeOrOpenStmt includeOrOpenStmts { $1 :: $2 }
 | { [] }
@@ -58,10 +66,10 @@ declarations:
 | { [] }
 
 declaration:
-| FUNC typeOrNameDeclarations COLON typeDeclaration newLineSeq {
-    Func(processParsedArgs $2 $4 (fst $1) (snd $1)) }
-| DATA typeOrNameDeclarations COLON typeDeclaration newLineSeq {
-    Data(processParsedArgs $2 $4 (fst $1) (snd $1)) }
+| FUNC genericSeq typeOrNameDeclarations COLON typeDeclaration newLineSeq {
+    Func(processParsedArgs $3 $5 (fst $1) (snd $1) $2) }
+| DATA genericSeq typeOrNameDeclarations COLON typeDeclaration newLineSeq {
+    Data(processParsedArgs $3 $5 (fst $1) (snd $1) $2) }
 
 typeOrNameDeclarations:
 | typeOrNameDeclaration ARROW typeOrNameDeclarations { $1 :: $3 }
@@ -121,7 +129,7 @@ fractionLine:
 | BAR fractionLine {  }
 | BAR {  }
 
-subtype: ID IS ID newLineSeq { printfn "Subtype found"; Arg(Id( { Namespace = ""; Name = fst $1  },Position.Create(snd $1,""))),Arg(Id({ Namespace = ""; Name = fst $3 },Position.Create(snd $1,""))) }
+subtype: ID IS ID newLineSeq { Arg(Id( { Namespace = ""; Name = fst $1  },Position.Create(snd $1,""))),Arg(Id({ Namespace = ""; Name = fst $3 },Position.Create(snd $1,""))) }
 
 subtypes:
 | subtype subtypes { $1 :: $2 }

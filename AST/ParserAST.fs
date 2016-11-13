@@ -82,7 +82,7 @@ and TypeDecl =
     | Arrow(t1,t2,_) ->
         "(" + t1.ToString() + "->" + t2.ToString() + ")"
     | Generic(id) ->
-        "'" + id.Name
+        "'" + (id.Name)
     | Arg(arg) -> arg.ToString()
     | Zero -> "zero"
 
@@ -110,9 +110,10 @@ and SymbolDeclaration =
     Position  : Position
     Associativity : Associativity
     Premises : List<Premise>
+    Generics : List<Id>
   }
   with
-    static member Create(name,_type,args,ret,order,priority,pos,ass,prem) =
+    static member Create(name,_type,args,ret,order,priority,pos,ass,prem,gen) =
       {
         Name = name
         FullType = _type
@@ -123,6 +124,7 @@ and SymbolDeclaration =
         Position = pos
         Associativity = ass
         Premises = prem
+        Generics = gen
       }
     override this.ToString() =
       sprintf "Name = %s\n
@@ -133,11 +135,13 @@ and SymbolDeclaration =
                Priority = %A\n
                Position = %A\n
                Associativity = %A\n
-               Premises = %A\n" 
+               Premises = %A\n
+               Generics = %A\n"
                (this.Name.ToString()) 
                (this.FullType.ToString()) 
                (this.Args.ToString()) 
-               (this.Return.ToString()) this.Order this.Priority this.Position this.Associativity this.Premises 
+               (this.Return.ToString())
+               this.Order this.Priority this.Position this.Associativity this.Premises this.Generics
 
 and RuleDefinition =
 | Rule of Rule
