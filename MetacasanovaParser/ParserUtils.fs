@@ -5,6 +5,8 @@ open ParserAST
 
 exception ParseError of string * int * int
 
+let genericNamespace = "__generic"
+
 type TypeDeclOrName =
 | Type of TypeDecl
 | Name of string
@@ -85,8 +87,8 @@ let insertNamespaceAndFileName (program : Program) (fileName : string) : Program
   let rec processTypeDecl (t : TypeDecl) =
     match t with
     | Arrow(left,right,n) -> Arrow(processTypeDecl left,processTypeDecl right,n)
-    | Generic(id) -> Generic({ id with Namespace = nameSpace })
-    | Arg(arg) -> Arg(processArg arg)
+    | Generic(id) -> Generic({ id with Namespace = genericNamespace })
+    | Arg(arg,gen) -> Arg((processArg arg), gen |> List.map processTypeDecl)
     | Zero -> Zero
 
   and processSymbolDecl (decl : SymbolDeclaration) =
@@ -98,7 +100,7 @@ let insertNamespaceAndFileName (program : Program) (fileName : string) : Program
         Return = processTypeDecl decl.Return
         Position = { decl.Position with File = fileName }
         Premises = decl.Premises |> List.map processPremise
-        Generics = decl.Generics |> List.map (fun id -> { id with Namespace = nameSpace })
+        Generics = decl.Generics |> List.map (fun id -> { id with Namespace = genericNamespace })
     }
   
   and processArg =
@@ -145,7 +147,7 @@ let insertNamespaceAndFileName (program : Program) (fileName : string) : Program
   let processedSubTypes =
     subtypes |> List.map(fun (lt,rt) -> 
                     match lt,rt with
-                    | Arg(leftArg),Arg(rightArg) -> Arg(processArg leftArg),Arg(processArg rightArg)
+                    | Arg(leftArg,[]),Arg(rightArg,[]) -> Arg(processArg leftArg,[]),Arg(processArg rightArg,[])
                     | _ -> failwith "Something went wrong while parsing the subtypes")
   
   nameSpace,imports,(processedDeclarations,processedRules,processedSubTypes)

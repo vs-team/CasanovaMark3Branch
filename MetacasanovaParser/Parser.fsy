@@ -80,11 +80,18 @@ typeOrNameDeclaration:
 | STRING { ParserUtils.Name(fst $1) }
 | typeDeclaration { ParserUtils.Type($1) }
 
+typeVarsSeq:
+| typeDeclaration COMMA typeVarsSeq { $1 :: $3 }
+| typeDeclaration { [$1] }
+
+genericTypeDef:
+| LGENERICBRACKET typeVarsSeq RGENERICBRACKET { $2 }
+| { [] }
 
 typeDeclaration:
 | LBRACKET lambdaTypeDeclaration RBRACKET { $2 }
 | APOSTROPHE ID { Generic({ Namespace = ""; Name = fst $2 })}
-| ID { Arg(Id({ Namespace = ""; Name = fst $1 },Position.Create(snd $1,""))) }
+| ID genericTypeDef { Arg(Id({ Namespace = ""; Name = fst $1 },Position.Create(snd $1,"")),$2) }
 
 lambdaTypeDeclaration: 
 | typeDeclaration ARROW lambdaTypeDeclaration { Arrow($1,$3,true) }
@@ -129,7 +136,7 @@ fractionLine:
 | BAR fractionLine {  }
 | BAR {  }
 
-subtype: ID IS ID newLineSeq { Arg(Id( { Namespace = ""; Name = fst $1  },Position.Create(snd $1,""))),Arg(Id({ Namespace = ""; Name = fst $3 },Position.Create(snd $1,""))) }
+subtype: ID IS ID newLineSeq { Arg(Id( { Namespace = ""; Name = fst $1  },Position.Create(snd $1,"")),[]),Arg(Id({ Namespace = ""; Name = fst $3 },Position.Create(snd $1,"")),[]) }
 
 subtypes:
 | subtype subtypes { $1 :: $2 }

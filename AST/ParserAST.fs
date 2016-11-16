@@ -35,7 +35,7 @@ and Associativity =
 and TypeDecl =
 | Arrow of TypeDecl * TypeDecl * bool //left, right, nested
 | Generic of Id
-| Arg of CallArg
+| Arg of CallArg * (TypeDecl list) //name of the type, types to construct a generic data
 | Zero
   member this.Length =
     match this with
@@ -46,8 +46,12 @@ and TypeDecl =
   static member (=!=) (t1 : TypeDecl, t2 : TypeDecl) = not (t1 === t2)
   static member (===) (t1 : TypeDecl, t2 : TypeDecl) =
     match t1,t2 with
-    | Arg(Id(id1,_)),Arg(Id(id2,_)) ->
-        id1 = id2
+    | Arg(Id(id1,_),gen1),Arg(Id(id2,_),gen2) ->
+        id1 = id2 && 
+        (List.forall2(fun g1 g2 ->
+                        match g1,g2 with
+                        | Generic _, Generic _ -> true
+                        | _ -> g1 === g2) gen1 gen2)
     | Arrow(l1,r1,_),Arrow(l2,r2,_) ->
         if l1 =!= l2 then
           false
@@ -57,7 +61,7 @@ and TypeDecl =
     | _ -> false
   static member SubtypeOf (t1 : TypeDecl) (t2 : TypeDecl) (subtypeDefinitions : Map<TypeDecl,List<TypeDecl>>) =
     match t1,t2 with
-    | Arg(Id(id1,p1)),Arg(Id(id2,p2)) ->
+    | Arg(Id(id1,p1),_),Arg(Id(id2,p2),_) ->
         let subtypesOpt = 
           let tOpt = subtypeDefinitions |> Map.tryFindKey(fun t _ -> t === t1)
           match tOpt with
@@ -67,7 +71,7 @@ and TypeDecl =
         | Some subtypes ->
             subtypes |> List.exists(fun t -> 
                                       match t with
-                                      | Arg(Id(tid,_)) ->
+                                      | Arg(Id(tid,_),_) ->
                                           tid = id2
                                       | _ -> failwith "Error in subtyping list format")
         | None -> false
@@ -83,7 +87,12 @@ and TypeDecl =
         "(" + t1.ToString() + "->" + t2.ToString() + ")"
     | Generic(id) ->
         "'" + (id.Name)
-    | Arg(arg) -> arg.ToString()
+    | Arg(arg,gen) -> 
+        arg.ToString() + 
+        (if gen.Length > 0 then
+          "<" + (gen |> List.map(fun g ->  string g) |> List.reduce (fun x y -> x + "," + y)) + ">"
+        else
+          "")
     | Zero -> "zero"
 
 and Declaration =
@@ -202,8 +211,8 @@ type SymbolContext =
         }
 
 let emptyPos = { File = "empty"; Line = 0; Col = 0}
-let (!!) s = Arg(Id({ Namespace = ""; Name = s },emptyPos))
-let (!!!) s = Arg(Id({ Namespace = systemNamespace; Name = s },emptyPos))
+let (!!) s = Arg(Id({ Namespace = ""; Name = s },emptyPos),[])
+let (!!!) s = Arg(Id({ Namespace = systemNamespace; Name = s },emptyPos),[])
 let (~~) s = Id({Namespace = ""; Name = s},emptyPos)
 let (-->) t1 t2 = Arrow(t1,t2,false)
 let (.|) ps c = Rule(ps,c)

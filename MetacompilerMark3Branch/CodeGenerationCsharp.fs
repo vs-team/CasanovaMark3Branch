@@ -51,7 +51,7 @@ let symbolUsedInSubtypes (decl : SymbolDeclaration) (subtypes : Map<TypeDecl,Lis
 
 let getTypeSimpleName (t : TypeDecl) =
   match t with
-  | Arg(Id(id,_)) -> id.Name
+  | Arg(Id(id,_),_) -> id.Name
   | _ -> failwith "The return argument of a Data structure should be an identifier..."
 
 //let getTypeInterface (t : TypeDecl) = "I" + (getTypeSimpleName t)
@@ -69,8 +69,8 @@ let rec emitTabs tabs =
 
 let rec emitType (t : TypeDecl) =
   match t with
-  | Arg(Id(id,_)) ->
-      let defaultMapping = typeMappingsCsharp |> Map.tryFind (Arg(Id(id,emptyPos)))
+  | Arg(Id(id,_),_) ->
+      let defaultMapping = typeMappingsCsharp |> Map.tryFind (Arg(Id(id,emptyPos),[])) //[] is a placeholder until generics work
       match defaultMapping with
       | Some mapping -> mapping
       | None ->
@@ -415,7 +415,7 @@ let rec emitDataArgs (ctxt : CodeGenerationCtxt) (t : TypeDecl) (currentIndex : 
       | Arg(_) -> tabs + "public " + (emitType t) + " __arg" + (string currentIndex) + ";\n"
       | Arrow _ -> tabs + "public " + (emitType t1) + " __arg" + (string currentIndex) + ";\n" + (emitDataArgs ctxt t2 (currentIndex + 1))
       | _ ->  failwith "Invalid type format in data declaration..."
-  | Arg(Id(_)) -> tabs + "public " + (emitType t) + " __arg" + (string currentIndex) + ";\n"
+  | Arg(Id(_),_) -> tabs + "public " + (emitType t) + " __arg" + (string currentIndex) + ";\n"
   | Zero -> ""
   | _ -> failwith "Invalid type format in data declaration..."
   

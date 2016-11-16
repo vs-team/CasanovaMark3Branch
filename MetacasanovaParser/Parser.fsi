@@ -86,6 +86,8 @@ type nonTerminalId =
     | NONTERM_declaration
     | NONTERM_typeOrNameDeclarations
     | NONTERM_typeOrNameDeclaration
+    | NONTERM_typeVarsSeq
+    | NONTERM_genericTypeDef
     | NONTERM_typeDeclaration
     | NONTERM_lambdaTypeDeclaration
     | NONTERM_arg

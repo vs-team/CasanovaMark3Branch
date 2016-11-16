@@ -7,7 +7,6 @@ open Common
 open CodeGenerationCsharp
 open Microsoft.FSharp.Text.Lexing
 
-
 let parseFile (fileName : string) =
   let inputChannel = new StreamReader(fileName)
   let lexbuf = LexBuffer<char>.FromTextReader inputChannel
@@ -22,7 +21,7 @@ let main argv =
     let outputFileName = @"Content\Test\codeGeneration.cs"
     let parsedAST = parseFile fileName
 //    printfn "%s" (parsedAST.ToString())
-    let typedTest = checkProgram parsedAST
+//    let typedTest = checkProgram parsedAST
 //    let codeGenerationTest = emitProgram typedTest
 //    printfn "Type checking successful!"
 //    File.WriteAllText("TypeCheckerOutput.txt",sprintf "%A" typedTest)

@@ -98,12 +98,12 @@ let rec checkType (_type : TypeDecl) (symbolTable : SymbolContext) : TypeDecl =
       let leftType = checkType left symbolTable
       let rightType = checkType right symbolTable
       Arrow(leftType,rightType,n)
-  | Arg(arg) ->
+  | Arg(arg,_) ->
       match arg with
       | Id(arg,pos) ->
           let typeOpt = symbolTable.DataTable |> Map.tryFindKey(fun (k : Id) (s : SymbolDeclaration) -> 
                                                     match s.Return with
-                                                    | Arg(sarg) ->
+                                                    | Arg(sarg,_) ->
                                                         match sarg with
                                                         | Id(arg1,_) -> arg = arg1
                                                         | _ -> false
@@ -126,7 +126,7 @@ let buildSymbols (declarations : List<Declaration>) (symbols : Map<Id,SymbolDecl
                               | Data(data) ->
                                   //do checkType data.Args sym |> ignore
                                   match data.Return with
-                                  | Arg(Id(arg,_)) ->
+                                  | Arg(Id(arg,_),_) ->
                                     {sym with DataTable = sym.DataTable.Add(data.Name,data)}
                                   | _ -> raise(TypeError(sprintf "Type Error: invalid type %s for the data %s" (data.Return.ToString()) data.Name.Name))
                               | Func(func) ->
@@ -220,7 +220,7 @@ let rec checkSingleArg
   match arg with
   | Literal(l,p) ->
       match typeDecl with
-      | Arg(Id(id,_)) ->        
+      | Arg(Id(id,_),[]) ->        
           checkLiteral l typeDecl p symbolTable ctxt
       | Generic(_) ->
           checkLiteral l typeDecl p symbolTable ctxt
@@ -228,7 +228,7 @@ let rec checkSingleArg
           failwith "Something went wrong: the type definition has an invalid structure"
   | Id(id,p) ->
       if buildLocals then
-        Arg(Id(id,p)),{ctxt with Variables = ctxt.Variables |> Map.add id (typeDecl,p)}
+        Arg(Id(id,p),[]),{ctxt with Variables = ctxt.Variables |> Map.add id (typeDecl,p)}
       else
         let t = getLocalType id ctxt p
         do checkTypeEquivalence t typeDecl p symbolTable
