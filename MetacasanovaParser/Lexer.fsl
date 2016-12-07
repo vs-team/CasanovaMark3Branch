@@ -24,8 +24,18 @@ let simpleId = ['a'-'z' 'A'-'Z' '_' '0'-'9']
 let customSymbols = [':' '?' '@' '%' '$' '#' '!']
 let idBody = simpleId | customSymbols 
 
+rule linecomment = parse
+| newline       { newline lexbuf; tokenstream lexbuf }
+| _             { linecomment lexbuf }
 
-rule tokenstream = parse
+and comment = parse
+| "*/"    { tokenstream lexbuf }
+| newline            { newline lexbuf; comment lexbuf }
+| _  { comment lexbuf } 
+
+and tokenstream = parse
+| "//"        { linecomment lexbuf }
+| "/*"        { comment lexbuf }
 | whitespace	{ tokenstream lexbuf }
 | newline	{ newline lexbuf; Parser.NEWLINE }
 | "open" { Parser.OPEN (range lexbuf) }

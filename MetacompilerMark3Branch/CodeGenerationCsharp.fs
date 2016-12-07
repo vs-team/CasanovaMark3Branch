@@ -210,7 +210,7 @@ let emitExistingResultCheck (ctxt : CodeGenerationCtxt) =
   let blockTabs = emitTabs (ctxt.CurrentTabs + 2)
   //let newCtxt = ctxt.AddTemp
   let resultCheck =
-    sprintf "%sif (!(%s.__res.HasValue))\n%s{%s__res = new %s<%s>();\n%s__res.Value = default(%s);\n%s__res.HasValue = false;\n%sreturn;\n%s}\n" 
+    sprintf "%sif (!(%s.__res.HasValue))\n%s{\n%s__res = new %s<%s>();\n%s__res.Value = default(%s);\n%s__res.HasValue = false;\n%sreturn;\n%s}\n" 
             tabs 
             ctxt.LastTempCode 
             tabs 
@@ -281,7 +281,7 @@ let rec emitPremiseResultCheck (ctxt : CodeGenerationCtxt) (matchingRuleDef : Ty
 
 
 
-let emitRuleCall (ctxt : CodeGenerationCtxt) (args : CallArg list) (rule : TypedRuleDefinition) (matchingRuleIndex : int) =
+let emitRuleCall (ctxt : CodeGenerationCtxt) (args : CallArg list) (ret : CallArg list) (rule : TypedRuleDefinition) (matchingRuleIndex : int) =
   let currentRuleDef = ctxt.Program.TypedRules.[ctxt.RuleIndex]
   match currentRuleDef,rule with
   | TypedRule(ctr),TypedRule(tr) ->
@@ -327,9 +327,16 @@ let emitRuleCall (ctxt : CodeGenerationCtxt) (args : CallArg list) (rule : Typed
                                   { innerCtxt with ArgIndex = newCtxt.ArgIndex }
                               | _ -> failwith "First argument of nested expression is not an id???"
                           | CallArg.Lambda _ -> failwith "Lambdas not supported yet...") ctxt args.Tail call.Tail
-          //System.IO.File.WriteAllText("debug_log.txt", ctxtAfterArgumentCopy.Code)
+//          let outputResultVariable (ctxt : CodeGenerationCtxt) (rule : TypedRule) =
+//            let resultType = emitType (rule.ReturnType)
+//            match ret with
+//            | [Id(id,_)] ->
+//                let tabs = emitTabs (ctxt.CurrentTabs + 1)
+//                { ctxt with Code = ctxt.Code + (sprintf "%s%s %s;\n" tabs resultType id.Name) }
+//            | _ -> failwith "Unsupported code generation for the premise return expression"
           let ctxtAfterArgumentCopy = outputArgumentCopy ctxt args call false
           let runCode = sprintf "%s%s.Run();\n" tabs ctxtAfterArgumentCopy.LastTempCode
+//          let ctxtAfterResultVariable = outputResultVariable ctxtAfterArgumentCopy tr
           let ctxtAfterArgumentCopy = { ctxtAfterArgumentCopy with Code = ctxtAfterArgumentCopy.Code + runCode }
           let ctxtAfterPremiseResultCheck = emitPremiseResultCheck ctxtAfterArgumentCopy rule currentRes
           ctxtAfterPremiseResultCheck
@@ -338,9 +345,9 @@ let emitRuleCall (ctxt : CodeGenerationCtxt) (args : CallArg list) (rule : Typed
   | TypedTypeRule _, TypedTypeRule _ -> failwith "Type Rules not supported yet"
   | _ -> failwith "Mixed rule definitions???? Something went very wrong!"
 
-let emitRulesCall (ctxt : CodeGenerationCtxt) (args : CallArg list) (rules : (TypedRuleDefinition * int) list) = 
+let emitRulesCall (ctxt : CodeGenerationCtxt) (args : CallArg list) (ret : CallArg list) (rules : (TypedRuleDefinition * int) list) = 
   rules |> 
-  List.fold (fun newCtxt (rule,ruleIndex) -> emitRuleCall newCtxt args rule ruleIndex) ctxt
+  List.fold (fun newCtxt (rule,ruleIndex) -> emitRuleCall newCtxt args ret rule ruleIndex) ctxt
   
 // When implementing lambdas, here you should check if the argument is among the local variables and if it is a lambda. If that is the case then just call the lambda.
 let emitFunctionCall (ctxt : CodeGenerationCtxt) (functionCall : CallArg list * CallArg list) =
@@ -358,7 +365,7 @@ let emitFunctionCall (ctxt : CodeGenerationCtxt) (functionCall : CallArg list * 
                                         | ModuleOutput _ -> failwith "Module generation not supported yet"
                                     | TypedTypeRule(tr) -> failwith "Type Rules not supported yet")
   if matchingRules.Length > 0 then
-    emitRulesCall ctxt call matchingRules
+    emitRulesCall ctxt call ret matchingRules
   else
     raise(CodeGenerationError(sprintf "A premise in Rule %d will never be executed" ctxt.RuleIndex))
 

@@ -463,6 +463,7 @@ and checkRule (rule : RuleDefinition) (symbolTable : SymbolContext) =
           premises |> List.fold(fun (l,pr) p -> 
                                   let loc,prem = checkPremise p symbolTable l
                                   loc,prem :: pr) (locals,[])
+        let normPremises = normPremises |> List.rev
         match result with
         | [arg] ->
             (Rule(normPremises,ValueOutput(normalizedCall,result))),checkSingleArg arg symbolTable callType localsAfterPremises false

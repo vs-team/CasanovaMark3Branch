@@ -48,16 +48,14 @@ and TypeDecl =
     match t1,t2 with
     | Arg(Id(id1,_),gen1),Arg(Id(id2,_),gen2) ->
         id1 = id2 && 
-        (List.forall2(fun g1 g2 ->
-                        match g1,g2 with
-                        | Generic _, Generic _ -> true
-                        | _ -> g1 === g2) gen1 gen2)
+        (List.forall2(fun g1 g2 -> g1 === g2) gen1 gen2)
     | Arrow(l1,r1,_),Arrow(l2,r2,_) ->
         if l1 =!= l2 then
           false
         else
           r1 === r2
     | Zero, Zero -> true
+    | Generic _, Generic _ -> true
     | _ -> false
   static member SubtypeOf (t1 : TypeDecl) (t2 : TypeDecl) (subtypeDefinitions : Map<TypeDecl,List<TypeDecl>>) =
     match t1,t2 with
