@@ -19,6 +19,8 @@ type CodeGenerationCtxt =
     ArgIndex                  : int
     RuleIndex                 : int
     TempIndex                 : int
+    CurrentResTmp             : string
+    CurrentRuleTmp            : string
     GeneratedTemps            : string list
     GeneratedInterfaces       : string list
     CurrentRuleRetType        : TypeDecl
@@ -30,6 +32,8 @@ type CodeGenerationCtxt =
       ArgIndex = 0
       RuleIndex = 0
       TempIndex = 0
+      CurrentResTmp = ""
+      CurrentRuleTmp = ""
       GeneratedTemps = []
       GeneratedInterfaces = []
       CurrentRuleRetType = Zero
@@ -208,19 +212,15 @@ let rec emitResultCopy (ctxt : CodeGenerationCtxt) (matchingRule : TypedRule) (a
       match args with
       | [Id(id,_)] ->
           let tabs = emitTabs ctxt.CurrentTabs
-          let newCtxt = ctxt.AddTemp
           let copyCode =
-            sprintf "%s%s %s = %s.__res.Value;\n%s%s<%s> %s = %s.__res;"
+            sprintf "%s%s = %s.__res.Value;\n%s%s = %s.__res;"
               tabs
-              (emitType matchingRule.ReturnType) 
               id.Name
-              ctxt.LastTempCode
+              ctxt.CurrentRuleTmp
               tabs
-              resultStruct
-              (emitType matchingRule.ReturnType)
-              newCtxt.LastTempCode
-              ctxt.LastTempCode
-          { newCtxt with Code = newCtxt.Code + copyCode }
+              ctxt.CurrentResTmp
+              ctxt.CurrentRuleTmp
+          { ctxt with Code = ctxt.Code + copyCode }
       | [NestedExpression(expr)] ->
           emitResultCopy ctxt matchingRule expr
       | arg :: args ->
@@ -228,9 +228,12 @@ let rec emitResultCopy (ctxt : CodeGenerationCtxt) (matchingRule : TypedRule) (a
           | Id(id,_) ->
               let dataOpt = ctxt.Program.SymbolTable.DataTable.TryFind(id)
               match dataOpt with
-              | Some decl ->
+              | Some decl ->           
                   let reflectionCheckCode,innerCtxt = emitReflectionStructuralCheck ctxt decl 0 (ctxt.LastTempCode + ".__res.Value")
-                  let res = { innerCtxt with Code = innerCtxt.Code + reflectionCheckCode + "\n" }
+                  let innerCtxt = { innerCtxt with Code = innerCtxt.Code + reflectionCheckCode + "\n" }
+                  let argCheckCode,_,innerCtxt = emitStructuralCheck innerCtxt args (ctxt.LastTempCode + ".__res.Value")
+                  //remember to copy the data structure argument values into the local variables
+                  let res = { innerCtxt with Code = innerCtxt.Code + argCheckCode + "\n" }
                   res
               | None -> failwith "The data constructor does not exist??!! TypeChecker pls..."
           | _ -> failwith "Not an id ??!!"
@@ -241,10 +244,10 @@ let emitExistingResultCheck (ctxt : CodeGenerationCtxt) (matchingRuleDef : Typed
   let blockTabs = emitTabs (ctxt.CurrentTabs + 2)
   //let newCtxt = ctxt.AddTemp
   let resultCheck =
-    sprintf "%sif (!%s%s.__res.HasValue)\n%s{\n" 
+    sprintf "%sif (%s%s.__res.HasValue)\n%s{\n" 
             tabs 
-            existingCond
-            ctxt.LastTempCode 
+            (if existingCond = "" then "" else "!" + existingCond)
+            (ctxt.TempName (ctxt.TempIndex - 2))
             tabs 
   let newCtxt = { ctxt with Code = ctxt.Code + resultCheck }
   let resultCopyCtxt = emitResultCopy { newCtxt with CurrentTabs = ctxt.CurrentTabs + 2} matchingRuleDef resultArgs
@@ -286,18 +289,21 @@ let emitRuleCall (ctxt : CodeGenerationCtxt) (args : CallArg list) (ret : CallAr
       | ValueOutput(_,currentRes),ValueOutput(call,res) ->
           let tabs = emitTabs (ctxt.CurrentTabs + 1)
           //let updatedCtxt = ctxt.AddTemp
-          let ruleCreation =
-            sprintf "%sRule%d %s = new Rule%d();\n" 
-              tabs 
-              matchingRuleIndex 
-              ctxt.CurrentTempCode 
-              matchingRuleIndex
+          let ruleCreation (ctxt : CodeGenerationCtxt) =
+            let ruleCode =
+              sprintf "%sRule%d %s = new Rule%d();\n" 
+                tabs 
+                matchingRuleIndex 
+                ctxt.CurrentTempCode 
+                matchingRuleIndex
+            { ctxt with CurrentRuleTmp = ctxt.CurrentTempCode; Code = ctxt.Code + ruleCode }
           let outputLiteralOrId (ctxt : CodeGenerationCtxt) (ruleArg : CallArg) (valueString : string) (isConstructor : bool) =
             match ruleArg with
             | Literal _ -> 
                 let literalArg = sprintf "%s%s.__arg%d = %s;\n" tabs ctxt.CurrentTempCode ctxt.ArgIndex valueString
-                { ctxt with 
-                    Code = ctxt.Code + ruleCreation + literalArg
+                let ruleCtxt = ruleCreation ctxt
+                { ruleCtxt with 
+                    Code = ruleCtxt.Code + literalArg
                     ArgIndex = ctxt.ArgIndex + 1 }.AddTemp
             | Id(id,_) ->
                 let idArg =
@@ -305,9 +311,10 @@ let emitRuleCall (ctxt : CodeGenerationCtxt) (args : CallArg list) (ret : CallAr
                     sprintf "%s%s.__arg%d = %s;\n" tabs ctxt.CurrentTempCode ctxt.ArgIndex valueString
                   else 
                     sprintf "%s%s.%s = %s;\n" tabs ctxt.CurrentTempCode id.Name valueString
-                { ctxt with 
-                    Code = ctxt.Code + ruleCreation + idArg
-                    ArgIndex = ctxt.ArgIndex + 1 }.AddTemp
+                let ruleCtxt = ruleCreation ctxt
+                { ruleCtxt with 
+                    Code = ruleCtxt.Code + idArg
+                    ArgIndex = ruleCtxt.ArgIndex + 1 }.AddTemp
             | _ -> failwith "Matching rule argument is not a literal or a variable?!!!"
           let rec outputArgumentCopy (ctxt : CodeGenerationCtxt) (args : CallArg list) (call : CallArg list) (isConstructor : bool) =
             List.fold2(fun newCtxt callArg ruleArg ->
@@ -328,29 +335,33 @@ let emitRuleCall (ctxt : CodeGenerationCtxt) (args : CallArg list) (ret : CallAr
                                   { innerCtxt with ArgIndex = newCtxt.ArgIndex }
                               | _ -> failwith "First argument of nested expression is not an id???"
                           | CallArg.Lambda _ -> failwith "Lambdas not supported yet...") ctxt args.Tail call.Tail
-//          let outputResultVariable (ctxt : CodeGenerationCtxt) (rule : TypedRule) =
-//            let resultType = emitType (rule.ReturnType)
-//            match ret with
-//            | [Id(id,_)] ->
-//                let tabs = emitTabs (ctxt.CurrentTabs + 1)
-//                { ctxt with Code = ctxt.Code + (sprintf "%s%s %s;\n" tabs resultType id.Name) }
-//            | _ -> failwith "Unsupported code generation for the premise return expression"
+          let generateTmpResult (ctxt : CodeGenerationCtxt) =
+            let newCtxt = ctxt.AddTemp
+            let resCode =
+              sprintf "%s%s<%s> %s;\n%s%s.HasValue = false;\n"
+                tabs
+                resultStruct
+                (emitType tr.ReturnType)
+                newCtxt.LastTempCode
+                tabs
+                newCtxt.LastTempCode
+            { newCtxt with CurrentResTmp = newCtxt.LastTempCode; Code = newCtxt.Code + resCode }
           let ctxtAfterArgumentCopy = outputArgumentCopy ctxt args call false
           let existingResCondition =
             if firstPremise then
               ""
             else
-              sprintf "%s.HasValue" (ctxtAfterArgumentCopy.TempName (ctxtAfterArgumentCopy.TempIndex - 2))
+              sprintf "%s.HasValue" (ctxtAfterArgumentCopy.TempName (ctxtAfterArgumentCopy.TempIndex - 2))          
           let runCode =
             if firstPremise then
-              sprintf "%s%s.Run();\n" tabs ctxtAfterArgumentCopy.LastTempCode;
+              sprintf "%s%s.Run();\n" tabs ctxtAfterArgumentCopy.CurrentRuleTmp;
             else
               sprintf "%sif(!%s) %s.Run();\n"
                 tabs
                 existingResCondition
-                ctxtAfterArgumentCopy.LastTempCode
-//          let ctxtAfterResultVariable = outputResultVariable ctxtAfterArgumentCopy tr
-          let ctxtAfterArgumentCopy = { ctxtAfterArgumentCopy with Code = ctxtAfterArgumentCopy.Code + runCode }
+                ctxtAfterArgumentCopy.CurrentRuleTmp
+          let ctxtAfterArgumentCopy = generateTmpResult ctxtAfterArgumentCopy
+          let ctxtAfterArgumentCopy = { ctxtAfterArgumentCopy with  ArgIndex = 0; Code = ctxtAfterArgumentCopy.Code + runCode }
           let ctxtAfterPremiseResultCheck = emitPremiseResultCheck ctxtAfterArgumentCopy rule ret (if existingResCondition = "" then "" else (existingResCondition + " && "))
           ctxtAfterPremiseResultCheck
       | ModuleOutput _,ModuleOutput _ -> failwith "A normal rule outputs a module???"
@@ -447,6 +458,20 @@ let rec emitDataArgs (ctxt : CodeGenerationCtxt) (t : TypeDecl) (currentIndex : 
   | Arg(Id(_),_) -> tabs + "public " + (emitType t) + " __arg" + (string currentIndex) + ";\n"
   | Zero -> ""
   | _ -> failwith "Invalid type format in data declaration..."
+
+let emitSubTypes (ctxt : CodeGenerationCtxt) (decl : SymbolDeclaration) (placeComma : bool) =
+  let subtypes = ctxt.Program.SymbolTable.Subtyping
+  match subtypes |> Map.tryFindKey (fun t _ -> t === decl.Return) with
+     | Some _ ->
+        let types = subtypes.[subtypes |> Map.findKey (fun t _ -> t === decl.Return)]
+        if types.Length = 0 then "" 
+        else 
+          (if placeComma then "," else "") +
+          (types |> 
+           List.map(fun t -> getTypeSimpleName t) |>
+           List.reduce(fun t1 t2 ->
+                              t1 + "," + t2))
+     | None -> ""
   
 
 let emitDataStructure (ctxt : CodeGenerationCtxt) (decl : SymbolDeclaration) : string =
@@ -454,17 +479,7 @@ let emitDataStructure (ctxt : CodeGenerationCtxt) (decl : SymbolDeclaration) : s
   let subtypes = ctxt.Program.SymbolTable.Subtyping
   let interfaces =
     getDeclInterface decl +
-    (match subtypes |> Map.tryFindKey (fun t _ -> t === decl.Return) with
-     | Some _ ->
-        let types = subtypes.[subtypes |> Map.findKey (fun t _ -> t === decl.Return)]
-        if types.Length = 0 then "" 
-        else 
-          "," +
-          (types |> 
-           List.map(fun t -> getTypeSimpleName t) |>
-           List.reduce(fun t1 t2 ->
-                              t1 + "," + t2))
-     | None -> "")
+    (emitSubTypes ctxt decl true)
   "public class " + (renameOperator decl.Name.Name) + (if interfaces <> "" then " : " + interfaces else "") + "\n" + tabs + "{\n" + (emitDataArgs {ctxt with CurrentTabs = ctxt.CurrentTabs + 1 } decl.Args 0) + tabs + "}\n"
 
 let emitDataStructures (ctxt : CodeGenerationCtxt) : CodeGenerationCtxt =
@@ -477,8 +492,10 @@ let emitDataStructures (ctxt : CodeGenerationCtxt) : CodeGenerationCtxt =
                   { newCtxt with Code = newCtxt.Code + tabs + (emitDataStructure newCtxt decl) }
               | None ->
                 let subtypes = ctxt.Program.SymbolTable.Subtyping
+                let inheritanceCode = emitSubTypes ctxt decl false
                 { newCtxt with 
-                    Code = newCtxt.Code + tabs + "public interface " + retName + "{ }\n" + tabs + emitDataStructure newCtxt decl
+                    Code = newCtxt.Code + tabs + "public interface " + 
+                           retName + (if inheritanceCode <> "" then " : " + inheritanceCode else "") + "{ }\n" + tabs + emitDataStructure newCtxt decl
                     GeneratedInterfaces = retName :: newCtxt.GeneratedInterfaces }) ctxt dataTable
 
 let emitProgram (program : TypedProgramDefinition) =

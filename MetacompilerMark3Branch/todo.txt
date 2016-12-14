@@ -1,13 +1,10 @@
 ﻿PARSER:
 - Parse lambdas
 - Parse type functions
-- Parse conditionals
 
 TYPE CHECKER:
 - Check the namespace when comparing types and if it is ambiguous notify it.
 
 CODE GENERATION:
-- Generate an empty result before generating the premises.
-- A rule call should be executed only when the result is still empty.
-- Remove the return statement at the end of the result check of each premise.
-- At the end of all the possible rule calls check if the result is empty, and then return.
+- Complete the code generation and structural check for the result of premises. Remember that, in case of a variable argument, 
+  the value of the data structure field should be copied in the local variable.
