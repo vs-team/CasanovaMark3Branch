@@ -182,7 +182,12 @@ and Conclusion =
 
 and LambdaConclusion = List<CallArg*TypeDecl> * List<CallArg>
 
-and Rule = List<Premise> * Conclusion
+and Rule = 
+  {
+    Main          : bool
+    Premises      : List<Premise>
+    Conclusion    : Conclusion
+  }
 
 let symbolTableData : Map<string,SymbolDeclaration> = Map.empty
 let symbolTableFunc : Map<string,SymbolDeclaration> = Map.empty
@@ -213,4 +218,4 @@ let (!!) s = Arg(Id({ Namespace = ""; Name = s },emptyPos),[])
 let (!!!) s = Arg(Id({ Namespace = systemNamespace; Name = s },emptyPos),[])
 let (~~) s = Id({Namespace = ""; Name = s},emptyPos)
 let (-->) t1 t2 = Arrow(t1,t2,false)
-let (.|) ps c = Rule(ps,c)
+let (.|) ps c = { Main = false; Premises = ps; Conclusion = c }

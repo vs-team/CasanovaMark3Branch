@@ -15,15 +15,16 @@ Func "test1" -> Value : Expr
 Func "h" -> int : Expr
 Func "k" -> Value : int
 
-
 -----------
 h 0 -> ($ 5)
 
 -----------
 h 1 -> ($ 1)
 
-
+main :
 h 0 -> y
 --------------
 h x -> y
+
+
 

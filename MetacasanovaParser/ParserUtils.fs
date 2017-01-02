@@ -142,8 +142,8 @@ let insertNamespaceAndFileName (program : Program) (fileName : string) : Program
   let processedRules =
     rules |> List.map(fun r ->
                         match r with
-                        | Rule(premises,conclusion) -> Rule(premises |> List.map processPremise,processConclusion conclusion)
-                        | TypeRule(premises,conclusion) -> TypeRule(premises |> List.map processPremise,processConclusion conclusion))
+                        | Rule(r) -> Rule({ Main = r.Main; Premises = r.Premises |> List.map processPremise; Conclusion = processConclusion r.Conclusion })
+                        | TypeRule(tr) -> TypeRule({ Main = tr.Main; Premises = tr.Premises |> List.map processPremise; Conclusion = processConclusion tr.Conclusion }))
   let processedSubTypes =
     subtypes |> List.map(fun (lt,rt) -> 
                     match lt,rt with

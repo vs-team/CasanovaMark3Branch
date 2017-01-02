@@ -42,6 +42,7 @@ and tokenstream = parse
 | "include" { Parser.INCLUDE (range lexbuf) }
 | "is" { Parser.IS (range lexbuf) }
 | "fun" { Parser.FUN (range lexbuf) }
+| "main" { Parser.MAIN (range lexbuf) }
 | '\'' { Parser.APOSTROPHE }
 | ',' { Parser.COMMA }
 | '.' { Parser.DOT }

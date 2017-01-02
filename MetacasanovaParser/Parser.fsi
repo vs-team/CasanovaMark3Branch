@@ -15,6 +15,7 @@ type token =
   | LT of (int * int)
   | LEQ of (int * int)
   | NEQ of (int * int)
+  | MAIN of (int * int)
   | COMMA
   | LBRACKET
   | RBRACKET
@@ -50,6 +51,7 @@ type tokenId =
     | TOKEN_LT
     | TOKEN_LEQ
     | TOKEN_NEQ
+    | TOKEN_MAIN
     | TOKEN_COMMA
     | TOKEN_LBRACKET
     | TOKEN_RBRACKET
@@ -100,6 +102,7 @@ type nonTerminalId =
     | NONTERM_fractionLine
     | NONTERM_subtype
     | NONTERM_subtypes
+    | NONTERM_mainOpt
     | NONTERM_rule
     | NONTERM_rules
 /// This function maps tokens to integer indexes

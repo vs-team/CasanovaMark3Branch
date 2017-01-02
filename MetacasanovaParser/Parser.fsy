@@ -17,7 +17,7 @@ open ParserUtils
 %token <(int * int)> UNIT
 %token <System.Int32 * System.Int32> ARROW DARROW EQUAL
 %token COMMA LBRACKET RBRACKET DOT APOSTROPHE HASH COLON NEWLINE BAR BIND LGENERICBRACKET RGENERICBRACKET
-%token <int * int> FUNC TYPEFUNC OPEN INCLUDE DATA NAMESPACE IS FUN GT GEQ LT LEQ NEQ
+%token <int * int> FUNC TYPEFUNC OPEN INCLUDE DATA NAMESPACE IS FUN GT GEQ LT LEQ NEQ MAIN
 
 %token EOF
  
@@ -142,7 +142,11 @@ subtypes:
 | subtype subtypes { $1 :: $2 }
 | { [] }
 
-rule: premises fractionLine newLineSeq conclusion { Rule($1,$4) }
+mainOpt:
+| MAIN COLON newLineSeq { true }
+| { false }
+
+rule: mainOpt premises fractionLine newLineSeq conclusion { Rule({ Main = $1; Premises = $2; Conclusion = $5 }) }
 
 rules:
 | rule rules { $1 :: $2 }

@@ -31,6 +31,7 @@ and TypedRuleDefinition =
 
 and TypedRule = 
   {
+    Main            : bool  
     Premises        : List<Premise>
     Conclusion      : Conclusion
     Locals          : LocalContext
@@ -454,26 +455,26 @@ and checkPremise (premise : Premise) (symbolTable : SymbolContext) (locals : Loc
 
 and checkRule (rule : RuleDefinition) (symbolTable : SymbolContext) =
   match rule with
-  | Rule(premises,conclusion) ->
-    match conclusion with
+  | Rule(r) ->
+    match r.Conclusion with
     | ValueOutput(call,result) ->
         let normalizedCall = normalizeDataOrFunctionCall symbolTable call LocalContext.Empty
         let callType,locals = checkNormalizedCall normalizedCall symbolTable LocalContext.Empty true
         let localsAfterPremises,normPremises =
-          premises |> List.fold(fun (l,pr) p -> 
+          r.Premises |> List.fold(fun (l,pr) p -> 
                                   let loc,prem = checkPremise p symbolTable l
                                   loc,prem :: pr) (locals,[])
         let normPremises = normPremises |> List.rev
         match result with
         | [arg] ->
-            (Rule(normPremises,ValueOutput(normalizedCall,result))),checkSingleArg arg symbolTable callType localsAfterPremises false
+            (Rule( { Main = r.Main; Premises = normPremises; Conclusion = ValueOutput(normalizedCall,result)})),checkSingleArg arg symbolTable callType localsAfterPremises false
         | x :: xs ->
             let normalizedRes = normalizeDataOrFunctionCall symbolTable result LocalContext.Empty
-            (Rule(normPremises,ValueOutput(normalizedCall,normalizedRes))),checkNormalizedCall normalizedRes symbolTable localsAfterPremises false 
+            (Rule( { Main = r.Main; Premises = normPremises; Conclusion = ValueOutput(normalizedCall,normalizedRes)})),checkNormalizedCall normalizedRes symbolTable localsAfterPremises false 
         | _ -> failwith "Why is the result of a conclusion empty?"          
     | ModuleOutput(_) ->
         raise(TypeError("You can only output modules in a type rule"))
-  | TypeRule(premises,conclusion) -> failwith "type rules not supported yet..."
+  | TypeRule(tr) -> failwith "type rules not supported yet..."
 
 
 and buildSubTypes (subTypesDef : List<TypeDecl * TypeDecl>) : Map<TypeDecl,List<TypeDecl>> =
@@ -489,23 +490,29 @@ and checkProgramDefinition (_module : string) ((decls,rules,subtypes) : ProgramD
   let symbolTable = buildSymbols decls Map.empty
   do checkSymbols decls symbolTable
   let symbolTable = { symbolTable with Subtyping = buildSubTypes subtypes }
-  let typedRules =
-    [for r in rules do
-        match r with
-        | Rule(r1) ->
-            let normRule,(_type,locals) = checkRule r symbolTable
-            match normRule with
-            | Rule(nr1) ->
-                let typedRule = { Premises = fst nr1; Conclusion = snd nr1; Locals = locals; ReturnType = _type }
-                yield TypedRule(typedRule)
-            | TypeRule(nr) -> failwith "Type rule not supported yet..."
-        | TypeRule(r) -> failwith "Type rule not supported yet..."]
-  {
-    Module = _module
-    Declarations = decls
-    TypedRules = typedRules
-    SymbolTable = symbolTable
-  }
+  if rules |> List.filter(fun x ->
+                              match x with
+                              | Rule r -> r.Main
+                              | TypeRule _ -> false) |> List.length > 1 then
+    raise(TypeError("A program cannot contain more than one entry point"))
+  else
+    let typedRules =
+      [for r in rules do
+          match r with
+          | Rule(r1) ->
+              let normRule,(_type,locals) = checkRule r symbolTable
+              match normRule with
+              | Rule(nr1) ->
+                  let typedRule = { Main = nr1.Main; Premises = nr1.Premises; Conclusion = nr1.Conclusion; Locals = locals; ReturnType = _type }
+                  yield TypedRule(typedRule)
+              | TypeRule(nr) -> failwith "Type rule not supported yet..."
+          | TypeRule(r) -> failwith "Type rule not supported yet..."]
+    {
+      Module = _module
+      Declarations = decls
+      TypedRules = typedRules
+      SymbolTable = symbolTable
+    }
 
 and checkProgram ((moduleName,imports,def) : Program) : TypedProgramDefinition =
   //missing support for imports
