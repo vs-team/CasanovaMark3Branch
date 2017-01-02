@@ -498,8 +498,37 @@ let emitDataStructures (ctxt : CodeGenerationCtxt) : CodeGenerationCtxt =
                            retName + (if inheritanceCode <> "" then " : " + inheritanceCode else "") + "{ }\n" + tabs + emitDataStructure newCtxt decl
                     GeneratedInterfaces = retName :: newCtxt.GeneratedInterfaces }) ctxt dataTable
 
+let emitMain (ctxt : CodeGenerationCtxt) =
+  let entryPoint =
+    ctxt.Program.TypedRules |>
+    List.tryFindIndex
+                  (fun x ->
+                    match x with
+                    | TypedRule(r) -> r.Main
+                    | _ -> false)
+  match entryPoint with
+  | Some idx ->
+      let tabs = emitTabs ctxt.CurrentTabs
+      let innerTabs = emitTabs (ctxt.CurrentTabs + 1)
+      let mainTabs = emitTabs (ctxt.CurrentTabs + 2)
+      let mainCode =
+        sprintf
+          "%spublic class EntryPoint \n%s{\n%spublic static void Main(string[] args) \n%s{\n%s Rule%d __main = new Rule%d();\n%s__main.Run();\n%s}\n%s} "
+          tabs
+          tabs
+          innerTabs
+          innerTabs
+          mainTabs
+          idx
+          idx
+          mainTabs
+          innerTabs
+          tabs
+      { ctxt with Code = ctxt.Code + mainCode }
+  | None -> ctxt
+
 let emitProgram (program : TypedProgramDefinition) =
   let startingCtxt = CodeGenerationCtxt.Init program
   sprintf
-    "%s\nnamespace %s\n {\n%s%s%s\n}"
-    defaultHeader (program.Module) defaultClasses (emitDataStructures startingCtxt).Code ((emitRules startingCtxt).Code)
+    "%s\nnamespace %s\n {\n%s%s%s%s\n}"
+    defaultHeader (program.Module) defaultClasses (emitDataStructures startingCtxt).Code ((emitRules startingCtxt).Code) ((emitMain startingCtxt).Code)
