@@ -513,7 +513,7 @@ let emitMain (ctxt : CodeGenerationCtxt) =
       let mainTabs = emitTabs (ctxt.CurrentTabs + 2)
       let mainCode =
         sprintf
-          "%spublic class EntryPoint \n%s{\n%spublic static void Main(string[] args) \n%s{\n%s Rule%d __main = new Rule%d();\n%s__main.Run();\n%s}\n%s} "
+          "%spublic class EntryPoint \n%s{\n%spublic static void Main(string[] args) \n%s{\n%s Rule%d __main = new Rule%d();\n%s__main.Run();\n%s}\n%s}"
           tabs
           tabs
           innerTabs
