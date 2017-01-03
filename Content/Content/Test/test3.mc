@@ -8,12 +8,16 @@ Data "%" -> int : Expr
 /* Data<a,b> 'a -> "," -> 'b : Tuple
 Func<a,b> "fst" -> Tuple<'a,'b> : 'a
 Func<a,b> "genericTest" -> Tuple<'a,Tuple<int,float>> : 'a */
-Data "dataTest" -> Value : Value
+Data "%%" -> Value -> Value : Value
 Data "$$" : Value
 Func "test0" -> int : Value
 Func "test1" -> Value : Expr
 Func "h" -> int : Expr
 Func "k" -> Value : int
+
+
+-------------------------
+k (%% (%% ($ 5) (%% ($ 1) ($ 2))) ($ 3)) -> 5
 
 -----------
 h 0 -> ($ 5)
