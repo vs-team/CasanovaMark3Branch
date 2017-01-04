@@ -213,12 +213,90 @@ let emitConclusionCheck (ctxt : CodeGenerationCtxt) (rule : TypedRule) =
       | _ -> failwith "Call is empty?!!"
   | ModuleOutput _ -> failwith "Module generation not supported yet"
 
+let rec emitDataVariableCopy (ctxt : CodeGenerationCtxt) (args : CallArg list) =
+  match args with
+  | dataName :: args ->
+      args |>
+      List.fold(fun (index,newCtxt) arg ->
+                  match arg with
+                  | Literal(l,_) -> index + 1,newCtxt
+                  | NestedExpression expr ->
+                      emitDataVariableCopy newCtxt expr
+                  | Id(id,_) ->
+                      let tabs = emitTabs (newCtxt.CurrentTabs + 1)
+                      let copyCode =
+                        sprintf "%s%s = %s.__arg%d;\n"
+                          tabs
+                          id.Name
+                          newCtxt.CurrentDataVar
+                          index
+                      index + 1,{ newCtxt with Code = newCtxt.Code + copyCode }
+                  | CallArg.Lambda _ -> failwith "Lambdas not supported yet") (0,ctxt)
+  | _ -> failwith "Something is quite wrong, my dear..."
+
+let emitResultReflectionStructuralCheck (ctxt : CodeGenerationCtxt) (dataSymbol : SymbolDeclaration) (index : int) (prefix : string) =
+  let tabs = emitTabs ctxt.CurrentTabs
+  let fullName = if prefix = "" then composeArgPath ctxt index ctxt.CurrentDataVar else prefix
+  let opName = renameOperator dataSymbol.Name.Name
+  let updatedCtxt = ctxt.AddTemp
+  let code =
+    (sprintf "\n%sif (!(%s is %s)) \n%s{\n%s%s.HasValue = false;\n%s}\n%selse\n%s{\n%s%s %s = (%s)%s;\n" 
+      tabs 
+      fullName
+      (renameOperator dataSymbol.Name.Name )
+      tabs
+      (emitTabs (updatedCtxt.CurrentTabs + 1))
+      updatedCtxt.CurrentResTmp
+      tabs
+      tabs
+      tabs
+      (emitTabs (updatedCtxt.CurrentTabs + 1))
+      opName
+      updatedCtxt.CurrentTempCode
+      opName
+      fullName)
+  { updatedCtxt with Code = updatedCtxt.Code + code; CurrentDataVar = updatedCtxt.CurrentTempCode }
+
+
+
+let rec emitResultStructuralCheck (ctxt : CodeGenerationCtxt) (resultArgs : CallArg list) (prefix : string) =
+  resultArgs |>
+  List.fold (fun (index,newCtxt) arg ->
+                let tabs = emitTabs newCtxt.CurrentTabs
+                let innerTabs = emitTabs (newCtxt.CurrentTabs + 1)
+                let composedArg = composeArgPath newCtxt index ctxt.CurrentDataVar
+                match arg with
+                | Literal (l,_) ->
+                    let code =
+                      (sprintf "\n%sif (%s != %s)\n%s{\n%s%s.HasValue = false;\n%s}\n"
+                          tabs
+                          composedArg
+                          (l.ToString())
+                          tabs
+                          innerTabs
+                          newCtxt.CurrentResTmp
+                          tabs)
+                    (index + 1,{ newCtxt with Code = newCtxt.Code + code })
+                | NestedExpression nestedArgs ->
+                    let dataName = nestedArgs.Head
+                    let arguments = nestedArgs.Tail
+                    match dataName with
+                    | Id(id,_) ->
+                        let dataSymbol = newCtxt.Program.SymbolTable.DataTable.[id]
+                        let updatedCtxt = emitResultReflectionStructuralCheck newCtxt dataSymbol index ""
+                        index + 1,
+                        { updatedCtxt with CurrentDataVar = newCtxt.CurrentDataVar; Code = updatedCtxt.Code; CurrentTabs =  newCtxt.CurrentTabs }
+                    | _ -> failwith "Data name is not an id???"
+                | Id(id,_) ->
+                      failwith "Not supported yet"                    
+                | CallArg.Lambda _ -> failwith "Lambdas not supported yet") (0,ctxt)
+
 let rec emitResultCopy (ctxt : CodeGenerationCtxt) (matchingRule : TypedRule) (args : CallArg list) =
       match args with
       | [Id(id,_)] ->
           let tabs = emitTabs ctxt.CurrentTabs
           let copyCode =
-            sprintf "%s%s = %s.__res.Value;\n%s%s = %s.__res;"
+            sprintf "%s%s = %s.__res.Value;\n%s%s = %s.__res;\n"
               tabs
               id.Name
               ctxt.CurrentRuleTmp
@@ -233,13 +311,18 @@ let rec emitResultCopy (ctxt : CodeGenerationCtxt) (matchingRule : TypedRule) (a
           | Id(id,_) ->
               let dataOpt = ctxt.Program.SymbolTable.DataTable.TryFind(id)
               match dataOpt with
-              | Some decl ->           
-                  let innerCtxt = emitReflectionStructuralCheck ctxt decl 0 (ctxt.LastTempCode + ".__res.Value")
-                  let innerCtxt = { innerCtxt with Code = innerCtxt.Code + "\n" }
-                  let _,innerCtxt = emitStructuralCheck innerCtxt args (ctxt.LastTempCode + ".__res.Value")
-                  //remember to copy the data structure argument values into the local variables
-                  let res = { innerCtxt with Code = innerCtxt.Code + "\n" }
-                  res
+              | Some decl ->
+                  let tabs = emitTabs ctxt.CurrentTabs
+                  let copyCode =
+                    sprintf "%s%s = %s.__res;\n"
+                      tabs
+                      ctxt.CurrentResTmp
+                      ctxt.CurrentRuleTmp
+                  let copyCtxt = { ctxt with Code = ctxt.Code + copyCode }
+                  let operatorCheckCtxt = emitResultReflectionStructuralCheck copyCtxt decl 0 (copyCtxt.CurrentResTmp + ".Value")
+                  let _,copyDataCtxt = emitDataVariableCopy operatorCheckCtxt (arg :: args)
+                  let _,innerCtxt = emitResultStructuralCheck { copyDataCtxt with CurrentTabs = copyDataCtxt.CurrentTabs + 1 } args ""
+                  { innerCtxt with CurrentDataVar = copyCtxt.CurrentDataVar; Code = innerCtxt.Code + (sprintf "%s}\n" tabs) }
               | None -> failwith "The data constructor does not exist??!! TypeChecker pls..."
           | _ -> failwith "Not an id ??!!"
       | _ -> failwith "The data constructor does not exist??!! TypeChecker pls..."
@@ -258,81 +341,30 @@ let emitExistingResultCheck (ctxt : CodeGenerationCtxt) (matchingRuleDef : Typed
   let resultCopyCtxt = emitResultCopy { newCtxt with CurrentTabs = ctxt.CurrentTabs + 2} matchingRuleDef resultArgs
   { resultCopyCtxt with CurrentTabs = ctxt.CurrentTabs; Code = resultCopyCtxt.Code + (sprintf "\n%s}\n" tabs) }
 
-let emitResultReflectionStructuralCheck (ctxt : CodeGenerationCtxt) (dataSymbol : SymbolDeclaration) (index : int) (prefix : string) =
-  let tabs = emitTabs ctxt.CurrentTabs
-  let fullName = if prefix = "" then composeArgPath ctxt index prefix else prefix
-  let opName = renameOperator dataSymbol.Name.Name
-  let updatedCtxt = ctxt.AddTemp
-  (sprintf "\n%sif (!(%s is %s)) \n%s{\n%s\n%sreturn;\n%s}\n%s%s %s = (%s)%s;" 
-    tabs 
-    fullName
-    (renameOperator dataSymbol.Name.Name )
-    tabs
-    (resultNone (emitTabs (ctxt.CurrentTabs + 1)) ((emitType ctxt.CurrentRuleRetType)))
-    (emitTabs (ctxt.CurrentTabs + 1))
-    tabs
-    tabs
-    opName
-    ctxt.CurrentTempCode
-    opName
-    fullName),updatedCtxt
-
-let rec emitResultStructuralCheck (ctxt : CodeGenerationCtxt) (resultArgs : CallArg list) (prefix : string) =
-  resultArgs |>
-  List.fold (fun (index,newCtxt) arg ->
-                let tabs = emitTabs newCtxt.CurrentTabs
-                let innerTabs = emitTabs (newCtxt.CurrentTabs + 1)
-                let composedArg = composeArgPath newCtxt index (newCtxt.CurrentResTmp)
-                match arg with
-                | Literal (l,_) ->
-                    let code =
-                      newCtxt.Code + 
-                      (sprintf "\n%sif (%s != %s)\n%s{\n%s\n%s.HasValue = false;\n%s}\n"
-                          tabs
-                          composedArg
-                          (l.ToString())
-                          tabs
-                          innerTabs
-                          newCtxt.CurrentResTmp
-                          tabs)
-                    (index + 1,{ newCtxt with Code = newCtxt.Code + code })
-                | NestedExpression nestedArgs ->
-                      failwith "Not supported yet"
-//                    let dataName = nestedArgs.Head
-//                    let arguments = nestedArgs.Tail
-//                    match dataName with
-//                    | Id(id,_) ->
-//                        let dataSymbol = newCtxt.Program.SymbolTable.DataTable.[id]
-//                        let checkCode,updatedCtxt = emitReflectionStructuralCheck newCtxt dataSymbol index (newCtxt.CurrentResTmp)
-                | Id(id,_) ->
-                      failwith "Not supported yet"
-//                    match newCtxt.Program.SymbolTable.DataTable.TryFind(id) with
-//                    | Some symbol when symbol.Args = Zero ->
-                      ) (0,ctxt)
-
 
 let rec emitPremiseResultCheck (ctxt : CodeGenerationCtxt) (matchingRuleDef : TypedRuleDefinition) (resultArgs : CallArg list) (existingCond : string) =
   match matchingRuleDef with
   | TypedRule(matchingRule) ->
     let ctxtAfterResCheck = emitExistingResultCheck ctxt matchingRule resultArgs existingCond
+    ctxtAfterResCheck
 //    let ctxtAfterResultCopy = emitResultCopy { ctxtAfterResCheck with CurrentTabs = ctxtAfterResCheck.CurrentTabs + 1 } matchingRule resultArgs
-    match resultArgs with
-      | [NestedExpression (expr)] -> 
-          emitPremiseResultCheck ctxt matchingRuleDef expr existingCond
-      | [arg] ->
-          ctxtAfterResCheck
-      | arg :: args ->
-          match arg with
-          | Id(id,_) ->
-              let dataOpt = ctxt.Program.SymbolTable.DataTable.TryFind(id)
-              match dataOpt with
-              | Some decl ->
-                  let _,innerCtxt = emitResultStructuralCheck ctxtAfterResCheck args ""
-//                  let structuralCheck,_,innerCtxt = emitStructuralCheck ctxtAfterResCheck args ctxtAfterResCheck.LastTempCode
-                  innerCtxt
-              | None -> failwith "The data constructor does not exist??!! TypeChecker pls..."
-          | _ -> failwith "Not an id ??!!"
-      | _ -> failwith "Premise return expression is empty??!!!"
+//    match resultArgs with
+//      | [NestedExpression (expr)] -> 
+//          emitPremiseResultCheck ctxt matchingRuleDef expr existingCond
+//      | [arg] ->
+//          ctxtAfterResCheck
+//      | arg :: args ->
+//          match arg with
+//          | Id(id,_) ->
+//              let dataOpt = ctxt.Program.SymbolTable.DataTable.TryFind(id)
+//              match dataOpt with
+//              | Some decl ->
+//                  let _,innerCtxt = emitResultStructuralCheck { ctxtAfterResCheck  with CurrentDataVar = ctxtAfterResCheck.CurrentResTmp } args ""
+////                  let structuralCheck,_,innerCtxt = emitStructuralCheck ctxtAfterResCheck args ctxtAfterResCheck.LastTempCode
+//                  innerCtxt
+//              | None -> failwith "The data constructor does not exist??!! TypeChecker pls..."
+//          | _ -> failwith "Not an id ??!!"
+//      | _ -> failwith "Premise return expression is empty??!!!"
   | TypedTypeRule _ -> failwith "Type rule not supported yet"
 
 
