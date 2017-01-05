@@ -16,7 +16,7 @@ open ParserUtils
 %token <string * (int * int)> STRING
 %token <(int * int)> UNIT
 %token <System.Int32 * System.Int32> ARROW DARROW EQUAL
-%token COMMA LBRACKET RBRACKET DOT APOSTROPHE HASH COLON NEWLINE BAR BIND LGENERICBRACKET RGENERICBRACKET
+%token COMMA LBRACKET RBRACKET DOT APOSTROPHE HASH COLON NEWLINE BAR BIND
 %token <int * int> FUNC TYPEFUNC OPEN INCLUDE DATA NAMESPACE IS FUN GT GEQ LT LEQ NEQ MAIN
 
 %token EOF
@@ -49,7 +49,7 @@ commaPath:
 | ID { [{Namespace = "";Name = fst $1}] }
 
 genericSeq:
-| LGENERICBRACKET commaPath RGENERICBRACKET { $2 }
+| LT commaPath GT { $2 }
 | { [] }
 
 includeOrOpenStmts:
@@ -85,7 +85,7 @@ typeVarsSeq:
 | typeDeclaration { [$1] }
 
 genericTypeDef:
-| LGENERICBRACKET typeVarsSeq RGENERICBRACKET { $2 }
+| LT typeVarsSeq GT { $2 }
 | { [] }
 
 typeDeclaration:

@@ -193,20 +193,30 @@ let rec emitStructuralCheck (ctxt : CodeGenerationCtxt) (args : CallArg list) (p
 
 let emitConclusionCheck (ctxt : CodeGenerationCtxt) (rule : TypedRule) =
   let tabs = emitTabs ctxt.CurrentTabs
+  let innerTabs = emitTabs (ctxt.CurrentTabs + 1)
+  let resultCreation =
+    sprintf "%s__res = new %s<%s>();\n%s__res.Value = default(%s);\n%s__res.HasValue = false;\n"
+      innerTabs
+      resultStruct 
+      (emitType ctxt.CurrentRuleRetType)
+      innerTabs
+      (emitType ctxt.CurrentRuleRetType)
+      innerTabs
   match rule.Conclusion with
   | ValueOutput(call,res) ->
       match call with
       | [arg] ->
           { ctxt
               with
-                Code = ctxt.Code +  tabs + "public void Run()\n" + tabs + "{" + "\n" + tabs + "\n" //leave the bracket open because it will be completed in a following generation function
+                //leave the bracket open because it will be completed in a following generation function
+                Code = ctxt.Code +  tabs + "public void Run()\n" + tabs + "{" + "\n" + tabs + "\n" + resultCreation 
           }
       | fName :: args ->
           let _,updatedCtxt = emitStructuralCheck {ctxt with CurrentTabs = ctxt.CurrentTabs + 1 } args ""
           { ctxt
               with
-                //TODO: emit the code to check the structural equality if there are Data constructor arguments or literal and the code for premises inside Run
-                Code = ctxt.Code + tabs + "public void Run()\n" + tabs + "{" + updatedCtxt.Code + "\n" + tabs + "\n" //leave the bracket open because it will be completed in a following generation function
+                 //leave the bracket open because it will be completed in a following generation function
+                Code = ctxt.Code + tabs + "public void Run()\n" + tabs + "{" + updatedCtxt.Code + "\n" + tabs + "\n" + resultCreation
                 TempIndex = updatedCtxt.TempIndex
                 GeneratedTemps = updatedCtxt.GeneratedTemps
           }
@@ -287,8 +297,7 @@ let rec emitResultStructuralCheck (ctxt : CodeGenerationCtxt) (resultArgs : Call
                         index + 1,
                         { updatedCtxt with CurrentDataVar = newCtxt.CurrentDataVar; Code = updatedCtxt.Code; CurrentTabs =  newCtxt.CurrentTabs }
                     | _ -> failwith "Data name is not an id???"
-                | Id(id,_) ->
-                      failwith "Not supported yet"                    
+                | Id(id,_) -> index + 1,newCtxt            
                 | CallArg.Lambda _ -> failwith "Lambdas not supported yet") (0,ctxt)
 
 let rec emitResultCopy (ctxt : CodeGenerationCtxt) (matchingRule : TypedRule) (args : CallArg list) =
@@ -347,24 +356,6 @@ let rec emitPremiseResultCheck (ctxt : CodeGenerationCtxt) (matchingRuleDef : Ty
   | TypedRule(matchingRule) ->
     let ctxtAfterResCheck = emitExistingResultCheck ctxt matchingRule resultArgs existingCond
     ctxtAfterResCheck
-//    let ctxtAfterResultCopy = emitResultCopy { ctxtAfterResCheck with CurrentTabs = ctxtAfterResCheck.CurrentTabs + 1 } matchingRule resultArgs
-//    match resultArgs with
-//      | [NestedExpression (expr)] -> 
-//          emitPremiseResultCheck ctxt matchingRuleDef expr existingCond
-//      | [arg] ->
-//          ctxtAfterResCheck
-//      | arg :: args ->
-//          match arg with
-//          | Id(id,_) ->
-//              let dataOpt = ctxt.Program.SymbolTable.DataTable.TryFind(id)
-//              match dataOpt with
-//              | Some decl ->
-//                  let _,innerCtxt = emitResultStructuralCheck { ctxtAfterResCheck  with CurrentDataVar = ctxtAfterResCheck.CurrentResTmp } args ""
-////                  let structuralCheck,_,innerCtxt = emitStructuralCheck ctxtAfterResCheck args ctxtAfterResCheck.LastTempCode
-//                  innerCtxt
-//              | None -> failwith "The data constructor does not exist??!! TypeChecker pls..."
-//          | _ -> failwith "Not an id ??!!"
-//      | _ -> failwith "Premise return expression is empty??!!!"
   | TypedTypeRule _ -> failwith "Type rule not supported yet"
 
 
@@ -477,16 +468,7 @@ let emitFunctionCall (ctxt : CodeGenerationCtxt) (functionCall : CallArg list * 
                                         | ModuleOutput _ -> failwith "Module generation not supported yet"
                                     | TypedTypeRule(tr) -> failwith "Type Rules not supported yet")
   if matchingRules.Length > 0 then
-    let tabs = emitTabs (ctxt.CurrentTabs + 1)
-    let resultCreation =
-      sprintf "%s__res = new %s<%s>();\n%s__res.Value = default(%s);\n%s__res.HasValue = false;\n"
-        tabs
-        resultStruct 
-        (emitType ctxt.CurrentRuleRetType)
-        tabs
-        (emitType ctxt.CurrentRuleRetType)
-        tabs
-    emitRulesCall { ctxt with Code = ctxt.Code + resultCreation } call ret matchingRules
+    emitRulesCall ctxt call ret matchingRules
   else
     raise(CodeGenerationError(sprintf "A premise in Rule %d will never be executed" ctxt.RuleIndex))
 
@@ -496,7 +478,48 @@ let emitPremises (ctxt : CodeGenerationCtxt) (premises : Premise list) =
                 match p with
                 | FunctionCall(args,res) -> emitFunctionCall newCtxt (args,res)
                 | Bind _
-                | Conditional _ -> failwith "Not implemented yet...") ctxt
+                | Conditional _ -> failwith "Conditionals not implemented yet...") ctxt
+
+let emitResultDataStructure (ctxt : CodeGenerationCtxt) (symbol : SymbolDeclaration) =
+  let tabs = emitTabs ctxt.CurrentTabs
+  let updatedCtxt = ctxt.AddTemp
+  let opName = renameOperator symbol.Name.Name
+  let resultCode =
+    sprintf "%s%s %s = new %s();\n"
+      tabs
+      opName
+      updatedCtxt.CurrentTempCode
+      opName
+  { updatedCtxt with Code = updatedCtxt.Code + resultCode; CurrentResTmp = updatedCtxt.CurrentTempCode }
+    
+
+let rec emitRuleResult (ctxt : CodeGenerationCtxt) (rule : TypedRule) =
+  let result = rule.Conclusion
+  match result with
+  | ValueOutput (_,res) ->
+      let tabs = emitTabs (ctxt.CurrentTabs + 1)
+      match res with
+      | [Literal(l,_)] ->
+          let resultCode =
+            sprintf "%s__res.HasValue = true;\n%s__res.Value = %s;\n"
+              tabs
+              tabs
+              (l.ToString())
+          { ctxt with Code = ctxt.Code + resultCode }
+      | [Id(id,_)] ->
+          let resultCode =
+            sprintf "%s__res.HasValue = true;\n%s__res.Value = %s;\n"
+              tabs
+              tabs
+              id.Name
+          { ctxt with Code = ctxt.Code + resultCode }
+      | (Id(id,_)) :: args ->
+          match ctxt.Program.SymbolTable.DataTable.TryFind(id) with
+          | Some decl ->
+              ctxt
+          | None -> failwith "A rule is returning a sequence of id but the header is not a data type"
+      | _ -> failwith "Invalid structure of rule result"
+  | ModuleOutput _ -> failwith "Something is wrong: a rule is returning a module"
 
 let emitRule (ctxt : CodeGenerationCtxt) (rule : TypedRule) =
   let tabs = emitTabs ctxt.CurrentTabs
@@ -509,7 +532,8 @@ let emitRule (ctxt : CodeGenerationCtxt) (rule : TypedRule) =
   let returnArg =  emitReturnArg { ctxt with CurrentTabs = ctxt.CurrentTabs + 1 } rule.ReturnType
   let conclusionCtxt = emitConclusionCheck { ctxt with CurrentTabs = ctxt.CurrentTabs + 1; Code = "" } rule
   let premiseCtxt = emitPremises conclusionCtxt rule.Premises
-  let runFunction = premiseCtxt.Code + (emitTabs (premiseCtxt.CurrentTabs)) + "}\n" 
+  let resultCtxt = emitRuleResult premiseCtxt rule
+  let runFunction = resultCtxt.Code + (emitTabs (premiseCtxt.CurrentTabs)) + "}\n" 
   sprintf "%spublic class %s\n%s{\n%s%s%s%s%s}\n" tabs ("Rule" + (string ctxt.RuleIndex)) tabs locals nonVarArgs returnArg runFunction tabs
 
 let emitRules (ctxt : CodeGenerationCtxt) : CodeGenerationCtxt =

@@ -19,7 +19,7 @@ let range (lexbuf : LexBuffer<_>) = lexbuf.EndPos.Line + 1, lexbuf.EndPos.Column
 let trans : uint16[] array = 
     [| 
     (* State 0 *)
-     [| 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 2us; 3us; 28us; 28us; 4us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 2us; 27us; 26us; 14us; 27us; 27us; 28us; 9us; 12us; 13us; 28us; 28us; 10us; 16us; 11us; 1us; 25us; 25us; 25us; 25us; 25us; 25us; 25us; 25us; 25us; 25us; 15us; 28us; 17us; 19us; 18us; 27us; 27us; 27us; 27us; 27us; 22us; 27us; 20us; 27us; 27us; 27us; 27us; 27us; 27us; 27us; 27us; 27us; 27us; 27us; 27us; 27us; 21us; 27us; 27us; 27us; 27us; 27us; 27us; 28us; 28us; 28us; 28us; 27us; 28us; 27us; 27us; 27us; 27us; 27us; 7us; 27us; 27us; 6us; 27us; 27us; 27us; 8us; 23us; 5us; 27us; 27us; 27us; 27us; 27us; 27us; 27us; 27us; 27us; 27us; 27us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 24us; |];
+     [| 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 2us; 3us; 28us; 28us; 4us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 2us; 27us; 26us; 14us; 27us; 27us; 28us; 9us; 12us; 13us; 28us; 28us; 10us; 16us; 11us; 1us; 25us; 25us; 25us; 25us; 25us; 25us; 25us; 25us; 25us; 25us; 15us; 28us; 19us; 17us; 18us; 27us; 27us; 27us; 27us; 27us; 22us; 27us; 20us; 27us; 27us; 27us; 27us; 27us; 27us; 27us; 27us; 27us; 27us; 27us; 27us; 27us; 21us; 27us; 27us; 27us; 27us; 27us; 27us; 28us; 28us; 28us; 28us; 27us; 28us; 27us; 27us; 27us; 27us; 27us; 7us; 27us; 27us; 6us; 27us; 27us; 27us; 8us; 23us; 5us; 27us; 27us; 27us; 27us; 27us; 27us; 27us; 27us; 27us; 27us; 27us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 28us; 24us; |];
     (* State 1 *)
      [| 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 89us; 65535us; 65535us; 65535us; 65535us; 88us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; |];
     (* State 2 *)
@@ -53,11 +53,11 @@ let trans : uint16[] array =
     (* State 16 *)
      [| 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 68us; 68us; 68us; 68us; 68us; 68us; 68us; 68us; 68us; 68us; 65535us; 65535us; 65535us; 65535us; 67us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; |];
     (* State 17 *)
-     [| 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65us; 66us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; |];
+     [| 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 66us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; |];
     (* State 18 *)
-     [| 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 64us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; |];
+     [| 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; |];
     (* State 19 *)
-     [| 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 63us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; |];
+     [| 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 63us; 64us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; |];
     (* State 20 *)
      [| 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 29us; 65535us; 29us; 29us; 29us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 65535us; 65535us; 65535us; 65535us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 65535us; 65535us; 65535us; 65535us; 29us; 65535us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 29us; 60us; 29us; 29us; 29us; 29us; 29us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; |];
     (* State 21 *)
@@ -223,7 +223,7 @@ let trans : uint16[] array =
     (* State 101 *)
      [| 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; |];
     |] 
-let actions : uint16[] = [|65535us; 38us; 2us; 3us; 38us; 37us; 37us; 37us; 37us; 9us; 10us; 11us; 12us; 13us; 14us; 15us; 17us; 18us; 19us; 22us; 37us; 37us; 37us; 37us; 33us; 34us; 38us; 37us; 38us; 37us; 36us; 65535us; 34us; 37us; 65535us; 35us; 65535us; 35us; 35us; 35us; 35us; 35us; 37us; 37us; 37us; 37us; 37us; 37us; 37us; 32us; 37us; 37us; 31us; 37us; 37us; 37us; 37us; 37us; 37us; 30us; 37us; 37us; 29us; 21us; 24us; 26us; 27us; 20us; 34us; 34us; 16us; 28us; 37us; 37us; 8us; 37us; 7us; 37us; 6us; 37us; 37us; 37us; 37us; 5us; 37us; 37us; 4us; 3us; 0us; 1us; 65535us; 2us; 1us; 2us; 2us; 1us; 0us; 65535us; 0us; 1us; 1us; 0us; |]
+let actions : uint16[] = [|65535us; 36us; 2us; 3us; 36us; 35us; 35us; 35us; 35us; 9us; 10us; 11us; 12us; 13us; 14us; 15us; 17us; 20us; 21us; 23us; 35us; 35us; 35us; 35us; 31us; 32us; 36us; 35us; 36us; 35us; 34us; 65535us; 32us; 35us; 65535us; 33us; 65535us; 33us; 33us; 33us; 33us; 33us; 35us; 35us; 35us; 35us; 35us; 35us; 35us; 30us; 35us; 35us; 29us; 35us; 35us; 35us; 35us; 35us; 35us; 28us; 35us; 35us; 27us; 24us; 25us; 22us; 19us; 18us; 32us; 32us; 16us; 26us; 35us; 35us; 8us; 35us; 7us; 35us; 6us; 35us; 35us; 35us; 35us; 5us; 35us; 35us; 4us; 3us; 0us; 1us; 65535us; 2us; 1us; 2us; 2us; 1us; 0us; 65535us; 0us; 1us; 1us; 0us; |]
 let _fslex_tables = Microsoft.FSharp.Text.Lexing.UnicodeTables.Create(trans,actions)
 let rec _fslex_dummy () = _fslex_dummy() 
 (* Rule linecomment *)
@@ -360,110 +360,100 @@ and _fslex_tokenstream  _fslex_state lexbuf =
           )
   | 18 -> ( 
 # 55 "Lexer.fsl"
-                       Parser.LGENERICBRACKET 
+                        Parser.ARROW (range lexbuf) 
 # 364 "Lexer.fs"
           )
   | 19 -> ( 
 # 56 "Lexer.fsl"
-                       Parser.RGENERICBRACKET 
+                        Parser.DARROW (range lexbuf) 
 # 369 "Lexer.fs"
           )
   | 20 -> ( 
 # 57 "Lexer.fsl"
-                        Parser.ARROW (range lexbuf) 
+                       Parser.EQUAL (range lexbuf) 
 # 374 "Lexer.fs"
           )
   | 21 -> ( 
 # 58 "Lexer.fsl"
-                        Parser.DARROW (range lexbuf) 
+                       Parser.GT (range lexbuf) 
 # 379 "Lexer.fs"
           )
   | 22 -> ( 
 # 59 "Lexer.fsl"
-                       Parser.EQUAL (range lexbuf) 
+                        Parser.GEQ (range lexbuf) 
 # 384 "Lexer.fs"
           )
   | 23 -> ( 
 # 60 "Lexer.fsl"
-                       Parser.GT (range lexbuf) 
+                       Parser.LT (range lexbuf) 
 # 389 "Lexer.fs"
           )
   | 24 -> ( 
 # 61 "Lexer.fsl"
-                        Parser.GEQ (range lexbuf) 
+                        Parser.LEQ (range lexbuf) 
 # 394 "Lexer.fs"
           )
   | 25 -> ( 
 # 62 "Lexer.fsl"
-                       Parser.LT (range lexbuf) 
+                        Parser.NEQ (range lexbuf) 
 # 399 "Lexer.fs"
           )
   | 26 -> ( 
 # 63 "Lexer.fsl"
-                        Parser.LEQ (range lexbuf) 
+                        Parser.UNIT (range lexbuf) 
 # 404 "Lexer.fs"
           )
   | 27 -> ( 
 # 64 "Lexer.fsl"
-                        Parser.NEQ (range lexbuf) 
+                          Parser.FUNC (range lexbuf) 
 # 409 "Lexer.fs"
           )
   | 28 -> ( 
 # 65 "Lexer.fsl"
-                        Parser.UNIT (range lexbuf) 
+                              Parser.TYPEFUNC (range lexbuf) 
 # 414 "Lexer.fs"
           )
   | 29 -> ( 
 # 66 "Lexer.fsl"
-                          Parser.FUNC (range lexbuf) 
+                          Parser.DATA (range lexbuf) 
 # 419 "Lexer.fs"
           )
   | 30 -> ( 
 # 67 "Lexer.fsl"
-                              Parser.TYPEFUNC (range lexbuf) 
+                               Parser.NAMESPACE (range lexbuf) 
 # 424 "Lexer.fs"
           )
   | 31 -> ( 
 # 68 "Lexer.fsl"
-                          Parser.DATA (range lexbuf) 
+                          Parser.EOF 
 # 429 "Lexer.fs"
           )
   | 32 -> ( 
-# 69 "Lexer.fsl"
-                               Parser.NAMESPACE (range lexbuf) 
+# 71 "Lexer.fsl"
+                                  Parser.INT (Int32.Parse(LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) 
 # 434 "Lexer.fs"
           )
   | 33 -> ( 
-# 70 "Lexer.fsl"
-                          Parser.EOF 
+# 72 "Lexer.fsl"
+                                                               Parser.FLOAT (Double.Parse(LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) 
 # 439 "Lexer.fs"
           )
   | 34 -> ( 
 # 73 "Lexer.fsl"
-                                  Parser.INT (Int32.Parse(LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) 
+                                     let s = LexBuffer<_>.LexemeString lexbuf in Parser.STRING ((s.Trim [|'\"'|]),(range lexbuf)) 
 # 444 "Lexer.fs"
           )
   | 35 -> ( 
 # 74 "Lexer.fsl"
-                                                               Parser.FLOAT (Double.Parse(LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) 
+                             Parser.ID ((LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) 
 # 449 "Lexer.fs"
           )
   | 36 -> ( 
 # 75 "Lexer.fsl"
-                                     let s = LexBuffer<_>.LexemeString lexbuf in Parser.STRING ((s.Trim [|'\"'|]),(range lexbuf)) 
-# 454 "Lexer.fs"
-          )
-  | 37 -> ( 
-# 76 "Lexer.fsl"
-                             Parser.ID ((LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) 
-# 459 "Lexer.fs"
-          )
-  | 38 -> ( 
-# 77 "Lexer.fsl"
                          
                  let pos = range lexbuf 
                  raise(ParseError(sprintf "Parse Error: unidentified token %A" (LexBuffer<_>.LexemeString lexbuf), fst pos, snd pos)) 
-# 466 "Lexer.fs"
+# 456 "Lexer.fs"
           )
   | _ -> failwith "tokenstream"
 

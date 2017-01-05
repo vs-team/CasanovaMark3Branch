@@ -26,8 +26,6 @@ type token =
   | NEWLINE
   | BAR
   | BIND
-  | LGENERICBRACKET
-  | RGENERICBRACKET
   | ARROW of (System.Int32 * System.Int32)
   | DARROW of (System.Int32 * System.Int32)
   | EQUAL of (System.Int32 * System.Int32)
@@ -62,8 +60,6 @@ type tokenId =
     | TOKEN_NEWLINE
     | TOKEN_BAR
     | TOKEN_BIND
-    | TOKEN_LGENERICBRACKET
-    | TOKEN_RGENERICBRACKET
     | TOKEN_ARROW
     | TOKEN_DARROW
     | TOKEN_EQUAL

@@ -52,8 +52,6 @@ and tokenstream = parse
 | ':' { Parser.COLON }
 | ":=" { Parser.BIND }
 | '-' { Parser.BAR }
-| '<' { Parser.LGENERICBRACKET }
-| '>' { Parser.RGENERICBRACKET }
 | "->" { Parser.ARROW (range lexbuf) }
 | "=>" { Parser.DARROW (range lexbuf) }
 | "=" { Parser.EQUAL (range lexbuf) }
