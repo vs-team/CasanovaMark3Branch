@@ -22,6 +22,7 @@ type CodeGenerationCtxt =
     CurrentDataVar            : string
     CurrentResTmp             : string
     CurrentRuleTmp            : string
+    PremiseResultTemps        : string list
     GeneratedTemps            : string list
     GeneratedInterfaces       : string list
     CurrentRuleRetType        : TypeDecl
@@ -36,6 +37,7 @@ type CodeGenerationCtxt =
       CurrentDataVar = ""
       CurrentResTmp = ""
       CurrentRuleTmp = ""
+      PremiseResultTemps = []
       GeneratedTemps = []
       GeneratedInterfaces = []
       CurrentRuleRetType = Zero
@@ -51,6 +53,13 @@ type CodeGenerationCtxt =
     }
 //  member this.TempDottedPath = if this.GeneratedTemps.Length = 0 then "" else this.LastTempCode//this.GeneratedTemps |> List.reduce(fun temp1 temp2 -> temp1 + "." + temp2)
   member this.ResetArgs = { this with ArgIndex = 0 }
+
+
+let emitResultTempCondition (tmps : string list) =
+  match tmps with
+  | [] -> ""
+  | [tmp] -> sprintf "%s.HasValue" tmp
+  | _ -> tmps |> List.reduce (fun x y -> sprintf "%s.HasValue || %s.HasValue" x y)
 
 let symbolUsedInSubtypes (decl : SymbolDeclaration) (subtypes : Map<TypeDecl,List<TypeDecl>>) =
   subtypes |> Map.exists(fun _ ts -> ts |> List.exists(fun t -> t === decl.Return))
@@ -336,14 +345,15 @@ let rec emitResultCopy (ctxt : CodeGenerationCtxt) (matchingRule : TypedRule) (a
           | _ -> failwith "Not an id ??!!"
       | _ -> failwith "The data constructor does not exist??!! TypeChecker pls..."
 
-let emitExistingResultCheck (ctxt : CodeGenerationCtxt) (matchingRuleDef : TypedRule) (resultArgs : CallArg list) (existingCond : string) =
+let emitExistingResultCheck (ctxt : CodeGenerationCtxt) (matchingRuleDef : TypedRule) (resultArgs : CallArg list)  =
   let tabs = emitTabs (ctxt.CurrentTabs + 1)
   let blockTabs = emitTabs (ctxt.CurrentTabs + 2)
   //let newCtxt = ctxt.AddTemp
+  let existingCond = emitResultTempCondition ctxt.PremiseResultTemps.Tail
   let resultCheck =
     sprintf "%sif (%s%s.__res.HasValue)\n%s{\n" 
             tabs 
-            (if existingCond = "" then "" else "!" + existingCond)
+            (if existingCond = "" then "" else "!(" + existingCond + ") && ")
             (ctxt.TempName (ctxt.TempIndex - 2))
             tabs 
   let newCtxt = { ctxt with Code = ctxt.Code + resultCheck }
@@ -351,10 +361,10 @@ let emitExistingResultCheck (ctxt : CodeGenerationCtxt) (matchingRuleDef : Typed
   { resultCopyCtxt with CurrentTabs = ctxt.CurrentTabs; Code = resultCopyCtxt.Code + (sprintf "\n%s}\n" tabs) }
 
 
-let rec emitPremiseResultCheck (ctxt : CodeGenerationCtxt) (matchingRuleDef : TypedRuleDefinition) (resultArgs : CallArg list) (existingCond : string) =
+let rec emitPremiseResultCheck (ctxt : CodeGenerationCtxt) (matchingRuleDef : TypedRuleDefinition) (resultArgs : CallArg list) =
   match matchingRuleDef with
   | TypedRule(matchingRule) ->
-    let ctxtAfterResCheck = emitExistingResultCheck ctxt matchingRule resultArgs existingCond
+    let ctxtAfterResCheck = emitExistingResultCheck ctxt matchingRule resultArgs
     ctxtAfterResCheck
   | TypedTypeRule _ -> failwith "Type rule not supported yet"
 
@@ -424,24 +434,24 @@ let emitRuleCall (ctxt : CodeGenerationCtxt) (args : CallArg list) (ret : CallAr
                 newCtxt.LastTempCode
                 tabs
                 newCtxt.LastTempCode
-            { newCtxt with CurrentResTmp = newCtxt.LastTempCode; Code = newCtxt.Code + resCode }
+            { newCtxt with CurrentResTmp = newCtxt.LastTempCode; Code = newCtxt.Code + resCode; PremiseResultTemps = newCtxt.LastTempCode :: newCtxt.PremiseResultTemps }
           let ctxtAfterArgumentCopy = outputArgumentCopy ctxt args call false
-          let existingResCondition =
-            if firstPremise then
-              ""
-            else
-              sprintf "%s.HasValue" (ctxtAfterArgumentCopy.TempName (ctxtAfterArgumentCopy.TempIndex - 2))          
+//          let existingResCondition =
+//            if firstPremise then
+//              ""
+//            else
+//              sprintf "%s.HasValue" (ctxtAfterArgumentCopy.TempName (ctxtAfterArgumentCopy.TempIndex - 2))        
           let runCode =
             if firstPremise then
               sprintf "%s%s.Run();\n" tabs ctxtAfterArgumentCopy.CurrentRuleTmp;
             else
-              sprintf "%sif(!%s) %s.Run();\n"
+              sprintf "%sif(!(%s)) %s.Run();\n"
                 tabs
-                existingResCondition
+                (emitResultTempCondition ctxtAfterArgumentCopy.PremiseResultTemps)
                 ctxtAfterArgumentCopy.CurrentRuleTmp
           let ctxtAfterArgumentCopy = generateTmpResult ctxtAfterArgumentCopy
           let ctxtAfterArgumentCopy = { ctxtAfterArgumentCopy with  ArgIndex = 0; Code = ctxtAfterArgumentCopy.Code + runCode }
-          let ctxtAfterPremiseResultCheck = emitPremiseResultCheck ctxtAfterArgumentCopy rule ret (if existingResCondition = "" then "" else (existingResCondition + " && "))
+          let ctxtAfterPremiseResultCheck = emitPremiseResultCheck ctxtAfterArgumentCopy rule ret
           ctxtAfterPremiseResultCheck
       | ModuleOutput _,ModuleOutput _ -> failwith "A normal rule outputs a module???"
       | _ -> failwith "Something is VERY wrong!"
@@ -468,7 +478,7 @@ let emitFunctionCall (ctxt : CodeGenerationCtxt) (functionCall : CallArg list * 
                                         | ModuleOutput _ -> failwith "Module generation not supported yet"
                                     | TypedTypeRule(tr) -> failwith "Type Rules not supported yet")
   if matchingRules.Length > 0 then
-    emitRulesCall ctxt call ret matchingRules
+    emitRulesCall { ctxt with PremiseResultTemps = [] } call ret matchingRules
   else
     raise(CodeGenerationError(sprintf "A premise in Rule %d will never be executed" ctxt.RuleIndex))
 
