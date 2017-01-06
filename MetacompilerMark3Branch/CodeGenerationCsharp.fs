@@ -491,6 +491,45 @@ let emitResultDataStructure (ctxt : CodeGenerationCtxt) (symbol : SymbolDeclarat
       updatedCtxt.CurrentTempCode
       opName
   { updatedCtxt with Code = updatedCtxt.Code + resultCode; CurrentResTmp = updatedCtxt.CurrentTempCode }
+
+let rec emitResultDataArgGeneration (ctxt : CodeGenerationCtxt) (args : CallArg list) = 
+  args |>
+  List.fold(fun (index,newCtxt) arg ->
+              let tabs = emitTabs ctxt.CurrentTabs
+              match arg with
+              | Literal(l,_) ->
+                  let copyCode =
+                    sprintf "%s%s.__arg%d = %s;\n"
+                      tabs
+                      newCtxt.CurrentResTmp
+                      index
+                      (l.ToString())
+                  index + 1,{ newCtxt with Code = newCtxt.Code + copyCode }
+              | Id(id,_) ->
+                  let copyCode =
+                    sprintf "%s%s.__arg%d = %s;\n"
+                      tabs
+                      newCtxt.CurrentResTmp
+                      index
+                      id.Name
+                  index + 1,{ newCtxt with Code = newCtxt.Code + copyCode }
+              | NestedExpression expr ->
+                  let dataName = expr.Head
+                  let nestedArgs = expr.Tail
+                  match dataName with
+                  | Id(id,_) ->
+                      let dataSymbol = newCtxt.Program.SymbolTable.DataTable.[id]
+                      let updatedCtxt = emitResultDataStructure newCtxt dataSymbol
+                      let _,nestedCtxt = emitResultDataArgGeneration updatedCtxt nestedArgs
+                      let copyCode =
+                        sprintf "%s%s.__arg%d = %s;\n"
+                          tabs
+                          newCtxt.CurrentResTmp
+                          index
+                          nestedCtxt.CurrentResTmp
+                      index + 1,{ nestedCtxt with Code = nestedCtxt.Code + copyCode; CurrentResTmp = newCtxt.CurrentResTmp }
+                  | _ -> failwith "Data name is not an id???"
+              | CallArg.Lambda _ -> failwith "Lambdas not supported yet") (0,ctxt)
     
 
 let rec emitRuleResult (ctxt : CodeGenerationCtxt) (rule : TypedRule) =
@@ -513,11 +552,10 @@ let rec emitRuleResult (ctxt : CodeGenerationCtxt) (rule : TypedRule) =
               tabs
               id.Name
           { ctxt with Code = ctxt.Code + resultCode }
+      | [NestedExpression ((Id(id,_)) :: args)]
       | (Id(id,_)) :: args ->
-          match ctxt.Program.SymbolTable.DataTable.TryFind(id) with
-          | Some decl ->
-              ctxt
-          | None -> failwith "A rule is returning a sequence of id but the header is not a data type"
+          let _,resCtxt = emitResultDataArgGeneration ctxt args
+          resCtxt
       | _ -> failwith "Invalid structure of rule result"
   | ModuleOutput _ -> failwith "Something is wrong: a rule is returning a module"
 
