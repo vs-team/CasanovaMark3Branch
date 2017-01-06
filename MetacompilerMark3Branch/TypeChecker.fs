@@ -467,10 +467,12 @@ and checkRule (rule : RuleDefinition) (symbolTable : SymbolContext) =
         let normPremises = normPremises |> List.rev
         match result with
         | [arg] ->
-            (Rule( { Main = r.Main; Premises = normPremises; Conclusion = ValueOutput(normalizedCall,result)})),checkSingleArg arg symbolTable callType localsAfterPremises false
+            do checkSingleArg arg symbolTable callType localsAfterPremises false |> ignore
+            (Rule( { Main = r.Main; Premises = normPremises; Conclusion = ValueOutput(normalizedCall,result)})),(callType,localsAfterPremises)
         | x :: xs ->
             let normalizedRes = normalizeDataOrFunctionCall symbolTable result LocalContext.Empty
-            (Rule( { Main = r.Main; Premises = normPremises; Conclusion = ValueOutput(normalizedCall,normalizedRes)})),checkNormalizedCall normalizedRes symbolTable localsAfterPremises false 
+            do checkNormalizedCall normalizedRes symbolTable localsAfterPremises false |> ignore
+            (Rule( { Main = r.Main; Premises = normPremises; Conclusion = ValueOutput(normalizedCall,normalizedRes)})),(callType,localsAfterPremises) 
         | _ -> failwith "Why is the result of a conclusion empty?"          
     | ModuleOutput(_) ->
         raise(TypeError("You can only output modules in a type rule"))
