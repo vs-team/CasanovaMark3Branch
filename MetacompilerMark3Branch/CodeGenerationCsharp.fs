@@ -302,7 +302,7 @@ let rec emitResultStructuralCheck (ctxt : CodeGenerationCtxt) (resultArgs : Call
 
 let rec emitResultCopy (ctxt : CodeGenerationCtxt) (matchingRule : TypedRule) (args : CallArg list) =
       match args with
-      | [Id(id,_)] ->
+      | [Id(id,_)] when ctxt.Program.SymbolTable.DataTable.TryFind(id).IsNone ->
           let tabs = emitTabs ctxt.CurrentTabs
           let copyCode =
             sprintf "%s%s = %s.__res.Value;\n%s%s = %s.__res;\n"
@@ -545,7 +545,7 @@ let rec emitRuleResult (ctxt : CodeGenerationCtxt) (rule : TypedRule) =
               tabs
               (l.ToString())
           { ctxt with Code = ctxt.Code + resultCode }
-      | [Id(id,_)] ->
+      | [Id(id,_)] when ctxt.Program.SymbolTable.DataTable.TryFind(id).IsNone ->
           let resultCode =
             sprintf "%s__res.HasValue = true;\n%s__res.Value = %s;\n"
               tabs
@@ -554,8 +554,17 @@ let rec emitRuleResult (ctxt : CodeGenerationCtxt) (rule : TypedRule) =
           { ctxt with Code = ctxt.Code + resultCode }
       | [NestedExpression ((Id(id,_)) :: args)]
       | (Id(id,_)) :: args ->
-          let _,resCtxt = emitResultDataArgGeneration ctxt args
-          resCtxt
+          match ctxt.Program.SymbolTable.DataTable.TryFind(id) with
+          | Some symbol ->
+            let dataCtxt = emitResultDataStructure { ctxt with CurrentTabs = ctxt.CurrentTabs + 1} symbol
+            let _,resCtxt = emitResultDataArgGeneration dataCtxt args
+            let resultCode =
+              sprintf "%s__res.HasValue = true;\n%s__res.Value = %s;\n"
+                tabs
+                tabs
+                resCtxt.CurrentResTmp
+            { resCtxt with Code = resCtxt.Code + resultCode }
+          | None -> failwith "The data structure does not exist???"
       | _ -> failwith "Invalid structure of rule result"
   | ModuleOutput _ -> failwith "Something is wrong: a rule is returning a module"
 
