@@ -23,6 +23,7 @@ type CodeGenerationCtxt =
     CurrentResTmp             : string
     CurrentRuleTmp            : string
     PremiseResultTemps        : string list
+    CurrentDataArgs           : string list
     GeneratedTemps            : string list
     GeneratedInterfaces       : string list
     CurrentRuleRetType        : TypeDecl
@@ -38,6 +39,7 @@ type CodeGenerationCtxt =
       CurrentResTmp = ""
       CurrentRuleTmp = ""
       PremiseResultTemps = []
+      CurrentDataArgs = []
       GeneratedTemps = []
       GeneratedInterfaces = []
       CurrentRuleRetType = Zero
@@ -614,18 +616,24 @@ let defaultClasses =
    public struct " +  resultStruct  +  "<T> { public T Value; public bool HasValue;  }\n
    //-- END OF COMPILER-GENERATED CODE --\n\n"
 
-let rec emitDataArgs (ctxt : CodeGenerationCtxt) (t : TypeDecl) (currentIndex : int) : string =
+let rec emitDataArgs (ctxt : CodeGenerationCtxt) (t : TypeDecl) (currentIndex : int) : CodeGenerationCtxt * string =
   let tabs = emitTabs ctxt.CurrentTabs
+  let argString = "__arg" + (string currentIndex)
   match t with
   | Arrow(t1,t2,false) ->
-      tabs + "public " + (emitType t1) + " __arg" + (string currentIndex) + ";\n" + (emitDataArgs ctxt t2 (currentIndex + 1))
+      let nextCtxt,code = emitDataArgs ctxt t2 (currentIndex + 1)
+      { nextCtxt with CurrentDataArgs = argString :: nextCtxt.CurrentDataArgs },
+      tabs + "public " + (emitType t1) + " " + argString + ";\n" + code
   | Arrow(t1,t2,true) ->
       match t2 with
-      | Arg(_) -> tabs + "public " + (emitType t) + " __arg" + (string currentIndex) + ";\n"
-      | Arrow _ -> tabs + "public " + (emitType t1) + " __arg" + (string currentIndex) + ";\n" + (emitDataArgs ctxt t2 (currentIndex + 1))
+      | Arg(_) -> { ctxt with CurrentDataArgs = argString :: ctxt.CurrentDataArgs },tabs + "public " + (emitType t) + " " + argString + ";\n"
+      | Arrow _ ->
+          let nextCtxt,code = emitDataArgs ctxt t2 (currentIndex + 1)
+          { nextCtxt with CurrentDataArgs = argString :: nextCtxt.CurrentDataArgs },
+          tabs + "public " + (emitType t1) + " " + argString + (string currentIndex) + ";\n" + code
       | _ ->  failwith "Invalid type format in data declaration..."
-  | Arg(Id(_),_) -> tabs + "public " + (emitType t) + " __arg" + (string currentIndex) + ";\n"
-  | Zero -> ""
+  | Arg(Id(_),_) -> { ctxt with CurrentDataArgs = argString :: ctxt.CurrentDataArgs },tabs + "public " + (emitType t) + " " + argString + ";\n"
+  | Zero -> ctxt,""
   | _ -> failwith "Invalid type format in data declaration..."
 
 let emitSubTypes (ctxt : CodeGenerationCtxt) (decl : SymbolDeclaration) (placeComma : bool) =
@@ -649,7 +657,24 @@ let emitDataStructure (ctxt : CodeGenerationCtxt) (decl : SymbolDeclaration) : s
   let interfaces =
     getDeclInterface decl +
     (emitSubTypes ctxt decl true)
-  "public class " + (renameOperator decl.Name.Name) + (if interfaces <> "" then " : " + interfaces else "") + "\n" + tabs + "{\n" + (emitDataArgs {ctxt with CurrentTabs = ctxt.CurrentTabs + 1 } decl.Args 0) + tabs + "}\n"
+  let dataArgsCtxt,argsCode = emitDataArgs { ctxt with CurrentTabs = ctxt.CurrentTabs + 1; CurrentDataArgs = [] } decl.Args 0
+  let nameField =
+    let tabs = emitTabs dataArgsCtxt.CurrentTabs
+    sprintf "%spublic const string __name = \"%s\";\n" tabs decl.Name.Name
+  let prettyPrint =
+      let tabs = emitTabs dataArgsCtxt.CurrentTabs
+      let innerTabs = emitTabs (dataArgsCtxt.CurrentTabs + 1)
+      sprintf "%spublic override string ToString()\n%s{\n%s return %s;\n%s}"
+        tabs
+        tabs
+        innerTabs
+        (if dataArgsCtxt.CurrentDataArgs.Length > 0 then
+          "\"(\" + __name + \" \" + " + (dataArgsCtxt.CurrentDataArgs |> List.reduce(fun arg1 arg2 -> sprintf "%s + \" \" + %s" arg1 arg2)) + " + \")\""
+         else
+          "__name")
+        tabs
+  "public class " + (renameOperator decl.Name.Name) + (if interfaces <> "" then " : " + interfaces else "") + "\n" + tabs + "{\n" + nameField + argsCode + 
+        tabs + "\n" + prettyPrint + "\n" + tabs + "}\n"
 
 let emitDataStructures (ctxt : CodeGenerationCtxt) : CodeGenerationCtxt =
   let dataTable = ctxt.Program.SymbolTable.DataTable
@@ -682,7 +707,8 @@ let emitMain (ctxt : CodeGenerationCtxt) =
       let mainTabs = emitTabs (ctxt.CurrentTabs + 2)
       let mainCode =
         sprintf
-          "%spublic class EntryPoint \n%s{\n%spublic static void Main(string[] args) \n%s{\n%s Rule%d __main = new Rule%d();\n%s__main.Run();\n%s}\n%s}"
+          "%spublic class EntryPoint \n%s{\n%spublic static void Main(string[] args) \n%s{\n%s Rule%d __main = new Rule%d();\n%s__main.Run();
+           \n%sif (__main.__res.HasValue) Console.WriteLine(__main.__res.Value);\n%selse Console.WriteLine(\"The rule failed its evaluation...\");\n%s}\n%s}"
           tabs
           tabs
           innerTabs
@@ -690,6 +716,8 @@ let emitMain (ctxt : CodeGenerationCtxt) =
           mainTabs
           idx
           idx
+          mainTabs
+          mainTabs
           mainTabs
           innerTabs
           tabs
