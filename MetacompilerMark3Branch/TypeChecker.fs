@@ -375,12 +375,12 @@ and checkPremise (premise : Premise) (symbolTable : SymbolContext) (locals : Loc
     | Mod(left,right) ->
         let t1 = checkArithmeticExpr left position
         let t2 = checkArithmeticExpr right position
-        if (t1 = !!!"int64" && t2 = !!!"int64") ||
-           (t1 = !!!"uint64" && t2 = !!!"uint64") ||
-           (t1 = !!!"int" && t2 = !!!"int") ||
-           (t1 = !!!"uint32" && t2 = !!!"uint32") ||
-           (t1 = !!!"double" && t2 = !!!"double") ||
-           (t1 = !!!"float" && t2 = !!!"float") then
+        if (t1 === !!!"int64" && t2 === !!!"int64") ||
+           (t1 === !!!"uint64" && t2 === !!!"uint64") ||
+           (t1 === !!!"int" && t2 === !!!"int") ||
+           (t1 === !!!"uint32" && t2 === !!!"uint32") ||
+           (t1 === !!!"double" && t2 === !!!"double") ||
+           (t1 === !!!"float" && t2 === !!!"float") then
           t1
         else
           raise(TypeError(sprintf "Given %s and %s but expected numeric arguments" (t1.ToString()) (t2.ToString())))

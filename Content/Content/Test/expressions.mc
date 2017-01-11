@@ -1,10 +1,20 @@
 ﻿namespace Expressions
 
-Func "start" -> int : int
+Value is Expr
+
+Data "$i" -> int : Value
+Data "$f" -> float : Value
+Data Value -> "+" -> Value : Expr
+Func "eval" -> int -> int : int
+Func "start" : int
+
+
+----------------
+eval 0 0 -> 0
 
 main :
-arithmetic 1 + 3 -> x
-arithmetic 2 + 3 -> y
+eval 0 0 -> x
+eval 0 0 -> y
 arithmetic x /% y -> res
 -----------------------
 start -> res

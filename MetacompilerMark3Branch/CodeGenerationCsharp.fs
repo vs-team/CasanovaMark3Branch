@@ -356,7 +356,7 @@ let emitExistingResultCheck (ctxt : CodeGenerationCtxt) (matchingRuleDef : Typed
     sprintf "%sif (%s%s.__res.HasValue)\n%s{\n" 
             tabs 
             (if existingCond = "" then "" else "!(" + existingCond + ") && ")
-            (ctxt.TempName (ctxt.TempIndex - 2))
+            ctxt.CurrentRuleTmp
             tabs 
   let newCtxt = { ctxt with Code = ctxt.Code + resultCheck }
   let resultCopyCtxt = emitResultCopy { newCtxt with CurrentTabs = ctxt.CurrentTabs + 2} matchingRuleDef resultArgs
@@ -370,6 +370,57 @@ let rec emitPremiseResultCheck (ctxt : CodeGenerationCtxt) (matchingRuleDef : Ty
     ctxtAfterResCheck
   | TypedTypeRule _ -> failwith "Type rule not supported yet"
 
+let emitResultDataStructure (ctxt : CodeGenerationCtxt) (symbol : SymbolDeclaration) =
+  let tabs = emitTabs ctxt.CurrentTabs
+  let updatedCtxt = ctxt.AddTemp
+  let opName = renameOperator symbol.Name.Name
+  let resultCode =
+    sprintf "%s%s %s = new %s();\n"
+      tabs
+      opName
+      updatedCtxt.CurrentTempCode
+      opName
+  { updatedCtxt with Code = updatedCtxt.Code + resultCode; CurrentResTmp = updatedCtxt.CurrentTempCode }
+
+let rec emitResultDataArgGeneration (ctxt : CodeGenerationCtxt) (args : CallArg list) = 
+  args |>
+  List.fold(fun (index,newCtxt) arg ->
+              let tabs = emitTabs ctxt.CurrentTabs
+              match arg with
+              | Literal(l,_) ->
+                  let copyCode =
+                    sprintf "%s%s.__arg%d = %s;\n"
+                      tabs
+                      newCtxt.CurrentResTmp
+                      index
+                      (l.ToString())
+                  index + 1,{ newCtxt with Code = newCtxt.Code + copyCode }
+              | Id(id,_) ->
+                  let copyCode =
+                    sprintf "%s%s.__arg%d = %s;\n"
+                      tabs
+                      newCtxt.CurrentResTmp
+                      index
+                      id.Name
+                  index + 1,{ newCtxt with Code = newCtxt.Code + copyCode }
+              | NestedExpression expr ->
+                  let dataName = expr.Head
+                  let nestedArgs = expr.Tail
+                  match dataName with
+                  | Id(id,_) ->
+                      let dataSymbol = newCtxt.Program.SymbolTable.DataTable.[id]
+                      let updatedCtxt = emitResultDataStructure newCtxt dataSymbol
+                      let _,nestedCtxt = emitResultDataArgGeneration updatedCtxt nestedArgs
+                      let copyCode =
+                        sprintf "%s%s.__arg%d = %s;\n"
+                          tabs
+                          newCtxt.CurrentResTmp
+                          index
+                          nestedCtxt.CurrentResTmp
+                      index + 1,{ nestedCtxt with Code = nestedCtxt.Code + copyCode; CurrentResTmp = newCtxt.CurrentResTmp }
+                  | _ -> failwith "Data name is not an id???"
+              | CallArg.Lambda _ -> failwith "Lambdas not supported yet") (0,ctxt)
+
 
 
 let emitRuleCall (ctxt : CodeGenerationCtxt) (args : CallArg list) (ret : CallArg list) (rule : TypedRuleDefinition) (matchingRuleIndex : int) (firstPremise : bool) =
@@ -380,32 +431,31 @@ let emitRuleCall (ctxt : CodeGenerationCtxt) (args : CallArg list) (ret : CallAr
       | ValueOutput(_,currentRes),ValueOutput(call,res) ->
           let tabs = emitTabs (ctxt.CurrentTabs + 1)
           //let updatedCtxt = ctxt.AddTemp
+          let updatedCtxt = ctxt.AddTemp
           let ruleCreation (ctxt : CodeGenerationCtxt) =
             let ruleCode =
               sprintf "%sRule%d %s = new Rule%d();\n" 
                 tabs 
                 matchingRuleIndex 
-                ctxt.CurrentTempCode 
+                updatedCtxt.CurrentTempCode 
                 matchingRuleIndex
-            { ctxt with CurrentRuleTmp = ctxt.CurrentTempCode; Code = ctxt.Code + ruleCode }
+            { updatedCtxt with CurrentRuleTmp = updatedCtxt.CurrentTempCode; Code = updatedCtxt.Code + ruleCode }
           let outputLiteralOrId (ctxt : CodeGenerationCtxt) (ruleArg : CallArg) (valueString : string) (isConstructor : bool) =
             match ruleArg with
             | Literal _ -> 
-                let literalArg = sprintf "%s%s.__arg%d = %s;\n" tabs ctxt.CurrentTempCode ctxt.ArgIndex valueString
-                let ruleCtxt = ruleCreation ctxt
-                { ruleCtxt with 
-                    Code = ruleCtxt.Code + literalArg
+                let literalArg = sprintf "%s%s.__arg%d = %s;\n" tabs ctxt.CurrentRuleTmp ctxt.ArgIndex valueString
+                { ctxt with 
+                    Code = ctxt.Code + literalArg
                     ArgIndex = ctxt.ArgIndex + 1 }.AddTemp
             | Id(id,_) ->
                 let idArg =
                   if isConstructor then
-                    sprintf "%s%s.__arg%d = %s;\n" tabs ctxt.CurrentTempCode ctxt.ArgIndex valueString
+                    sprintf "%s%s.__arg%d = %s;\n" tabs ctxt.CurrentRuleTmp ctxt.ArgIndex valueString
                   else 
-                    sprintf "%s%s.%s = %s;\n" tabs ctxt.CurrentTempCode id.Name valueString
-                let ruleCtxt = ruleCreation ctxt
-                { ruleCtxt with 
-                    Code = ruleCtxt.Code + idArg
-                    ArgIndex = ruleCtxt.ArgIndex + 1 }.AddTemp
+                    sprintf "%s%s.%s = %s;\n" tabs ctxt.CurrentRuleTmp id.Name valueString
+                { ctxt with 
+                    Code = ctxt.Code + idArg
+                    ArgIndex = ctxt.ArgIndex + 1 }.AddTemp
             | _ -> failwith "Matching rule argument is not a literal or a variable?!!!"
           let rec outputArgumentCopy (ctxt : CodeGenerationCtxt) (args : CallArg list) (call : CallArg list) (isConstructor : bool) =
             List.fold2(fun newCtxt callArg ruleArg ->
@@ -421,9 +471,14 @@ let emitRuleCall (ctxt : CodeGenerationCtxt) (args : CallArg list) (ret : CallAr
                               let newCtxt = newCtxt.AddTemp
                               match constructorSymbol with
                               | Id(symbol,_) ->
-                                  let constructorCode = sprintf "%s%s %s = new %s();\n" tabs symbol.Name newCtxt.CurrentTempCode symbol.Name
-                                  let innerCtxt = outputArgumentCopy newCtxt.ResetArgs.AddTemp expr expr true
-                                  { innerCtxt with ArgIndex = newCtxt.ArgIndex }
+                                  //BUG FOUND: the constructor is not correctly utilized
+                                  let ruleCtxt = ruleCreation newCtxt
+                                  match newCtxt.Program.SymbolTable.DataTable.TryFind(symbol) with
+                                  | Some decl ->
+                                    let constructorCtxt = emitResultDataStructure ruleCtxt decl
+                                    let _,argCtxt = emitResultDataArgGeneration constructorCtxt expr.Tail
+                                    argCtxt
+                                  | _ -> failwith "The data does not exist???"
                               | _ -> failwith "First argument of nested expression is not an id???"
                           | CallArg.Lambda _ -> failwith "Lambdas not supported yet...") ctxt args.Tail call.Tail
           let generateTmpResult (ctxt : CodeGenerationCtxt) =
@@ -437,7 +492,8 @@ let emitRuleCall (ctxt : CodeGenerationCtxt) (args : CallArg list) (ret : CallAr
                 tabs
                 newCtxt.LastTempCode
             { newCtxt with CurrentResTmp = newCtxt.LastTempCode; Code = newCtxt.Code + resCode; PremiseResultTemps = newCtxt.LastTempCode :: newCtxt.PremiseResultTemps }
-          let ctxtAfterArgumentCopy = outputArgumentCopy ctxt args call false
+          let ruleCtxt = ruleCreation ctxt
+          let ctxtAfterArgumentCopy = outputArgumentCopy ruleCtxt args call false
 //          let existingResCondition =
 //            if firstPremise then
 //              ""
@@ -514,57 +570,6 @@ let emitPremises (ctxt : CodeGenerationCtxt) (premises : Premise list) =
                 | FunctionCall(args,res) -> emitFunctionCall newCtxt (args,res)
                 | Bind _
                 | Conditional _ -> failwith "Conditionals not implemented yet...") ctxt
-
-let emitResultDataStructure (ctxt : CodeGenerationCtxt) (symbol : SymbolDeclaration) =
-  let tabs = emitTabs ctxt.CurrentTabs
-  let updatedCtxt = ctxt.AddTemp
-  let opName = renameOperator symbol.Name.Name
-  let resultCode =
-    sprintf "%s%s %s = new %s();\n"
-      tabs
-      opName
-      updatedCtxt.CurrentTempCode
-      opName
-  { updatedCtxt with Code = updatedCtxt.Code + resultCode; CurrentResTmp = updatedCtxt.CurrentTempCode }
-
-let rec emitResultDataArgGeneration (ctxt : CodeGenerationCtxt) (args : CallArg list) = 
-  args |>
-  List.fold(fun (index,newCtxt) arg ->
-              let tabs = emitTabs ctxt.CurrentTabs
-              match arg with
-              | Literal(l,_) ->
-                  let copyCode =
-                    sprintf "%s%s.__arg%d = %s;\n"
-                      tabs
-                      newCtxt.CurrentResTmp
-                      index
-                      (l.ToString())
-                  index + 1,{ newCtxt with Code = newCtxt.Code + copyCode }
-              | Id(id,_) ->
-                  let copyCode =
-                    sprintf "%s%s.__arg%d = %s;\n"
-                      tabs
-                      newCtxt.CurrentResTmp
-                      index
-                      id.Name
-                  index + 1,{ newCtxt with Code = newCtxt.Code + copyCode }
-              | NestedExpression expr ->
-                  let dataName = expr.Head
-                  let nestedArgs = expr.Tail
-                  match dataName with
-                  | Id(id,_) ->
-                      let dataSymbol = newCtxt.Program.SymbolTable.DataTable.[id]
-                      let updatedCtxt = emitResultDataStructure newCtxt dataSymbol
-                      let _,nestedCtxt = emitResultDataArgGeneration updatedCtxt nestedArgs
-                      let copyCode =
-                        sprintf "%s%s.__arg%d = %s;\n"
-                          tabs
-                          newCtxt.CurrentResTmp
-                          index
-                          nestedCtxt.CurrentResTmp
-                      index + 1,{ nestedCtxt with Code = nestedCtxt.Code + copyCode; CurrentResTmp = newCtxt.CurrentResTmp }
-                  | _ -> failwith "Data name is not an id???"
-              | CallArg.Lambda _ -> failwith "Lambdas not supported yet") (0,ctxt)
     
 
 let rec emitRuleResult (ctxt : CodeGenerationCtxt) (rule : TypedRule) =
