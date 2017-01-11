@@ -364,8 +364,38 @@ and checkPremise (premise : Premise) (symbolTable : SymbolContext) (locals : Loc
     | String _ -> !!!"string"
     | Bool _ -> !!!"bool"
     | Unit -> !!!"unit"
+    
+
+  let rec checkArithmeticExpr (expr : ArithExpr) (position : Position) : TypeDecl =
+    match expr with
+    | Add(left,right)
+    | Sub(left,right)
+    | Mul(left,right)
+    | Div(left,right)
+    | Mod(left,right) ->
+        let t1 = checkArithmeticExpr left position
+        let t2 = checkArithmeticExpr right position
+        if (t1 = !!!"int64" && t2 = !!!"int64") ||
+           (t1 = !!!"uint64" && t2 = !!!"uint64") ||
+           (t1 = !!!"int" && t2 = !!!"int") ||
+           (t1 = !!!"uint32" && t2 = !!!"uint32") ||
+           (t1 = !!!"double" && t2 = !!!"double") ||
+           (t1 = !!!"float" && t2 = !!!"float") then
+          t1
+        else
+          raise(TypeError(sprintf "Given %s and %s but expected numeric arguments" (t1.ToString()) (t2.ToString())))
+    | Value arg -> 
+        match arg with
+        | Literal(l,_) -> getLiteralType l
+        | Id(id,p) -> getLocalType id locals p
+        | _ -> failwith "There is something wrong with the value of an arithmetic expression"
+    | Nested expr -> checkArithmeticExpr expr position
+            
   
   match premise with
+  | Arithmetic(expr,result,position) ->
+      let exprType = checkArithmeticExpr expr position
+      { locals with Variables = locals.Variables |> Map.add result (exprType,position)},Arithmetic(expr,result,position) 
   | FunctionCall(func,result) ->
       let normFunc = normalizeDataOrFunctionCall symbolTable func locals
       let funcType,_ = checkNormalizedCall normFunc symbolTable locals false

@@ -16,6 +16,7 @@ type token =
   | LEQ of (int * int)
   | NEQ of (int * int)
   | MAIN of (int * int)
+  | ARITHMETIC of (int * int)
   | COMMA
   | LBRACKET
   | RBRACKET
@@ -50,6 +51,7 @@ type tokenId =
     | TOKEN_LEQ
     | TOKEN_NEQ
     | TOKEN_MAIN
+    | TOKEN_ARITHMETIC
     | TOKEN_COMMA
     | TOKEN_LBRACKET
     | TOKEN_RBRACKET
@@ -74,6 +76,7 @@ type nonTerminalId =
     | NONTERM__startstart
     | NONTERM_start
     | NONTERM_newLineSeq
+    | NONTERM_fractionLine
     | NONTERM_program
     | NONTERM_dottedPath
     | NONTERM_commaPath
@@ -92,10 +95,11 @@ type nonTerminalId =
     | NONTERM_argSeq
     | NONTERM_literal
     | NONTERM_functionCall
+    | NONTERM_arithmeticCall
+    | NONTERM_arithmeticExpr
     | NONTERM_comparisonOp
     | NONTERM_premises
     | NONTERM_conclusion
-    | NONTERM_fractionLine
     | NONTERM_subtype
     | NONTERM_subtypes
     | NONTERM_mainOpt

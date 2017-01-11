@@ -7,6 +7,20 @@ exception ParseError of string * int * int
 
 let genericNamespace = "__generic"
 
+let decomposeLiteral (arg : CallArg) =
+  match arg with
+  | Literal (l,_) -> l
+  | _ ->  failwith "You can only use decomposeLiteral with literal arguments"
+
+let buildArithExpr (opName : string) (left : ArithExpr) (right : ArithExpr) (pos : int * int) : ArithExpr =
+  match opName with
+  | "+" -> Add (left,right)
+  | "/%" -> Sub (left,right)
+  | "*" -> Mul (left,right)
+  | "/" -> Div (left,right)
+  | "%" -> Mod (left,right)
+  | _ -> raise(ParseError(("Parse Error: invalid arithmetic operator"),fst pos,snd pos))
+
 type TypeDeclOrName =
 | Type of TypeDecl
 | Name of string
@@ -120,8 +134,20 @@ let insertNamespaceAndFileName (program : Program) (fileName : string) : Program
     let processedLeft = left |> List.map processArg
     let processedRight = right |> List.map processArg
     processedLeft,processedRight
+
+  and processExpr (expr : ArithExpr) =
+    match expr with
+    | Add(left,right) -> Add (processExpr left,processExpr right)
+    | Sub(left,right) -> Sub (processExpr left,processExpr right)
+    | Mul(left,right) -> Mul (processExpr left,processExpr right)
+    | Div(left,right) -> Div (processExpr left,processExpr right)
+    | Mod(left,right) -> Mod (processExpr left,processExpr right)
+    | Nested(expr) -> Nested(processExpr expr)
+    | Value arg -> Value (processArg arg)
   and processPremise (p : Premise) =
     match p with
+    | Arithmetic(expr,res,position) ->
+        Arithmetic(processExpr expr,{ res with Namespace = nameSpace },{ position with File = fileName })
     | FunctionCall(left,right) ->                
         FunctionCall(processArgs left right)
     | Bind(id,pos,arg) -> Bind({ id with Namespace = nameSpace },{ pos with File = fileName },processArg arg)

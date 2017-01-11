@@ -154,7 +154,20 @@ and RuleDefinition =
 | Rule of Rule
 | TypeRule of Rule
 
+and ArithExpr =
+| Add of ArithExpr * ArithExpr
+| Sub of ArithExpr * ArithExpr
+| Mul of ArithExpr * ArithExpr
+| Div of ArithExpr * ArithExpr
+| Mod of ArithExpr * ArithExpr
+| Nested of ArithExpr
+| Value of CallArg
+
+
+    
+
 and Premise =
+| Arithmetic of ArithExpr * Id * Position
 | FunctionCall of Call
 | Bind of Id * Position * CallArg
 | Conditional of Conditional

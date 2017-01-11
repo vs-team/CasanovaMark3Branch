@@ -484,10 +484,33 @@ let emitFunctionCall (ctxt : CodeGenerationCtxt) (functionCall : CallArg list * 
   else
     raise(CodeGenerationError(sprintf "A premise in Rule %d will never be executed" ctxt.RuleIndex))
 
+let rec emitArithmeticExpr (expr : ArithExpr) =
+  match expr with
+    | Add(left,right) -> (emitArithmeticExpr left) + " + " + (emitArithmeticExpr right)
+    | Sub(left,right) -> (emitArithmeticExpr left) + " - " + (emitArithmeticExpr right)
+    | Mul(left,right) -> (emitArithmeticExpr left) + " * " + (emitArithmeticExpr right)
+    | Div(left,right) -> (emitArithmeticExpr left) + " / " + (emitArithmeticExpr right)
+    | Mod(left,right) -> (emitArithmeticExpr left) + " % " + (emitArithmeticExpr right)
+    | Nested expr -> "(" + (expr.ToString()) + ")"
+    | Value arg ->
+        match arg with
+        | Literal(l,_) -> l.ToString()
+        | Id(id,_) -> id.Name
+        | _ -> failwith "Invalid arithmetic value"
+
 let emitPremises (ctxt : CodeGenerationCtxt) (premises : Premise list) =
   premises |>
   List.fold (fun newCtxt p ->
                 match p with
+                | Arithmetic(expr,res,_) ->
+                    let tabs = emitTabs (ctxt.CurrentTabs + 1)
+                    let expressionCode = emitArithmeticExpr expr
+                    let fullCode =
+                      sprintf "%s%s = %s;\n"
+                        tabs
+                        res.Name
+                        expressionCode
+                    { newCtxt with Code = newCtxt.Code + fullCode }
                 | FunctionCall(args,res) -> emitFunctionCall newCtxt (args,res)
                 | Bind _
                 | Conditional _ -> failwith "Conditionals not implemented yet...") ctxt

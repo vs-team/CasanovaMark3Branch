@@ -2,14 +2,6 @@
 
 open ParserAST
 
-let operatorMappingsCSharp =
-  [
-    "+",(!!!"int" --> (!!!"int" --> !!!"int"),"+")
-    "-",(!!!"int" --> (!!!"int" --> !!!"int"),"-")
-    "*",(!!!"int" --> (!!!"int" --> !!!"int"),"*")
-    "/",(!!!"int" --> (!!!"int" --> !!!"int"),"/")
-  ] |> Map.ofList
-
 let typeMappingsCsharp =
   [
     !!!"int64", "long"

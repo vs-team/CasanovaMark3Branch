@@ -21,8 +21,8 @@ let newline = ('\n' | '\r' '\n')
 let digit = ['0'-'9']
 let letter = ['a'-'z' 'A'-'Z']
 let simpleId = ['a'-'z' 'A'-'Z' '_' '0'-'9']
-let customSymbols = [':' '?' '@' '%' '$' '#' '!']
-let idBody = simpleId | customSymbols 
+let customSymbols = [':' '?' '@' '%' '$' '#' '!' '+' '*' '/']
+let idBody = simpleId | customSymbols
 
 rule linecomment = parse
 | newline       { newline lexbuf; tokenstream lexbuf }
@@ -31,7 +31,7 @@ rule linecomment = parse
 and comment = parse
 | "*/"    { tokenstream lexbuf }
 | newline            { newline lexbuf; comment lexbuf }
-| _  { comment lexbuf } 
+| _  { comment lexbuf }
 
 and tokenstream = parse
 | "//"        { linecomment lexbuf }
@@ -43,6 +43,7 @@ and tokenstream = parse
 | "is" { Parser.IS (range lexbuf) }
 | "fun" { Parser.FUN (range lexbuf) }
 | "main" { Parser.MAIN (range lexbuf) }
+| "arithmetic" { Parser.ARITHMETIC (range lexbuf) }
 | '\'' { Parser.APOSTROPHE }
 | ',' { Parser.COMMA }
 | '.' { Parser.DOT }
@@ -66,8 +67,6 @@ and tokenstream = parse
 | "Data" { Parser.DATA (range lexbuf) }
 | "namespace" { Parser.NAMESPACE (range lexbuf) }
 | eof   	{ Parser.EOF }
-
-// --------------------------
 | ['-']?digit+   { Parser.INT (Int32.Parse(LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }
 | ['-']?digit+('.'digit+)?(['e''E']digit+)?   { Parser.FLOAT (Double.Parse(LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }
 | "\"" [^'"']* "\"" { let s = LexBuffer<_>.LexemeString lexbuf in Parser.STRING ((s.Trim [|'\"'|]),(range lexbuf)) }
