@@ -24,7 +24,7 @@ let parseFile (fileName : string) =
 [<EntryPoint>]
 let main argv =
 //  try
-    let fileName = @"Content\Test\test3.mc"
+    let fileName = @"Content\Test\expressions.mc"
     let outputFileName = @"Content\Test\codeGeneration.cs"
     let parsedAST = parseFile fileName
     let typedTest = checkProgram parsedAST

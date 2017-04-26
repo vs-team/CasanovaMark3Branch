@@ -475,9 +475,12 @@ let emitRuleCall (ctxt : CodeGenerationCtxt) (args : CallArg list) (ret : CallAr
                                   let ruleCtxt = ruleCreation newCtxt
                                   match newCtxt.Program.SymbolTable.DataTable.TryFind(symbol) with
                                   | Some decl ->
-                                    let constructorCtxt = emitResultDataStructure ruleCtxt decl
+                                    let tabs = emitTabs (newCtxt.CurrentTabs + 1)
+                                    let constructorCtxt = emitResultDataStructure { ruleCtxt with CurrentTabs = ruleCtxt.CurrentTabs + 1 } decl
                                     let _,argCtxt = emitResultDataArgGeneration constructorCtxt expr.Tail
-                                    argCtxt
+                                    let argCopyCode =
+                                      sprintf "%s%s.__arg%d = %s;\n" tabs argCtxt.CurrentRuleTmp argCtxt.ArgIndex argCtxt.CurrentTempCode
+                                    { argCtxt with Code = argCtxt.Code + argCopyCode; CurrentTabs = ruleCtxt.CurrentTabs }.AddTemp
                                   | _ -> failwith "The data does not exist???"
                               | _ -> failwith "First argument of nested expression is not an id???"
                           | CallArg.Lambda _ -> failwith "Lambdas not supported yet...") ctxt args.Tail call.Tail

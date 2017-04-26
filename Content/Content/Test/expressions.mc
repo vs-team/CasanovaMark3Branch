@@ -5,16 +5,14 @@ Value is Expr
 Data "$i" -> int : Value
 Data "$f" -> float : Value
 Data Value -> "+" -> Value : Expr
-Func "eval" -> int -> int : int
+Func "eval" -> Expr : Value
 Func "start" : int
 
 
-----------------
-eval 0 0 -> 0
+---------------------
+eval ($i x) -> ($i x)
 
 main :
-eval 0 0 -> x
-eval 0 0 -> y
-arithmetic x /% y -> res
+eval ($i 5) -> ($i x)
 -----------------------
-start -> res
+start -> x
