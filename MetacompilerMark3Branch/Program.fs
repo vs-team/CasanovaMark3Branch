@@ -4,7 +4,8 @@ open TypeChecker
 open TypeCheckerTest
 open System.IO
 open Common
-open CodeGenerationCsharp
+//open CodeGenerationCsharp
+open CodeGenerationCSharp2
 open Microsoft.FSharp.Text.Lexing
 
 //let testParser (fileName : string) =
@@ -30,7 +31,7 @@ let main argv =
     let typedTest = checkProgram parsedAST
     let codeGenerationTest = emitProgram typedTest
 //    printfn "Type checking successful!"
-    File.WriteAllText(outputFileName, sprintf "%s" codeGenerationTest)
+    File.WriteAllText(outputFileName, sprintf "%s" codeGenerationTest.Code)
     0
 //  with
 //  | TypeError(msg) -> 

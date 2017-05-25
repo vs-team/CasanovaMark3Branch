@@ -17,6 +17,7 @@ type token =
   | NEQ of (int * int)
   | MAIN of (int * int)
   | ARITHMETIC of (int * int)
+  | MODULE of (int * int)
   | COMMA
   | LBRACKET
   | RBRACKET
@@ -27,6 +28,8 @@ type token =
   | NEWLINE
   | BAR
   | BIND
+  | LBRACE
+  | RBRACE
   | ARROW of (System.Int32 * System.Int32)
   | DARROW of (System.Int32 * System.Int32)
   | EQUAL of (System.Int32 * System.Int32)
@@ -52,6 +55,7 @@ type tokenId =
     | TOKEN_NEQ
     | TOKEN_MAIN
     | TOKEN_ARITHMETIC
+    | TOKEN_MODULE
     | TOKEN_COMMA
     | TOKEN_LBRACKET
     | TOKEN_RBRACKET
@@ -62,6 +66,8 @@ type tokenId =
     | TOKEN_NEWLINE
     | TOKEN_BAR
     | TOKEN_BIND
+    | TOKEN_LBRACE
+    | TOKEN_RBRACE
     | TOKEN_ARROW
     | TOKEN_DARROW
     | TOKEN_EQUAL
@@ -79,6 +85,7 @@ type nonTerminalId =
     | NONTERM_fractionLine
     | NONTERM_program
     | NONTERM_dottedPath
+    | NONTERM_typeArg
     | NONTERM_commaPath
     | NONTERM_genericSeq
     | NONTERM_includeOrOpenStmts

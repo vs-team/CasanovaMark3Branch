@@ -16,8 +16,8 @@ open ParserUtils
 %token <string * (int * int)> STRING
 %token <(int * int)> UNIT
 %token <System.Int32 * System.Int32> ARROW DARROW EQUAL
-%token COMMA LBRACKET RBRACKET DOT APOSTROPHE HASH COLON NEWLINE BAR BIND
-%token <int * int> FUNC TYPEFUNC OPEN INCLUDE DATA NAMESPACE IS FUN GT GEQ LT LEQ NEQ MAIN ARITHMETIC
+%token COMMA LBRACKET RBRACKET DOT APOSTROPHE HASH COLON NEWLINE BAR BIND LBRACE RBRACE
+%token <int * int> FUNC TYPEFUNC OPEN INCLUDE DATA NAMESPACE IS FUN GT GEQ LT LEQ NEQ MAIN ARITHMETIC MODULE
 
 %token EOF
  
@@ -42,11 +42,16 @@ fractionLine:
 | BAR { }
 
 program: NAMESPACE dottedPath newLineSeq includeOrOpenStmts subtypes declarations rules {
-  $2,$4,($6,$7,$5) }
+  let programDefinition = { Declarations = $6; Rules = $7; Subtyping = $5 }
+  $2,$4,programDefinition }
 
 dottedPath:
 | ID DOT dottedPath { (fst $1) + "." + $3 }
 | ID { (fst $1) }
+
+typeArg:
+| LBRACKET ID COLON typeDeclaration RBRACKET {
+   { Variable = { Namespace = ""; Name = fst $2 }; Type = $4 } }
 
 commaPath:
 | ID COMMA commaPath { ({Namespace = ""; Name = fst $1}) :: $3 }

@@ -49,6 +49,8 @@ and tokenstream = parse
 | '.' { Parser.DOT }
 | '(' { Parser.LBRACKET }
 | ')' { Parser.RBRACKET }
+| '{' { Parser.LBRACE }
+| '}' { Parser.RBRACE }
 | '#' { Parser.HASH }
 | ':' { Parser.COLON }
 | ":=" { Parser.BIND }
@@ -62,6 +64,7 @@ and tokenstream = parse
 | "<=" { Parser.LEQ (range lexbuf) }
 | "<>" { Parser.NEQ (range lexbuf) }
 | "()" { Parser.UNIT (range lexbuf) }
+| "Module" { Parser.MODULE (range lexbuf) }
 | "Func" { Parser.FUNC (range lexbuf) } 
 | "TypeFunc" { Parser.TYPEFUNC (range lexbuf) }
 | "Data" { Parser.DATA (range lexbuf) }

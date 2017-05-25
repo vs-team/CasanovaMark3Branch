@@ -20,7 +20,12 @@ let builtInTypes =
 
 type Program = string * List<string> * ProgramDefinition
 
-and ProgramDefinition = List<Declaration> * List<RuleDefinition> * List<TypeDecl*TypeDecl> //declarations, rules, subtyping mapping
+and ProgramDefinition = 
+  {
+    Declarations          : List<Declaration>
+    Rules                 : List<RuleDefinition>
+    Subtyping             : List<TypeDecl*TypeDecl> //declarations, rules, subtyping mapping
+  }
 
 and OpOrder =
 | Prefix
@@ -30,16 +35,24 @@ and Associativity =
 | Left
 | Right
 
+and TypeCall =
+  {
+    Variable      : Id
+    Type          : TypeDecl
+  }
+  member this.Length = this.Type.Length
 
 //nested is used to distinguish type definitions such as (int -> int) -> string from int -> (int -> string)
 and TypeDecl =
 | Arrow of TypeDecl * TypeDecl * bool //left, right, nested
+| TypeArrow of TypeCall
 | Generic of Id
 | Arg of CallArg * (TypeDecl list) //name of the type, types to construct a generic data
 | Zero
   member this.Length =
     match this with
     | Arrow(left,right,_) -> 1 + right.Length
+    | TypeArrow tc -> tc.Length
     | Generic(_)
     | Arg(_) -> 1
     | Zero -> 0
@@ -98,6 +111,7 @@ and Declaration =
 | Func of SymbolDeclaration
 | TypeFunc of SymbolDeclaration
 | TypeAlias of SymbolDeclaration
+| Module of ModuleDeclaration
 with
   override this.ToString() =
     match this with
@@ -105,6 +119,17 @@ with
     | Func(f) -> f.ToString()
     | TypeFunc(tf) -> tf.ToString()
     | TypeAlias(ta) -> ta.ToString()
+    | Module m -> m.ToString()
+
+and ModuleDeclaration =
+  {
+    Name      : Id
+    FullType  : TypeDecl
+    Args      : TypeDecl
+    Return    : TypeDecl
+    Position  : Position
+    Body      : List<Declaration>
+  }
 
 and SymbolDeclaration =
   {

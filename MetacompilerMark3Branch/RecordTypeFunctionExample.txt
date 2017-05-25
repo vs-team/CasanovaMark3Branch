@@ -39,15 +39,18 @@ RecordField name type r => Record {
 }
 
 name = lt
--------------------------------------
-GetField lt (Recordfield name type r) => Getter name r {
+Getter name r => Getter {
+  ---------------
   GetType => type
+
+  ---------------
   get (x,xs) -> x
-}
+} as g
+-------------------------------------
+GetField lt (Recordfield name type r) => g
 
 name <> lt
------------------------------------
-GetField lt (RecordField name type r) => Getter name r {
+Getter name r => Getter {
   TypeFunc "Getfield1" : Getter
 
   -----------------------------
@@ -58,22 +61,25 @@ GetField lt (RecordField name type r) => Getter name r {
  
   --------------------------------
   get (x.xs) -> GetField1.get xs
-}
+  } as g
+-----------------------------------
+GetField lt (RecordField name type r) => g
 
 name = lt
---------------------------------
-SetField lt (RecordField name type r) => Setter name r{
-  
+Setter name r => Setter {
+    
   -----------------
   SetType => type
 
   -------------------
   set (x,xs) v -> (v,xs)
-}
+
+} as s
+--------------------------------
+SetField lt (RecordField name type r) => s
 
 name <> lt
------------------------------------------------
-SetField lt (RecordField name type r) => Setter name r {
+Setter name r => Setter {
   TypeFunc "SetField1" : Setter
 
   -------------------------
@@ -84,7 +90,9 @@ SetField lt (RecordField name type r) => Setter name r {
 
   ----------------------------------
   set (x,xs) v -> SetField1.set xs v
-}
+} as s
+-----------------------------------------------
+SetField lt (RecordField name type r) => s
 
 
 

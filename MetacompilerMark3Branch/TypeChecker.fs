@@ -518,18 +518,19 @@ and buildSubTypes (subTypesDef : List<TypeDecl * TypeDecl>) : Map<TypeDecl,List<
                               | None ->
                                   sts |> Map.add t [alias]) Map.empty
 
-and checkProgramDefinition (_module : string) ((decls,rules,subtypes) : ProgramDefinition) : TypedProgramDefinition = 
-  let symbolTable = buildSymbols decls Map.empty
-  do checkSymbols decls symbolTable
-  let symbolTable = { symbolTable with Subtyping = buildSubTypes subtypes }
-  if rules |> List.filter(fun x ->
-                              match x with
-                              | Rule r -> r.Main
-                              | TypeRule _ -> false) |> List.length > 1 then
+and checkProgramDefinition (_module : string) (programDefinition : ProgramDefinition) : TypedProgramDefinition = 
+  let symbolTable = buildSymbols programDefinition.Declarations Map.empty
+  do checkSymbols programDefinition.Declarations symbolTable
+  let symbolTable = { symbolTable with Subtyping = buildSubTypes programDefinition.Subtyping }
+  if programDefinition.Rules |> 
+      List.filter(fun x ->
+                    match x with
+                    | Rule r -> r.Main
+                    | TypeRule _ -> false) |> List.length > 1 then
     raise(TypeError("A program cannot contain more than one entry point"))
   else
     let typedRules =
-      [for r in rules do
+      [for r in programDefinition.Rules do
           match r with
           | Rule(r1) ->
               let normRule,(_type,locals) = checkRule r symbolTable
@@ -541,7 +542,7 @@ and checkProgramDefinition (_module : string) ((decls,rules,subtypes) : ProgramD
           | TypeRule(r) -> failwith "Type rule not supported yet..."]
     {
       Module = _module
-      Declarations = decls
+      Declarations = programDefinition.Declarations
       TypedRules = typedRules
       SymbolTable = symbolTable
     }

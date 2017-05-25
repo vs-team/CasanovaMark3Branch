@@ -97,7 +97,6 @@ let processParsedArgs (parsedArgs : TypeDeclOrName list) (retType : TypeDecl) (r
 
 let insertNamespaceAndFileName (program : Program) (fileName : string) : Program =  
   let nameSpace,imports,parsedProgram = program
-  let declarations,rules,subtypes = parsedProgram
   let rec processTypeDecl (t : TypeDecl) =
     match t with
     | Arrow(left,right,n) -> Arrow(processTypeDecl left,processTypeDecl right,n)
@@ -159,22 +158,24 @@ let insertNamespaceAndFileName (program : Program) (fileName : string) : Program
     | _ -> failwith "Modules not supported yet"
 
   let processedDeclarations =
-    declarations |> List.map (fun d -> 
-                                  match d with
-                                  | Data(decl) -> Data(processSymbolDecl decl)
-                                  | Func(decl) -> Func(processSymbolDecl decl)
-                                  | TypeFunc(decl) -> TypeFunc(processSymbolDecl decl)
-                                  | TypeAlias(decl) -> TypeAlias(processSymbolDecl decl))
+    parsedProgram.Declarations |> List.map (fun d -> 
+                                              match d with
+                                              | Data(decl) -> Data(processSymbolDecl decl)
+                                              | Func(decl) -> Func(processSymbolDecl decl)
+                                              | TypeFunc(decl) -> TypeFunc(processSymbolDecl decl)
+                                              | TypeAlias(decl) -> TypeAlias(processSymbolDecl decl))
   let processedRules =
-    rules |> List.map(fun r ->
-                        match r with
-                        | Rule(r) -> Rule({ Main = r.Main; Premises = r.Premises |> List.map processPremise; Conclusion = processConclusion r.Conclusion })
-                        | TypeRule(tr) -> TypeRule({ Main = tr.Main; Premises = tr.Premises |> List.map processPremise; Conclusion = processConclusion tr.Conclusion }))
+    parsedProgram.Rules |> 
+    List.map(fun r ->
+              match r with
+              | Rule(r) -> Rule({ Main = r.Main; Premises = r.Premises |> List.map processPremise; Conclusion = processConclusion r.Conclusion })
+              | TypeRule(tr) -> TypeRule({ Main = tr.Main; Premises = tr.Premises |> List.map processPremise; Conclusion = processConclusion tr.Conclusion }))
   let processedSubTypes =
-    subtypes |> List.map(fun (lt,rt) -> 
-                    match lt,rt with
-                    | Arg(leftArg,[]),Arg(rightArg,[]) -> Arg(processArg leftArg,[]),Arg(processArg rightArg,[])
-                    | _ -> failwith "Something went wrong while parsing the subtypes")
+    parsedProgram.Subtyping |>
+    List.map(fun (lt,rt) -> 
+              match lt,rt with
+              | Arg(leftArg,[]),Arg(rightArg,[]) -> Arg(processArg leftArg,[]),Arg(processArg rightArg,[])
+              | _ -> failwith "Something went wrong while parsing the subtypes")
   
-  nameSpace,imports,(processedDeclarations,processedRules,processedSubTypes)
+  nameSpace,imports,{ Declarations = processedDeclarations; Rules = processedRules; Subtyping = processedSubTypes}
         
