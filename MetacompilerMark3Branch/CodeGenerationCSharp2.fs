@@ -20,14 +20,10 @@ type CodeGenerationCtxt =
     ArgIndex                  : int
     RuleIndex                 : int
     TempIndex                 : int //used
-    CurrentDataVar            : string
-    CurrentResTmp             : string
-    CurrentRuleTmp            : string
-    PremiseResultTemps        : string list
-    CurrentDataArgs           : string list
     GeneratedTemps            : string list //used
     GeneratedInterfaces       : string list //used
-    CurrentRuleRetType        : TypeDecl
+    CurrentRuleRetType        : TypeDecl //used
+    CurrentFuncId             : Id //used
   }
   static member Init(program : TypedProgramDefinition) = 
     {
@@ -36,14 +32,10 @@ type CodeGenerationCtxt =
       ArgIndex = 0
       RuleIndex = 0
       TempIndex = 0
-      CurrentDataVar = ""
-      CurrentResTmp = ""
-      CurrentRuleTmp = ""
-      PremiseResultTemps = []
-      CurrentDataArgs = []
       GeneratedTemps = []
       GeneratedInterfaces = []
       CurrentRuleRetType = Zero
+      CurrentFuncId = { Name = ""; Namespace = "" } 
     }
   member this.TempName index = "__tmp" + (string index)
   member this.LastTempCode = if (this.TempIndex -  1) < 0 then "" else (this.TempName (this.TempIndex - 1))
@@ -137,6 +129,90 @@ let emitDataClasses (ctxt : CodeGenerationCtxt) =
                 ToStringCode
                 tabs
             newCtxt.AddCode classCode) ctxt
+
+//Each case of a rule declares a set of local variables corresponding to the local variables of the rule
+let emitRuleCase (ctxt : CodeGenerationCtxt) =
+  let tabs = emitTabs ctxt.CurrentTabs
+  let caseTabs = emitTabs (ctxt.CurrentTabs + 1)
+  let caseBodyTabs = emitTabs (ctxt.CurrentTabs + 2)
+  let localVarsCode =
+    let (TypedRule(tr)) = ctxt.Program.TypedRules.[ctxt.RuleIndex]
+    tr.Locals.Variables |>
+    Map.fold (fun code id (decl,_) ->
+                sprintf "%s%s %s = default(%s);\n"
+                  caseBodyTabs
+                  (getTypeFullName decl)
+                  id.Name
+                  (getTypeFullName decl)) ""
+  let caseCode =
+    sprintf "%scase %d:\n%s{\n%s%s}\n"
+      tabs
+      ctxt.RuleIndex
+      caseTabs
+      localVarsCode
+      caseTabs
+  ctxt.AddCode caseCode
+    
+  
+
+//Each rule becomes a case in the switch statement.
+let emitRulesCode (ctxt : CodeGenerationCtxt) =
+  //the rules calling the current functions are the rules having one argument in the conclusion that
+  //is the name of the current function.
+  let tabs = emitTabs ctxt.CurrentTabs
+  let rulesCallingCurrentFunction =
+    ctxt.Program.TypedRules |>
+    List.filter(fun rule ->
+                  match rule with
+                  | TypedRule(tr) ->
+                      //The parser should ensure that the output of a rule is always a value and not a module.
+                      let (ValueOutput(args,_)) = tr.Conclusion
+                      args |> List.exists(fun arg ->
+                                              match arg with
+                                              | Id(id,_) -> id = ctxt.CurrentFuncId
+                                              | _ -> false)
+                  | TypedTypeRule _ -> false)
+  let casesCode =
+    rulesCallingCurrentFunction |>
+    List.fold(fun (i,newCtxt) rule ->
+                i + 1,
+                emitRuleCase 
+                  { newCtxt with
+                      CurrentTabs = ctxt.CurrentTabs + 1 
+                      RuleIndex = i}) (0,ctxt) |> snd
+  let switchCode =
+    sprintf "%sswitch (__ruleIndex)\n%s{\n%s%s}"
+      tabs
+      tabs
+      casesCode.Code
+      tabs
+  ctxt.AddCode(switchCode)
+
+//Each function class contains a run method. The run defines a switch with a case for each
+//rule calling the current function in its conclusion.
+let emitRunMethod (ctxt : CodeGenerationCtxt) =
+  let tabs = emitTabs ctxt.CurrentTabs
+  let methodTabs = emitTabs (ctxt.CurrentTabs + 1)
+  let switchCode =
+    emitRulesCode
+      { ctxt with
+          Code = ""
+          CurrentTabs = ctxt.CurrentTabs + 1 }
+  let runCode =
+    sprintf "%spublic void Run()\n%s{\n%sint __ruleIndex = 0;\n%sres = new %s<%s>();\n%s__res.Value = default(%s);\n%s__res.HasValue = false;\n%s\n%s}\n"
+      tabs
+      tabs
+      methodTabs
+      methodTabs
+      resultStruct
+      (getTypeFullName ctxt.CurrentRuleRetType)
+      methodTabs
+      (getTypeFullName ctxt.CurrentRuleRetType)
+      methodTabs
+      switchCode.Code
+      tabs
+  ctxt.AddCode runCode
+  
 //[[Func "f" -> arg1 -> ... -> argn : RetType ]]
 //Create a class for each function declaration. The class has the name of the functiom
 //and contains a field for each function argument. It also contains a field __res with type
@@ -149,8 +225,15 @@ let emitFunctionClasses (ctxt : CodeGenerationCtxt) =
               let argList =
                 (extractTypeNamesFromTypeDecl decl.Args getTypeFullName)
               let argCode = emitArgCode argList classTabs
+              let runCtxt = 
+                emitRunMethod 
+                  { newCtxt with
+                      Code = "" 
+                      CurrentTabs = newCtxt.CurrentTabs + 1
+                      CurrentRuleRetType = decl.Return
+                      CurrentFuncId = decl.Name }
               let classCode =
-                sprintf "%spublic class %s\n%s{\n%s%spublic %s<%s> __res;\n%s}\n"
+                sprintf "%spublic class %s\n%s{\n%s%spublic %s<%s> __res;\n%s%s}\n"
                   tabs
                   (renameOperator decl.Name.Name)
                   tabs
@@ -158,6 +241,7 @@ let emitFunctionClasses (ctxt : CodeGenerationCtxt) =
                   classTabs
                   resultStruct
                   (getTypeFullName decl.Return)
+                  runCtxt.Code
                   tabs
               newCtxt.AddCode classCode) ctxt
 
