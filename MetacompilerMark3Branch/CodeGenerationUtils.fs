@@ -27,10 +27,10 @@ let getReturnTypeSimpleName (decl : SymbolDeclaration) = getTypeSimpleName decl.
 let getDeclInterface (decl : SymbolDeclaration) =
   getReturnTypeSimpleName decl
 
-let rec extractTypeNamesFromDataArg (_type : TypeDecl) (nameFunction : TypeDecl -> string) : string list =
+let rec extractTypeNamesFromTypeDecl (_type : TypeDecl) (nameFunction : TypeDecl -> string) : string list =
   match _type with
   | Arrow(left,right,_) ->
-      (string left) :: (extractTypeNamesFromDataArg right nameFunction)
+      (string left) :: (extractTypeNamesFromTypeDecl right nameFunction)
   | Arg _ -> [nameFunction _type]
   | Zero -> []
 

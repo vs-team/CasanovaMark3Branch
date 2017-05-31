@@ -14,19 +14,19 @@ let resultNone tabs typeSymbol =  sprintf "%s__res = new %s<%s>();\n%s__res.Valu
 
 type CodeGenerationCtxt =
   {
-    Program                   : TypedProgramDefinition
-    Code                      : string
-    CurrentTabs               : int
+    Program                   : TypedProgramDefinition //used
+    Code                      : string //used
+    CurrentTabs               : int //used
     ArgIndex                  : int
     RuleIndex                 : int
-    TempIndex                 : int
+    TempIndex                 : int //used
     CurrentDataVar            : string
     CurrentResTmp             : string
     CurrentRuleTmp            : string
     PremiseResultTemps        : string list
     CurrentDataArgs           : string list
-    GeneratedTemps            : string list
-    GeneratedInterfaces       : string list
+    GeneratedTemps            : string list //used
+    GeneratedInterfaces       : string list //used
     CurrentRuleRetType        : TypeDecl
   }
   static member Init(program : TypedProgramDefinition) = 
@@ -64,23 +64,48 @@ let rec emitTabs tabs =
    else
     "\t" + (emitTabs (tabs - 1))
 
+
+let emitArgCode argList tabs =
+  argList |>
+  List.fold(fun (i,code) typeName ->
+              (i + 1,
+                code + (sprintf "%spublic %s __arg%d;\n" tabs typeName i))) (0,"") |> snd
+
+//[[Data "dataName" -> ... : Metatype1]]
+//For each Data declaration define an empty interface for its meta-type
+//If the meta-data is a subtype of another, than this interface also implements the interfaces for the supertypes.
 let emitDataInterfaces (ctxt : CodeGenerationCtxt) =
   let tabs = emitTabs ctxt.CurrentTabs
   ctxt.Program.SymbolTable.DataTable |>
   Map.fold(fun newCtxt id decl ->
-              match ctxt.Program.SymbolTable.Subtyping |> Map.tryFindKey(fun k _ -> k === decl.Return) with
-              | None ->
-                  { newCtxt with Code = newCtxt.Code + (sprintf "%spublic interface %s{ }\n" tabs (getTypeSimpleName decl.Return)) }
-              | Some _type ->
-                  let subtypes = ctxt.Program.SymbolTable.Subtyping.[_type]
-                  let subtypesString =
-                    subtypes |>
-                    List.map(fun decl -> getTypeSimpleName decl) |>
-                    List.reduce(fun x y -> x + ", " + y)
-                  let interfaceString =
-                    sprintf "%spublic interface %s{ } : %s\n" tabs (getTypeSimpleName decl.Return) subtypesString
-                  { newCtxt with Code = newCtxt.Code + interfaceString }) ctxt
+              let typeCode = getTypeSimpleName decl.Return
+              //this avoids to generate the same interface twice.
+              if newCtxt.GeneratedInterfaces |> List.contains(typeCode) then
+                newCtxt
+              else
+                match ctxt.Program.SymbolTable.Subtyping |> Map.tryFindKey(fun k _ -> k === decl.Return) with
+                | None ->                  
+                      { newCtxt with 
+                          Code = newCtxt.Code + (sprintf "%spublic interface %s{ }\n" tabs typeCode)
+                          GeneratedInterfaces = typeCode :: newCtxt.GeneratedInterfaces }
+                | Some _type ->
+                    let subtypes = ctxt.Program.SymbolTable.Subtyping.[_type]
+                    let subtypesString =
+                      subtypes |>
+                      List.map(fun decl -> getTypeSimpleName decl) |>
+                      List.reduce(fun x y -> x + ", " + y)
+                    let interfaceString =
+                      sprintf "%spublic interface %s{ } : %s\n" tabs (getTypeSimpleName decl.Return) subtypesString
+                    { newCtxt with 
+                        Code = newCtxt.Code + interfaceString 
+                        GeneratedInterfaces = typeCode :: newCtxt.GeneratedInterfaces}) ctxt
 
+//[[Data "dataName" -> arg1 -> ... -> argn : Metatype1]]
+//For each meta-data declaration define a class implementing the interface for the meta-type
+//the class contains a field for each of the arguments needed to construct the meta-type.
+//If the meta-data name contains symbols that are illegal in ids of C#, those are replaced with
+//alternative names. The class contains a field __name storing the original symbols in the
+//declaration for the pretty print.
 let emitDataClasses (ctxt : CodeGenerationCtxt) =
   let tabs = emitTabs ctxt.CurrentTabs
   let classTabs = emitTabs (ctxt.CurrentTabs + 1)
@@ -88,33 +113,59 @@ let emitDataClasses (ctxt : CodeGenerationCtxt) =
   ctxt.Program.SymbolTable.DataTable |>
   Map.fold(fun (newCtxt : CodeGenerationCtxt) id decl ->
             let argList =
-              (extractTypeNamesFromDataArg decl.Args getTypeFullName)
-            let argCode =
-              argList |>
-              List.fold(fun (i,code) typeName ->
-                          (i + 1,
-                           code + (sprintf "%spublic %s __arg%d;\n" classTabs typeName i))) (0,"") |> snd
+              (extractTypeNamesFromTypeDecl decl.Args getTypeFullName)
+            let argCode = emitArgCode argList classTabs
             let ToStringCode =
               let methodName = sprintf "%spublic override string ToString()\n" classTabs
               if argList.Length = 0 then
                 sprintf "%s%s{\n%sreturn __name;\n%s}\n" methodName classTabs methodTabs classTabs
               else
-                ""
+                let argNames = 
+                  argList |>
+                  List.mapi(fun i _ -> sprintf "__arg%d" i) |>
+                  List.fold(fun code i -> code + (sprintf " + \" \" + %s" i)) ""
+                sprintf "%s%s{\n%sreturn \"(\" + __name %s + \")\";\n%s}\n" methodName classTabs methodTabs argNames classTabs
             let classCode =
-              sprintf "%spublic class %s\n%s{\n%spublic string name = \"%s\";\n%s%s}\n" 
+              sprintf "%spublic class %s : %s \n%s{\n%spublic string name = \"%s\";\n%s%s%s}\n" 
                 tabs 
-                (renameOperator decl.Name.Name) 
+                (renameOperator decl.Name.Name)
+                (getTypeSimpleName decl.Return)
                 tabs 
                 classTabs
                 decl.Name.Name
                 argCode
+                ToStringCode
                 tabs
             newCtxt.AddCode classCode) ctxt
+//[[Func "f" -> arg1 -> ... -> argn : RetType ]]
+//Create a class for each function declaration. The class has the name of the functiom
+//and contains a field for each function argument. It also contains a field __res with type
+//__MetaCnvResult<RetType> (compiler-generated) to store the result of the function evaluation.
+let emitFunctionClasses (ctxt : CodeGenerationCtxt) =
+  let tabs = emitTabs ctxt.CurrentTabs
+  let classTabs = emitTabs (ctxt.CurrentTabs + 1)
+  ctxt.Program.SymbolTable.FuncTable |>
+  Map.fold(fun (newCtxt : CodeGenerationCtxt) id decl ->
+              let argList =
+                (extractTypeNamesFromTypeDecl decl.Args getTypeFullName)
+              let argCode = emitArgCode argList classTabs
+              let classCode =
+                sprintf "%spublic class %s\n%s{\n%s%spublic %s<%s> __res;\n%s}\n"
+                  tabs
+                  (renameOperator decl.Name.Name)
+                  tabs
+                  argCode
+                  classTabs
+                  resultStruct
+                  (getTypeFullName decl.Return)
+                  tabs
+              newCtxt.AddCode classCode) ctxt
 
 let emitProgram (program : TypedProgramDefinition) = 
   let startingCtxt = CodeGenerationCtxt.Init(program)
   let ctxtWithInterfaces = emitDataInterfaces startingCtxt
-  let ctxtWithClasses = emitDataClasses ctxtWithInterfaces
+  let ctxtWithDataClasses = emitDataClasses ctxtWithInterfaces
+  let ctxtWithFunctionClasses = emitFunctionClasses ctxtWithDataClasses
   { startingCtxt with Code = startingCtxt.Code + (emitDataInterfaces startingCtxt).Code }
   
   
