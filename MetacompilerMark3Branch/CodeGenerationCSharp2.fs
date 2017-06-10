@@ -18,12 +18,14 @@ type CodeGenerationCtxt =
     Code                      : string //used
     CurrentTabs               : int //used
     ArgIndex                  : int
-    RuleIndex                 : int
+    RuleIndex                 : int //used
     TempIndex                 : int //used
     GeneratedTemps            : string list //used
     GeneratedInterfaces       : string list //used
     CurrentRuleRetType        : TypeDecl //used
     CurrentFuncId             : Id //used
+    RulesMatchingFunction     : int //used
+    CurrentDataTemp           : int
   }
   static member Init(program : TypedProgramDefinition) = 
     {
@@ -31,12 +33,15 @@ type CodeGenerationCtxt =
       CurrentTabs = 0
       ArgIndex = 0
       RuleIndex = 0
-      TempIndex = 0
+      TempIndex = -1
       GeneratedTemps = []
       GeneratedInterfaces = []
       CurrentRuleRetType = Zero
       CurrentFuncId = { Name = ""; Namespace = "" } 
+      RulesMatchingFunction = 0
+      CurrentDataTemp = -1
     }
+  member this.DataTemp = if this.CurrentDataTemp = -1 then "" else (this.TempName this.CurrentDataTemp) + "."
   member this.TempName index = "__tmp" + (string index)
   member this.LastTempCode = if (this.TempIndex -  1) < 0 then "" else (this.TempName (this.TempIndex - 1))
   member this.CurrentTempCode = this.TempName this.TempIndex
@@ -62,6 +67,13 @@ let emitArgCode argList tabs =
   List.fold(fun (i,code) typeName ->
               (i + 1,
                 code + (sprintf "%spublic %s __arg%d;\n" tabs typeName i))) (0,"") |> snd
+
+let emitGotoNextRule (ctxt : CodeGenerationCtxt) =
+  if ctxt.RuleIndex = ctxt.RulesMatchingFunction - 1 then
+    "goto default;"
+  else
+    sprintf "goto case %d;" (ctxt.RuleIndex + 1)
+
 
 //[[Data "dataName" -> ... : Metatype1]]
 //For each Data declaration define an empty interface for its meta-type
@@ -130,13 +142,84 @@ let emitDataClasses (ctxt : CodeGenerationCtxt) =
                 tabs
             newCtxt.AddCode classCode) ctxt
 
+//Variables automatically pass the
+//pattern matching. Literals must be checked against their value. Explicit data structures (like (a + b))
+//must be recursively checked by testing the patterns of its arguments (which can be also explicit data structures).
+//If the whole premise contains an explicit data structure this should be inserted into a NestedExpression before using
+//this function.
+let rec emitStructuralCheck (ctxt : CodeGenerationCtxt) (pattern : List<CallArg>) =                                  
+  let tabs = emitTabs ctxt.CurrentTabs
+  let ifBodyTabs = emitTabs (ctxt.CurrentTabs + 1)
+  pattern.Tail |>
+  List.fold(fun (i,newCtxt) arg ->
+              match arg with
+              | Literal(l,_) ->
+                  let checkCode =
+                      sprintf "%sif(__arg%d != %s)\n%s{\n%s%s;\n%s}"
+                        tabs
+                        i
+                        (string l)
+                        tabs
+                        ifBodyTabs
+                        (emitGotoNextRule newCtxt)
+                        tabs
+                  i + 1, { newCtxt with Code = newCtxt.Code + checkCode }
+              | Id (id,_) ->
+                  //if the premise left side contains only one argument it might be a function or a
+                  //data structure taking no arguments
+                  match newCtxt.Program.SymbolTable.FuncTable.TryFind(id) with
+                  | Some _ ->
+                      i + 1,newCtxt
+                  | None ->
+                      match newCtxt.Program.SymbolTable.DataTable.TryFind(id) with
+                      | Some _ ->
+                          i + 1,emitStructuralCheck newCtxt [NestedExpression(pattern)]
+                      | None ->
+                          let varCopyCode =
+                            sprintf "%s%s = %s__arg%d;\n"
+                              tabs
+                              id.Name
+                              newCtxt.DataTemp
+                              i
+                          i + 1,{ newCtxt with Code = newCtxt.Code + varCopyCode }
+              | NestedExpression(dataName :: args) ->
+                  let (Id(id,_)) = dataName
+                  let checkCode =
+                    sprintf "%sif (!(%s__arg%d is %s.%s))\n%s{\n%s%s\n%s}\n"
+                      tabs
+                      newCtxt.DataTemp
+                      i
+                      id.Namespace
+                      (renameOperator id.Name)
+                      tabs
+                      ifBodyTabs
+                      (emitGotoNextRule newCtxt)
+                      tabs
+                  //data structures must be cast to a temporary variable to get their concrete type
+                  let ctxtWithDataTemp = newCtxt.AddTemp
+                  let ctxtWithDataTemp = { ctxtWithDataTemp with CurrentDataTemp = newCtxt.TempIndex }
+                  let castCode =
+                    sprintf "%s%s.%s %s = (%s.%s)%s__arg%d"
+                      tabs
+                      id.Namespace
+                      (renameOperator id.Name)
+                      ctxtWithDataTemp.LastTempCode
+                      id.Namespace
+                      (renameOperator id.Name)
+                      newCtxt.DataTemp
+                      i
+                  let argumentStructuralCtxt = emitStructuralCheck { newCtxt with CurrentDataTemp = ctxtWithDataTemp.TempIndex} (dataName :: args)
+                  i + 1,{ argumentStructuralCtxt with Code = newCtxt.Code + checkCode + castCode + argumentStructuralCtxt.Code }) (0,ctxt) |> snd
+
+
 //Each case of a rule declares a set of local variables corresponding to the local variables of the rule
 let emitRuleCase (ctxt : CodeGenerationCtxt) =
   let tabs = emitTabs ctxt.CurrentTabs
   let caseTabs = emitTabs (ctxt.CurrentTabs + 1)
   let caseBodyTabs = emitTabs (ctxt.CurrentTabs + 2)
+  let (TypedRule(tr)) = ctxt.Program.TypedRules.[ctxt.RuleIndex]
+  let (ValueOutput(left,right)) = tr.Conclusion
   let localVarsCode =
-    let (TypedRule(tr)) = ctxt.Program.TypedRules.[ctxt.RuleIndex]
     tr.Locals.Variables |>
     Map.fold (fun code id (decl,_) ->
                 sprintf "%s%s %s = default(%s);\n"
@@ -144,16 +227,18 @@ let emitRuleCase (ctxt : CodeGenerationCtxt) =
                   (getTypeFullName decl)
                   id.Name
                   (getTypeFullName decl)) ""
+  let structuralCheckCtxt =
+    emitStructuralCheck { ctxt with CurrentTabs = ctxt.CurrentTabs + 2; Code = "" } left
   let caseCode =
-    sprintf "%scase %d:\n%s{\n%s%s}\n"
+    sprintf "%scase %d:\n%s{\n%s%s%sbreak;\n%s}\n"
       tabs
       ctxt.RuleIndex
       caseTabs
       localVarsCode
+      structuralCheckCtxt.Code
+      caseBodyTabs
       caseTabs
   ctxt.AddCode caseCode
-    
-  
 
 //Each rule becomes a case in the switch statement.
 let emitRulesCode (ctxt : CodeGenerationCtxt) =
@@ -179,7 +264,7 @@ let emitRulesCode (ctxt : CodeGenerationCtxt) =
                 emitRuleCase 
                   { newCtxt with
                       CurrentTabs = ctxt.CurrentTabs + 1 
-                      RuleIndex = i}) (0,ctxt) |> snd
+                      RuleIndex = i}) (0,{ ctxt with RulesMatchingFunction = rulesCallingCurrentFunction.Length }) |> snd
   let switchCode =
     sprintf "%sswitch (__ruleIndex)\n%s{\n%s%s}"
       tabs
