@@ -135,11 +135,15 @@ let rec normalizeDataOrFunctionCall (_symbolTable : SymbolContext) (args : List<
                           match funcOpt with
                           | None ->
                               match dataOpt with
-                              | Some _ ->
-                                  (arg :: fArg,args)
+                              | Some data ->
+                                  match _symbolTable.DataTable.[data].Args with
+                                  | Zero ->
+                                      (fArg,arg :: args)
+                                  | _ ->
+                                    (arg :: fArg,args)
                               | None ->
                                   (fArg,arg :: args)
-                          | Some _ ->
+                          | Some func ->
                               (arg :: fArg,args)
                       | _ ->
                           (fArg,arg :: args)
@@ -388,7 +392,10 @@ and checkNormalizedCall
               | None ->
                   failwith "You are checking arguments that are not data constructors or functions with checkNormalizedCall"
               | Some dSym ->
-                checkArgsWithCorrectCardinality args dSym
+                match dSym.Args with
+                | Zero -> dSym.Return,ctxt
+                | _ ->
+                  checkArgsWithCorrectCardinality args dSym
           | Some fSym ->
               checkArgsWithCorrectCardinality args fSym
       | _ ->
