@@ -49,10 +49,14 @@ let rec combineArgsAndRet args ret =
 let opPos (parsedArgs : TypeDeclOrName list) : OpOrder =
   match parsedArgs with
   | [] -> Prefix
+  | [Name _] -> Suffix
   | x :: xs ->
       match x with
       | Name _ -> Prefix
-      | Type _ -> Infix
+      | Type _ ->
+          match xs.[xs.Length - 1] with
+          | Name _ -> Suffix
+          | _ -> Infix
 
 let rec checkDecl (parsedArgs : TypeDeclOrName list) (row : int) (column : int) : string option * TypeDecl list =
   let n,tds =
@@ -89,11 +93,16 @@ let buildDeclarationRecord opOrder name args ret pos gen priority =
     Generics = gen
   }
 
-let processParsedArgs (parsedArgs : TypeDeclOrName list) (retType : TypeDecl) (row : int) (column : int) (gen : List<Id>) (priority : int) =
+let processParsedArgs (parsedArgs : TypeDeclOrName list) (retType : TypeDecl) (row : int) (column : int) (gen : List<Id>) (priority : int option) =
   let opOrder = opPos parsedArgs
   let Some(name),args = checkDecl parsedArgs row column
   let argType = buildArgType args
-  buildDeclarationRecord opOrder {Namespace =  ""; Name = name} argType retType (row, column) gen priority
+  match priority with
+  | Some priority when priority < 0 -> raise(ParseError("Priority cannot be negative",row,column))
+  | Some priority ->
+      buildDeclarationRecord opOrder {Namespace =  ""; Name = name} argType retType (row, column) gen priority
+  | None ->
+      buildDeclarationRecord opOrder {Namespace =  ""; Name = name} argType retType (row, column) gen -1
 
 let insertNamespaceAndFileName (program : Program) (fileName : string) : Program =  
   let nameSpace,imports,parsedProgram = program

@@ -647,7 +647,7 @@ let _fsyacc_reductions ()  =    [|
                 (
                    (
 # 78 "Parser.fsy"
-                                      fst _2 
+                                      Some (fst _2) 
                    )
 # 78 "Parser.fsy"
                  : 'priority));
@@ -657,7 +657,7 @@ let _fsyacc_reductions ()  =    [|
                 (
                    (
 # 79 "Parser.fsy"
-                         -1 
+                         None 
                    )
 # 79 "Parser.fsy"
                  : 'priority));

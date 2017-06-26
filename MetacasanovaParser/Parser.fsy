@@ -75,8 +75,8 @@ declarations:
 | { [] }
 
 priority:
-| PRIORITY INT { fst $2 }
-| { -1 }
+| PRIORITY INT { Some (fst $2) }
+| { None }
 
 declaration:
 | FUNC genericSeq typeOrNameDeclarations COLON typeDeclaration priority newLineSeq {

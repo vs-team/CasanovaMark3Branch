@@ -109,6 +109,7 @@ let parentesizeExpression (_symbolTable : SymbolContext) (args : CallArg list) =
 
 //extract function name from a CallArg and rearrange the term in the form: functioName arg1 arg2 ... argn. The same form data constructors
 let rec normalizeDataOrFunctionCall (_symbolTable : SymbolContext) (args : List<ParserAST.CallArg>) (locals : LocalContext) : List<ParserAST.CallArg> =
+  let args = parentesizeExpression _symbolTable args
   let normCall =
     args |> 
     List.fold(fun (fArg,args) arg ->
