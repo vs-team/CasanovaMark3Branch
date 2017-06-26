@@ -17,7 +17,7 @@ open ParserUtils
 %token <(int * int)> UNIT
 %token <System.Int32 * System.Int32> ARROW DARROW EQUAL
 %token COMMA LBRACKET RBRACKET DOT APOSTROPHE HASH COLON NEWLINE BAR BIND LBRACE RBRACE
-%token <int * int> FUNC TYPEFUNC OPEN INCLUDE DATA NAMESPACE IS FUN GT GEQ LT LEQ NEQ MAIN ARITHMETIC MODULE
+%token <int * int> FUNC TYPEFUNC OPEN INCLUDE DATA NAMESPACE IS FUN GT GEQ LT LEQ NEQ MAIN ARITHMETIC MODULE PRIORITY
 
 %token EOF
  
@@ -74,11 +74,15 @@ declarations:
   $1 :: $2 }
 | { [] }
 
+priority:
+| PRIORITY INT { fst $2 }
+| { -1 }
+
 declaration:
-| FUNC genericSeq typeOrNameDeclarations COLON typeDeclaration newLineSeq {
-    Func(processParsedArgs $3 $5 (fst $1) (snd $1) $2) }
-| DATA genericSeq typeOrNameDeclarations COLON typeDeclaration newLineSeq {
-    Data(processParsedArgs $3 $5 (fst $1) (snd $1) $2) }
+| FUNC genericSeq typeOrNameDeclarations COLON typeDeclaration priority newLineSeq {
+    Func(processParsedArgs $3 $5 (fst $1) (snd $1) $2 $6) }
+| DATA genericSeq typeOrNameDeclarations COLON typeDeclaration priority newLineSeq {
+    Data(processParsedArgs $3 $5 (fst $1) (snd $1) $2 $6) }
 
 typeOrNameDeclarations:
 | typeOrNameDeclaration ARROW typeOrNameDeclarations { $1 :: $3 }

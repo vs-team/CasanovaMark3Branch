@@ -18,6 +18,7 @@ type token =
   | MAIN of (int * int)
   | ARITHMETIC of (int * int)
   | MODULE of (int * int)
+  | PRIORITY of (int * int)
   | COMMA
   | LBRACKET
   | RBRACKET
@@ -56,6 +57,7 @@ type tokenId =
     | TOKEN_MAIN
     | TOKEN_ARITHMETIC
     | TOKEN_MODULE
+    | TOKEN_PRIORITY
     | TOKEN_COMMA
     | TOKEN_LBRACKET
     | TOKEN_RBRACKET
@@ -91,6 +93,7 @@ type nonTerminalId =
     | NONTERM_includeOrOpenStmts
     | NONTERM_includeOrOpenStmt
     | NONTERM_declarations
+    | NONTERM_priority
     | NONTERM_declaration
     | NONTERM_typeOrNameDeclarations
     | NONTERM_typeOrNameDeclaration

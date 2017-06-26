@@ -75,25 +75,25 @@ let rec buildArgType (args : TypeDecl list) =
       | Zero -> failwith "Invalid arg type in buildArgType"
       | _ -> x --> (buildArgType xs)
 
-let buildDeclarationRecord opOrder name args ret pos gen =
+let buildDeclarationRecord opOrder name args ret pos gen priority =
   {
     Name = name
     FullType = combineArgsAndRet args ret
     Args = args
     Return = ret
     Order = opOrder
-    Priority = 0
+    Priority = priority
     Position = Position.Create(pos, "missing")
     Associativity = Left
     Premises = []
     Generics = gen
   }
 
-let processParsedArgs (parsedArgs : TypeDeclOrName list) (retType : TypeDecl) (row : int) (column : int) (gen : List<Id>) =
+let processParsedArgs (parsedArgs : TypeDeclOrName list) (retType : TypeDecl) (row : int) (column : int) (gen : List<Id>) (priority : int) =
   let opOrder = opPos parsedArgs
   let Some(name),args = checkDecl parsedArgs row column
   let argType = buildArgType args
-  buildDeclarationRecord opOrder {Namespace =  ""; Name = name} argType retType (row, column) gen
+  buildDeclarationRecord opOrder {Namespace =  ""; Name = name} argType retType (row, column) gen priority
 
 let insertNamespaceAndFileName (program : Program) (fileName : string) : Program =  
   let nameSpace,imports,parsedProgram = program
