@@ -65,12 +65,12 @@ let rec splitAtElement (pred : 'a -> bool) (list : 'a list) : ('a list) * ('a li
         let left,right = splitAtElement pred xs
         (x :: left,right)
 
-let rec parentesization (operators : SymbolDeclaration list) (args : CallArg list) =
+let rec parentesization (_symbolTable : SymbolContext) (operators : SymbolDeclaration list) (args : CallArg list) =
   match args with
   | [] -> []
   | [Literal(l,p)] -> [Literal (l,p)]
   | [Id(id,p)] -> [Id (id,p)]
-  | [NestedExpression expr] -> parentesization operators expr
+  | [NestedExpression expr] -> parentesizeExpression _symbolTable expr
   | _ ->
       if args |> List.exists(fun arg -> 
                                 match arg with
@@ -85,31 +85,33 @@ let rec parentesization (operators : SymbolDeclaration list) (args : CallArg lis
                                           match x with
                                           | Id(id,_) -> id = minPriorityOp.Name
                                           | _ -> false) args
-        let leftPar = parentesization operators left
-        let rightPar = parentesization operators right
+        let leftPar = parentesizeExpression _symbolTable left
+        let rightPar = parentesizeExpression _symbolTable right
         match minPriorityOp.Order with
         | Prefix when minPriorityOp.Args.Length > 0 ->
             leftPar @ [NestedExpression (operatorArg :: rightPar)]
         | Suffix when minPriorityOp.Args.Length > 0 ->
             (NestedExpression (leftPar @ [operatorArg])) :: rightPar
         | Infix when minPriorityOp.Args.Length > 0 ->
-            [NestedExpression (leftPar @ rightPar)]
+            [NestedExpression (leftPar @ [operatorArg] @ rightPar)]
         | _ -> leftPar @ [operatorArg] @ rightPar
       else
         args
 
-let parentesizeExpression (_symbolTable : SymbolContext) (args : CallArg list) =
+and parentesizeExpression (_symbolTable : SymbolContext) (args : CallArg list) =
   let operatorsOrderedByPriority = fetchDataOrFunctionSymbols _symbolTable args
-  let par = parentesization operatorsOrderedByPriority args
-  match par with
-  | [NestedExpression(expr)] -> expr
-  | _ -> failwith (sprintf "Something went wrong during the automatic parentesization of the expression %A" args)
+  let par = parentesization _symbolTable operatorsOrderedByPriority args
+  par
 
 
 
 //extract function name from a CallArg and rearrange the term in the form: functioName arg1 arg2 ... argn. The same form data constructors
 let rec normalizeDataOrFunctionCall (_symbolTable : SymbolContext) (args : List<ParserAST.CallArg>) (locals : LocalContext) : List<ParserAST.CallArg> =
-  let args = parentesizeExpression _symbolTable args
+  let args = 
+    let par =parentesizeExpression _symbolTable args
+    match par with
+    | [NestedExpression expr] -> expr
+    | _ -> par
   let normCall =
     args |> 
     List.fold(fun (fArg,args) arg ->
