@@ -41,6 +41,69 @@ and TypedRule =
 let undefinedVarError name pos =
   raise(TypeError(sprintf "Type Error: undefined variable %s at %s" name (pos.ToString())))
 
+let fetchDataOrFunctionSymbols (_symbolTable : SymbolContext) (args : CallArg list) =
+  args |>
+  List.fold (fun dataOrFunctions arg ->
+                match arg with
+                | Id(s,_) ->
+                  match _symbolTable.FuncTable |> Map.tryFind(s) with
+                  | Some x -> x :: dataOrFunctions
+                  | None ->
+                      match _symbolTable.DataTable |> Map.tryFind(s) with
+                      | Some x -> x :: dataOrFunctions
+                      | None -> dataOrFunctions
+                | _ -> dataOrFunctions) [] |>
+  List.sortBy (fun decl -> decl.Priority) |> List.rev
+
+let rec splitAtElement (pred : 'a -> bool) (list : 'a list) : ('a list) * ('a list) =
+  match list with
+  | [] -> failwith "The provided element does not exist in the list"
+  | x :: xs ->
+      if pred x then
+        [],xs
+      else
+        let left,right = splitAtElement pred xs
+        (x :: left,right)
+
+let rec parentesization (operators : SymbolDeclaration list) (args : CallArg list) =
+  match args with
+  | [] -> []
+  | [Literal(l,p)] -> [Literal (l,p)]
+  | [Id(id,p)] -> [Id (id,p)]
+  | [NestedExpression expr] -> parentesization operators expr
+  | _ ->
+      if args |> List.exists(fun arg -> 
+                                match arg with
+                                | Id(id,_) -> operators |> List.exists(fun op -> op.Name = id)
+                                | _ -> false) then
+        let minPriorityOp = operators |> List.minBy(fun op -> op.Priority)
+        let operatorArg = args |> List.find(fun arg ->
+                                              match arg with
+                                              | Id(id,_) -> id = minPriorityOp.Name
+                                              | _ -> false)
+        let left,right = splitAtElement (fun x ->
+                                          match x with
+                                          | Id(id,_) -> id = minPriorityOp.Name
+                                          | _ -> false) args
+        let leftPar = parentesization operators left
+        let rightPar = parentesization operators right
+        match minPriorityOp.Order with
+        | Prefix when minPriorityOp.Args.Length > 0 ->
+            leftPar @ [NestedExpression (operatorArg :: rightPar)]
+        | Suffix when minPriorityOp.Args.Length > 0 ->
+            (NestedExpression (leftPar @ [operatorArg])) :: rightPar
+        | Infix when minPriorityOp.Args.Length > 0 ->
+            [NestedExpression (leftPar @ rightPar)]
+        | _ -> leftPar @ [operatorArg] @ rightPar
+      else
+        args
+
+let parentesizeExpression (_symbolTable : SymbolContext) (args : CallArg list) =
+  let operatorsOrderedByPriority = fetchDataOrFunctionSymbols _symbolTable args
+  let par = parentesization operatorsOrderedByPriority args
+  match par with
+  | [NestedExpression(expr)] -> expr
+  | _ -> failwith (sprintf "Something went wrong during the automatic parentesization of the expression %A" args)
 
 
 

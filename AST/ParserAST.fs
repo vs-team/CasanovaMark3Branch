@@ -30,6 +30,7 @@ and ProgramDefinition =
 and OpOrder =
 | Prefix
 | Infix
+| Suffix
 
 and Associativity =
 | Left
