@@ -39,9 +39,9 @@ newLineSeq:
 | NEWLINE {  }
 | EOF {  }
 
-fractionLine:
-| BAR fractionLine { }
-| BAR { }
+//fractionLine:
+//| BAR fractionLine { }
+//| BAR { }
 
 program: NAMESPACE dottedPath newLineSeq includeOrOpenStmts subtypes declarations rules {
   let programDefinition = { Declarations = $6; Rules = $7; Subtyping = $5 }
@@ -171,7 +171,7 @@ mainOpt:
 | MAIN COLON newLineSeq { true }
 | { false }
 
-rule: mainOpt premises fractionLine newLineSeq conclusion { Rule({ Main = $1; Premises = $2; Conclusion = $5 }) }
+rule: mainOpt premises BAR newLineSeq conclusion { Rule({ Main = $1; Premises = $2; Conclusion = $5 }) }
 
 rules:
 | rule rules { $1 :: $2 }

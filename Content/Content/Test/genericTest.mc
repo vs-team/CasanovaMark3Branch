@@ -9,7 +9,7 @@ Func[a,b] "length" -> List[a] : int
 length nil -> 0
 
 length xs -> l
-<< l + 1 >> -> res
+<< l - 1 >> -> res
 ------------------------
 length (x :: xs) -> res
 

@@ -37,6 +37,10 @@ and emit = parse
 | ">>" { "" }
 | _ { LexBuffer<_>.LexemeString lexbuf + (emit lexbuf) }
 
+and bar = parse
+| '-' { 1 + (bar lexbuf) }
+| _ { 0 }
+
 and tokenstream = parse
 | "//"        { linecomment lexbuf }
 | "/*"        { comment lexbuf }
@@ -60,7 +64,9 @@ and tokenstream = parse
 | '#' { Parser.HASH }
 | ':' { Parser.COLON }
 | ":=" { Parser.BIND }
-| '-' { Parser.BAR }
+| '-' { 
+        let barCount = bar lexbuf
+        if (barCount > 1) then Parser.BAR else Parser.ID((LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }
 | "->" { Parser.ARROW (range lexbuf) }
 | "=>" { Parser.DARROW (range lexbuf) }
 | "=" { Parser.EQUAL (range lexbuf) }
