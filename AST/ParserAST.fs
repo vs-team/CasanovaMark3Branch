@@ -47,14 +47,12 @@ and TypeCall =
 and TypeDecl =
 | Arrow of TypeDecl * TypeDecl * bool //left, right, nested
 | TypeArrow of TypeCall
-| Generic of Id
 | Arg of CallArg * (TypeDecl list) //name of the type, types to construct a generic data
 | Zero
   member this.Length =
     match this with
     | Arrow(left,right,_) -> 1 + right.Length
     | TypeArrow tc -> tc.Length
-    | Generic(_)
     | Arg(_) -> 1
     | Zero -> 0
   static member (=!=) (t1 : TypeDecl, t2 : TypeDecl) = not (t1 === t2)
@@ -69,7 +67,6 @@ and TypeDecl =
         else
           r1 === r2
     | Zero, Zero -> true
-    | Generic _, Generic _ -> true
     | _ -> false
   static member SubtypeOf (t1 : TypeDecl) (t2 : TypeDecl) (subtypeDefinitions : Map<TypeDecl,List<TypeDecl>>) =
     match t1,t2 with
@@ -97,12 +94,10 @@ and TypeDecl =
     match this with
     | Arrow(t1,t2,_) ->
         "(" + t1.ToString() + "->" + t2.ToString() + ")"
-    | Generic(id) ->
-        "'" + (id.Name)
     | Arg(arg,gen) -> 
         arg.ToString() + 
         (if gen.Length > 0 then
-          "<" + (gen |> List.map(fun g ->  string g) |> List.reduce (fun x y -> x + "," + y)) + ">"
+          "[" + (gen |> List.map(fun g ->  string g) |> List.reduce (fun x y -> x + "," + y)) + "]"
         else
           "")
     | Zero -> "zero"
@@ -193,6 +188,7 @@ and ArithExpr =
     
 
 and Premise =
+| Emit of string * Id * Position
 | Arithmetic of ArithExpr * Id * Position
 | FunctionCall of Call
 | Bind of Id * Position * CallArg

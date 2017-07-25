@@ -187,7 +187,6 @@ let rec checkType (_type : TypeDecl) (symbolTable : SymbolContext) : TypeDecl =
               | Some _ -> _type
               | None -> raise(TypeError(sprintf "Type Error: Undefined type %s at %A" (_type.ToString()) (pos.Line,pos.Col)))
       | _ -> raise(TypeError(sprintf "Type Error: You cannot use Data constructors or literals in function declarations"))
-  | Generic(id) -> Generic(id)
 
 let buildSymbols (declarations : List<Declaration>) (symbols : Map<Id,SymbolDeclaration>) =
 //  let check (symDecl : SymbolDeclaration) =
@@ -226,18 +225,6 @@ let checkTypeWithErrorMsg t1 t2 p ctxt msg =
     ()
   else
     raise(TypeError(msg))
-
-let checkGenericType (t1 : TypeDecl) (t2 : TypeDecl) (p : Position) (ctxt : SymbolContext) (locals : LocalContext) : LocalContext =
-  match t2 with
-  | Generic(id) ->
-    let genericOpt = locals.Generics |> Map.tryFind id
-    match genericOpt with
-    | Some g ->
-        do checkTypeWithErrorMsg t1 g p ctxt (sprintf "Generic variable %s has been bound to type %s but the given type is %s" (id.Name) (g.ToString()) (t1.ToString()))
-        locals
-    | None ->
-        { locals with Generics = locals.Generics.Add(id,t1) }
-  | _ -> failwith "checkGenericType can only check a generic argument"
       
 
 let checkTypeEquivalence (t1: TypeDecl) (t2 : TypeDecl) (p : Position) (ctxt : SymbolContext)  =
@@ -252,12 +239,8 @@ let getLocalType id locals p =
       undefinedVarError id.Name p
 
 let checkTypeDecl t1 t2 p  ctxt locals =
-  match t2 with
-  | Generic(id) ->
-      checkGenericType t1 t2 p ctxt locals
-  | _ ->
-      do checkTypeEquivalence t1 t2 p ctxt
-      locals
+  do checkTypeEquivalence t1 t2 p ctxt
+  locals
     
 let checkLiteral (l : Literal) (typeDecl : TypeDecl) (p : Position) (ctxt : SymbolContext) (locals : LocalContext) : TypeDecl * LocalContext =
     match l with
@@ -293,7 +276,7 @@ let rec checkSingleArg
       match typeDecl with
       | Arg(Id(id,_),[]) ->        
           checkLiteral l typeDecl p symbolTable ctxt
-      | Generic(_) ->
+      | Arg(Id(id,_),generics) ->
           checkLiteral l typeDecl p symbolTable ctxt
       | _ ->
           failwith "Something went wrong: the type definition has an invalid structure"

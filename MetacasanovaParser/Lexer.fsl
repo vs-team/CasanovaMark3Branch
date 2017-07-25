@@ -33,6 +33,10 @@ and comment = parse
 | newline            { newline lexbuf; comment lexbuf }
 | _  { comment lexbuf }
 
+and emit = parse
+| ">>" { "" }
+| _ { LexBuffer<_>.LexemeString lexbuf + (emit lexbuf) }
+
 and tokenstream = parse
 | "//"        { linecomment lexbuf }
 | "/*"        { comment lexbuf }
@@ -71,13 +75,16 @@ and tokenstream = parse
 | "Func" { Parser.FUNC (range lexbuf) } 
 | "TypeFunc" { Parser.TYPEFUNC (range lexbuf) }
 | "Data" { Parser.DATA (range lexbuf) }
+| "<<" { Parser.EMIT ((emit lexbuf),(range lexbuf)) }
+//| "<<" { Parser.LEMIT (range lexbuf) }
+//| ">>" { Parser.REMIT (range lexbuf) }
 | "namespace" { Parser.NAMESPACE (range lexbuf) }
 | eof   	{ Parser.EOF }
 | ['-']?digit+   { Parser.INT (Int32.Parse(LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }
 | ['-']?digit+('.'digit+)?(['e''E']digit+)?   { Parser.FLOAT (Double.Parse(LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }
 | "\"" [^'"']* "\"" { let s = LexBuffer<_>.LexemeString lexbuf in Parser.STRING ((s.Trim [|'\"'|]),(range lexbuf)) }
 | idBody+   { Parser.ID ((LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }
-| _    		{
+| _ {
   let pos = range lexbuf 
   raise(ParseError(sprintf "Parse Error: unidentified token %A" (LexBuffer<_>.LexemeString lexbuf), fst pos, snd pos)) }
 

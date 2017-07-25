@@ -35,16 +35,10 @@ let rec combineArgsAndRet args ret =
   | Arrow(left,right,nested) -> 
       match right with
       | Arg _
-      | Generic _ ->
-          if nested then
-            Arrow(args,ret,false)
-          else
-            Arrow(left,Arrow(right,ret,false),false)
       | _ ->
           Arrow(left,combineArgsAndRet right ret,false)
   | Zero
-  | Arg _ 
-  | Generic _ -> Arrow(args,ret,false)
+  | Arg _ -> Arrow(args,ret,false)
 
 let opPos (parsedArgs : TypeDeclOrName list) : OpOrder =
   match parsedArgs with
@@ -109,7 +103,6 @@ let insertNamespaceAndFileName (program : Program) (fileName : string) : Program
   let rec processTypeDecl (t : TypeDecl) =
     match t with
     | Arrow(left,right,n) -> Arrow(processTypeDecl left,processTypeDecl right,n)
-    | Generic(id) -> Generic({ id with Namespace = genericNamespace })
     | Arg(arg,gen) -> Arg((processArg arg), gen |> List.map processTypeDecl)
     | Zero -> Zero
 
@@ -154,6 +147,8 @@ let insertNamespaceAndFileName (program : Program) (fileName : string) : Program
     | Value arg -> Value (processArg arg)
   and processPremise (p : Premise) =
     match p with
+    | Emit(args,res,position) ->
+        Emit(args,{ res with Namespace = nameSpace },{ position with File = fileName })
     | Arithmetic(expr,res,position) ->
         Arithmetic(processExpr expr,{ res with Namespace = nameSpace },{ position with File = fileName })
     | FunctionCall(left,right) ->                

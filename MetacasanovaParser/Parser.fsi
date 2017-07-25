@@ -19,6 +19,8 @@ type token =
   | ARITHMETIC of (int * int)
   | MODULE of (int * int)
   | PRIORITY of (int * int)
+  | LEMIT of (int * int)
+  | REMIT of (int * int)
   | COMMA
   | LBRACKET
   | RBRACKET
@@ -36,6 +38,7 @@ type token =
   | ARROW of (System.Int32 * System.Int32)
   | DARROW of (System.Int32 * System.Int32)
   | EQUAL of (System.Int32 * System.Int32)
+  | EMIT of (string * (int * int))
   | UNIT of ((int * int))
   | STRING of (string * (int * int))
   | ID of (System.String * (int * int))
@@ -60,6 +63,8 @@ type tokenId =
     | TOKEN_ARITHMETIC
     | TOKEN_MODULE
     | TOKEN_PRIORITY
+    | TOKEN_LEMIT
+    | TOKEN_REMIT
     | TOKEN_COMMA
     | TOKEN_LBRACKET
     | TOKEN_RBRACKET
@@ -77,6 +82,7 @@ type tokenId =
     | TOKEN_ARROW
     | TOKEN_DARROW
     | TOKEN_EQUAL
+    | TOKEN_EMIT
     | TOKEN_UNIT
     | TOKEN_STRING
     | TOKEN_ID
@@ -108,6 +114,7 @@ type nonTerminalId =
     | NONTERM_arg
     | NONTERM_argSeq
     | NONTERM_literal
+    | NONTERM_emit
     | NONTERM_functionCall
     | NONTERM_arithmeticCall
     | NONTERM_arithmeticExpr
