@@ -16,12 +16,13 @@ open ParserUtils
 %token <string * (int * int)> STRING
 %token <(int * int)> UNIT
 %token <System.Int32 * System.Int32> ARROW DARROW EQUAL
-%token COMMA LBRACKET RBRACKET DOT APOSTROPHE HASH COLON NEWLINE BAR BIND LBRACE RBRACE
+%token COMMA LBRACKET RBRACKET DOT APOSTROPHE HASH COLON NEWLINE BAR BIND LBRACE RBRACE LSQUARE RSQUARE
 %token <int * int> FUNC TYPEFUNC OPEN INCLUDE DATA NAMESPACE IS FUN GT GEQ LT LEQ NEQ MAIN ARITHMETIC MODULE PRIORITY
 
 %token EOF
  
 %right ARROW DARROW
+%nonassoc IS
 
 // This is the type of the data produced by a successful reduction of the 'start'
 // symbol:
@@ -58,7 +59,7 @@ commaPath:
 | ID { [{Namespace = "";Name = fst $1}] }
 
 genericSeq:
-| LT commaPath GT { $2 }
+| LSQUARE commaPath RSQUARE { $2 }
 | { [] }
 
 includeOrOpenStmts:

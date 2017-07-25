@@ -31,6 +31,8 @@ type token =
   | BIND
   | LBRACE
   | RBRACE
+  | LSQUARE
+  | RSQUARE
   | ARROW of (System.Int32 * System.Int32)
   | DARROW of (System.Int32 * System.Int32)
   | EQUAL of (System.Int32 * System.Int32)
@@ -70,6 +72,8 @@ type tokenId =
     | TOKEN_BIND
     | TOKEN_LBRACE
     | TOKEN_RBRACE
+    | TOKEN_LSQUARE
+    | TOKEN_RSQUARE
     | TOKEN_ARROW
     | TOKEN_DARROW
     | TOKEN_EQUAL

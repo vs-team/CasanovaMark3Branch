@@ -51,6 +51,8 @@ and tokenstream = parse
 | ')' { Parser.RBRACKET }
 | '{' { Parser.LBRACE }
 | '}' { Parser.RBRACE }
+| '[' { Parser.LSQUARE }
+| ']' { Parser.RSQUARE }
 | '#' { Parser.HASH }
 | ':' { Parser.COLON }
 | ":=" { Parser.BIND }
