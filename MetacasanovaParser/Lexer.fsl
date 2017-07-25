@@ -64,9 +64,10 @@ and tokenstream = parse
 | '#' { Parser.HASH }
 | ':' { Parser.COLON }
 | ":=" { Parser.BIND }
-| '-' { 
+| "--" { 
         let barCount = bar lexbuf
-        if (barCount > 1) then Parser.BAR else Parser.ID((LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }
+        Parser.BAR(barCount)}
+| '-' { Parser.ID ((LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }
 | "->" { Parser.ARROW (range lexbuf) }
 | "=>" { Parser.DARROW (range lexbuf) }
 | "=" { Parser.EQUAL (range lexbuf) }

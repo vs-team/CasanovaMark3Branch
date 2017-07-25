@@ -29,12 +29,12 @@ type token =
   | HASH
   | COLON
   | NEWLINE
-  | BAR
   | BIND
   | LBRACE
   | RBRACE
   | LSQUARE
   | RSQUARE
+  | BAR of (int)
   | ARROW of (System.Int32 * System.Int32)
   | DARROW of (System.Int32 * System.Int32)
   | EQUAL of (System.Int32 * System.Int32)
@@ -73,12 +73,12 @@ type tokenId =
     | TOKEN_HASH
     | TOKEN_COLON
     | TOKEN_NEWLINE
-    | TOKEN_BAR
     | TOKEN_BIND
     | TOKEN_LBRACE
     | TOKEN_RBRACE
     | TOKEN_LSQUARE
     | TOKEN_RSQUARE
+    | TOKEN_BAR
     | TOKEN_ARROW
     | TOKEN_DARROW
     | TOKEN_EQUAL

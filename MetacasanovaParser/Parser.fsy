@@ -17,7 +17,8 @@ open ParserUtils
 %token <(int * int)> UNIT
 %token <string * (int * int)> EMIT
 %token <System.Int32 * System.Int32> ARROW DARROW EQUAL
-%token COMMA LBRACKET RBRACKET DOT APOSTROPHE HASH COLON NEWLINE BAR BIND LBRACE RBRACE LSQUARE RSQUARE
+%token <int> BAR
+%token COMMA LBRACKET RBRACKET DOT APOSTROPHE HASH COLON NEWLINE  BIND LBRACE RBRACE LSQUARE RSQUARE
 %token <int * int> FUNC TYPEFUNC OPEN INCLUDE DATA NAMESPACE IS FUN GT GEQ LT LEQ NEQ MAIN ARITHMETIC MODULE PRIORITY LEMIT REMIT
 
 %token EOF
@@ -171,7 +172,8 @@ mainOpt:
 | MAIN COLON newLineSeq { true }
 | { false }
 
-rule: mainOpt premises BAR newLineSeq conclusion { Rule({ Main = $1; Premises = $2; Conclusion = $5 }) }
+rule: mainOpt premises BAR newLineSeq conclusion {
+  Rule({ Main = $1; Premises = $2; Conclusion = $5 }) }
 
 rules:
 | rule rules { $1 :: $2 }
