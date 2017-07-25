@@ -2,8 +2,22 @@
 
 open Common
 open ParserAST
+open Microsoft.FSharp.Text.Parsing
 
 exception ParseError of string * int * int
+
+let rhs (parseState: IParseState) i =
+  let pos = parseState.InputEndPosition i
+  (pos.Line + 1,pos.Column)
+
+let isTypeNameValid (s : TypeDecl) =
+  match s with
+  | Arg(Id(s,_),_) ->
+      s.Name.ToCharArray() |>
+      Array.forall(fun c -> (c > 'A' && c < 'z') ||
+                            (c > '0' && c < '9') || 
+                             c = '*')
+  | _ -> false
 
 let genericNamespace = "__generic"
 

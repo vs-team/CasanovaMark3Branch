@@ -94,7 +94,12 @@ typeOrNameDeclarations:
 
 typeOrNameDeclaration:
 | STRING { ParserUtils.Name(fst $1) }
-| typeDeclaration { ParserUtils.Type($1) }
+| typeDeclaration {
+    let position = rhs parseState 1
+    if isTypeNameValid $1 then
+      ParserUtils.Type($1)
+    else
+      raise(ParseError("Type names can only contain alphanumeric characters or the special symbol kind",fst position, snd position)) }
 
 typeVarsSeq:
 | typeDeclaration COMMA typeVarsSeq { $1 :: $3 }
