@@ -52,16 +52,15 @@ and tokenstream = parse
 | "fun" { Parser.FUN (range lexbuf) }
 | "main" { Parser.MAIN (range lexbuf) }
 | "arithmetic" { Parser.ARITHMETIC (range lexbuf) }
-| '\'' { Parser.APOSTROPHE }
-| ',' { Parser.COMMA }
-| '.' { Parser.DOT }
+| ',' { Parser.COMMA ((LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }
+| '.' { Parser.DOT ((LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }
 | '(' { Parser.LBRACKET }
 | ')' { Parser.RBRACKET }
 | '{' { Parser.LBRACE }
 | '}' { Parser.RBRACE }
 | '[' { Parser.LSQUARE }
 | ']' { Parser.RSQUARE }
-| '#' { Parser.HASH }
+| '#' { Parser.HASH ((LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }
 | ':' { Parser.COLON }
 | ":=" { Parser.BIND }
 | "--" { 
@@ -83,8 +82,6 @@ and tokenstream = parse
 | "TypeFunc" { Parser.TYPEFUNC (range lexbuf) }
 | "Data" { Parser.DATA (range lexbuf) }
 | "<<" { Parser.EMIT ((emit lexbuf),(range lexbuf)) }
-//| "<<" { Parser.LEMIT (range lexbuf) }
-//| ">>" { Parser.REMIT (range lexbuf) }
 | "namespace" { Parser.NAMESPACE (range lexbuf) }
 | eof   	{ Parser.EOF }
 | ['-']?digit+   { Parser.INT (Int32.Parse(LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }

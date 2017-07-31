@@ -21,12 +21,8 @@ type token =
   | PRIORITY of (int * int)
   | LEMIT of (int * int)
   | REMIT of (int * int)
-  | COMMA
   | LBRACKET
   | RBRACKET
-  | DOT
-  | APOSTROPHE
-  | HASH
   | COLON
   | NEWLINE
   | BIND
@@ -34,15 +30,18 @@ type token =
   | RBRACE
   | LSQUARE
   | RSQUARE
+  | COMMA of (System.String * (int * int))
+  | DOT of (System.String * (int * int))
+  | HASH of (System.String * (int * int))
   | BAR of (int)
   | ARROW of (System.Int32 * System.Int32)
   | DARROW of (System.Int32 * System.Int32)
   | EQUAL of (System.Int32 * System.Int32)
   | EMIT of (string * (int * int))
   | UNIT of ((int * int))
-  | STRING of (string * (int * int))
   | CUSTOMOPERATOR of (System.String * (int * int))
   | ID of (System.String * (int * int))
+  | STRING of (string * (int * int))
   | FLOAT of (float * (int * int))
   | INT of (int * (int * int))
 type tokenId = 
@@ -66,12 +65,8 @@ type tokenId =
     | TOKEN_PRIORITY
     | TOKEN_LEMIT
     | TOKEN_REMIT
-    | TOKEN_COMMA
     | TOKEN_LBRACKET
     | TOKEN_RBRACKET
-    | TOKEN_DOT
-    | TOKEN_APOSTROPHE
-    | TOKEN_HASH
     | TOKEN_COLON
     | TOKEN_NEWLINE
     | TOKEN_BIND
@@ -79,15 +74,18 @@ type tokenId =
     | TOKEN_RBRACE
     | TOKEN_LSQUARE
     | TOKEN_RSQUARE
+    | TOKEN_COMMA
+    | TOKEN_DOT
+    | TOKEN_HASH
     | TOKEN_BAR
     | TOKEN_ARROW
     | TOKEN_DARROW
     | TOKEN_EQUAL
     | TOKEN_EMIT
     | TOKEN_UNIT
-    | TOKEN_STRING
     | TOKEN_CUSTOMOPERATOR
     | TOKEN_ID
+    | TOKEN_STRING
     | TOKEN_FLOAT
     | TOKEN_INT
     | TOKEN_end_of_input
@@ -112,6 +110,7 @@ type nonTerminalId =
     | NONTERM_genericTypeDef
     | NONTERM_typeDeclaration
     | NONTERM_lambdaTypeDeclaration
+    | NONTERM_customOperator
     | NONTERM_arg
     | NONTERM_argSeq
     | NONTERM_literal

@@ -10,6 +10,10 @@ let rhs (parseState: IParseState) i =
   let pos = parseState.InputEndPosition i
   (pos.Line + 1,pos.Column)
 
+let checkSymbol ((id,position) : string * (int * int)) (matchingSymbol : string) =
+  if id <> matchingSymbol then
+    raise(ParseError(sprintf "Expected %s but given %s" matchingSymbol id,fst position, snd position))
+
 let isTypeNameValid (s : TypeDecl) =
   match s with
   | Arg(Id(s,_),_) ->

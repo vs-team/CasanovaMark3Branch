@@ -12,14 +12,15 @@ open ParserUtils
 // Regular tokens
 %token <int * (int * int)> INT
 %token <float * (int * int)> FLOAT
+%token <string * (int * int)> STRING
 %token <System.String * (int * int)> ID
 %token <System.String * (int * int)> CUSTOMOPERATOR
-%token <string * (int * int)> STRING
 %token <(int * int)> UNIT
 %token <string * (int * int)> EMIT
 %token <System.Int32 * System.Int32> ARROW DARROW EQUAL
 %token <int> BAR
-%token COMMA LBRACKET RBRACKET DOT APOSTROPHE HASH COLON NEWLINE  BIND LBRACE RBRACE LSQUARE RSQUARE
+%token<System.String * (int * int)> COMMA DOT HASH
+%token LBRACKET RBRACKET COLON NEWLINE  BIND LBRACE RBRACE LSQUARE RSQUARE
 %token <int * int> FUNC TYPEFUNC OPEN INCLUDE DATA NAMESPACE IS FUN GT GEQ LT LEQ NEQ MAIN ARITHMETIC MODULE PRIORITY LEMIT REMIT
 
 %token EOF
@@ -41,11 +42,8 @@ newLineSeq:
 | NEWLINE {  }
 | EOF {  }
 
-//fractionLine:
-//| BAR fractionLine { }
-//| BAR { }
-
-program: NAMESPACE dottedPath newLineSeq includeOrOpenStmts subtypes declarations rules {
+program: 
+| NAMESPACE dottedPath newLineSeq includeOrOpenStmts subtypes declarations rules {
   let programDefinition = { Declarations = $6; Rules = $7; Subtyping = $5 }
   $2,$4,programDefinition }
 
@@ -96,11 +94,7 @@ typeOrNameDeclarations:
 typeOrNameDeclaration:
 | STRING { ParserUtils.Name(fst $1) }
 | typeDeclaration {
-    let position = rhs parseState 1
-    if isTypeNameValid $1 then
-      ParserUtils.Type($1)
-    else
-      raise(ParseError("Type names can only contain alphanumeric characters or the special symbol kind",fst position, snd position)) }
+      ParserUtils.Type($1) }
 
 typeVarsSeq:
 | typeDeclaration COMMA typeVarsSeq { $1 :: $3 }
@@ -118,11 +112,17 @@ lambdaTypeDeclaration:
 | typeDeclaration ARROW lambdaTypeDeclaration { Arrow($1,$3,true) }
 | typeDeclaration { $1 }
 
+customOperator:
+| COMMA { Id({ Namespace = ""; Name = fst $1 },Position.Create(snd $1,"")) }
+| DOT { Id({ Namespace = ""; Name = fst $1 },Position.Create(snd $1,"")) } 
+| HASH { Id({ Namespace = ""; Name = fst $1 },Position.Create(snd $1,"")) }
+| CUSTOMOPERATOR { Id({ Namespace = ""; Name = fst $1 },Position.Create(snd $1,"")) }
+
 arg:
 | LBRACKET argSeq RBRACKET { NestedExpression($2) }
 | literal { $1 }
+| customOperator { $1 }
 | ID { Id({ Namespace = ""; Name = fst $1 },Position.Create(snd $1,"")) }
-| CUSTOMOPERATOR { Id({ Namespace = ""; Name = fst $1 },Position.Create(snd $1,"")) }
 
 argSeq:
 | arg argSeq { $1 :: $2 }

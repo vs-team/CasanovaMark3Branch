@@ -1,6 +1,6 @@
 ﻿namespace GenericTest
 
-Data[a,b] a -> "%" -> b : Tuple
+Data[a,b] a -> "," -> b : Tuple
 Data[a] a -> "::" -> List[a] : List
 Data "nil" : List
 Func[a] "length" -> List[a] : int
@@ -17,7 +17,7 @@ length xs -> l
 length (x :: xs) -> res
 
 ---------------
-fst (x % y) -> x
+fst (x , y) -> x
 
 ---------------
-snd (x % y) -> y
+snd (x , y) -> y
