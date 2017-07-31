@@ -141,6 +141,7 @@ and SymbolDeclaration =
     Generics : List<Id>
   }
   with
+    member this.ContainsGeneric (id : Id) = this.Generics |> List.exists(fun gen -> gen.Name = id.Name)
     static member Create(name,_type,args,ret,order,priority,pos,ass,prem,gen) =
       {
         Name = name

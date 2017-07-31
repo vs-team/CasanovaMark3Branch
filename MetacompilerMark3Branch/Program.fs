@@ -29,9 +29,9 @@ let main argv =
     let outputFileName = @"Content\Test\codeGeneration.cs"
     let parsedAST = parseFile fileName
     let typedTest = checkProgram parsedAST
-    let codeGenerationTest = emitProgram typedTest
+//    let codeGenerationTest = emitProgram typedTest
 //    printfn "Type checking successful!"
-    File.WriteAllText(outputFileName, sprintf "%s" codeGenerationTest.Code)
+//    File.WriteAllText(outputFileName, sprintf "%s" codeGenerationTest.Code)
     0
 //  with
 //  | TypeError(msg) -> 

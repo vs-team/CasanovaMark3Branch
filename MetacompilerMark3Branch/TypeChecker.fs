@@ -161,15 +161,19 @@ let rec normalizeDataOrFunctionCall (_symbolTable : SymbolContext) (args : List<
       (fArg.Head) :: argList
 
 
-
-let rec checkType (_type : TypeDecl) (symbolTable : SymbolContext) : TypeDecl =
+//check the consistency of single types in declarations.
+//If the type is of the form (t1 -> t2) we recursively check t1 and t2.
+//If the type is an argument we check that it has the correct form.
+//If it is an ID we look it up in the symbol table and among the built-in types.
+//If this lookup fails we throw an exception.
+let rec checkType (currentDecl : SymbolDeclaration) (_type : TypeDecl) (symbolTable : SymbolContext) : TypeDecl =
   match _type with
   | Zero -> _type
   | Arrow(left,right,n) ->
-      let leftType = checkType left symbolTable
-      let rightType = checkType right symbolTable
+      let leftType = checkType currentDecl left symbolTable
+      let rightType = checkType currentDecl right symbolTable
       Arrow(leftType,rightType,n)
-  | Arg(arg,_) ->
+  | Arg(arg,genericArgs) ->
       match arg with
       | Id(arg,pos) ->
           let typeOpt = symbolTable.DataTable |> Map.tryFindKey(fun (k : Id) (s : SymbolDeclaration) -> 
@@ -180,14 +184,36 @@ let rec checkType (_type : TypeDecl) (symbolTable : SymbolContext) : TypeDecl =
                                                         | _ -> false
                                                     | _ -> false)
           match typeOpt with
-          | Some id -> _type
+          | Some id ->
+              let givenGenericAmount = genericArgs.Length
+              //the type could require generic parameters to be used. If this is the case
+              //we check that the arity is correct.
+              if givenGenericAmount > 0 then
+                let correctGenericAmount = symbolTable.DataTable.[id].Generics.Length
+                if correctGenericAmount = givenGenericAmount then
+                  _type
+                else
+                  raise(TypeError(sprintf "Type Error: Invalid amount of generics, given %d, expected %d, at %A" givenGenericAmount correctGenericAmount (pos.Line,pos.Col)))
+              else
+                 _type
           | None ->
-              let builtInTypeOpt = builtInTypes |> List.tryFind(fun t -> arg.Name = t)
-              match builtInTypeOpt with
-              | Some _ -> _type
-              | None -> raise(TypeError(sprintf "Type Error: Undefined type %s at %A" (_type.ToString()) (pos.Line,pos.Col)))
+              //The argument could be a type name or a generic type. If the declaration contains no generic arguments then
+              //we are left with the only option of the type being a built-in type. Ohterwise, the argument is indeed generic
+              //and we need to check whether it is defined or not.
+              if currentDecl.Generics.Length = 0 then
+                let builtInTypeOpt = builtInTypes |> List.tryFind(fun t -> arg.Name = t)
+                match builtInTypeOpt with
+                | Some _ -> _type
+                | None ->
+                raise(TypeError(sprintf "Type Error: Undefined type %s at %A" (_type.ToString()) (pos.Line,pos.Col)))
+              else if currentDecl.ContainsGeneric arg then
+                _type
+              else
+                raise(TypeError(sprintf "Type Error: Undefined type %s at %A" (_type.ToString()) (pos.Line,pos.Col)))
+                
       | _ -> raise(TypeError(sprintf "Type Error: You cannot use Data constructors or literals in function declarations"))
-
+      
+//scan all the declarations in the program and add them to the symbol table.
 let buildSymbols (declarations : List<Declaration>) (symbols : Map<Id,SymbolDeclaration>) =
 //  let check (symDecl : SymbolDeclaration) =
     
@@ -207,13 +233,15 @@ let buildSymbols (declarations : List<Declaration>) (symbols : Map<Id,SymbolDecl
                               | TypeAlias(ta) ->
                                   {sym with TypeAliasTable = sym.TypeAliasTable.Add(ta.Name,ta)}) SymbolContext.Empty
 
+
+//check that the type of the declarations are consistent, i.e. that the type used are defined.
 let checkSymbols (declarations : List<Declaration>) (symbolTable : SymbolContext) =
   for decl in declarations do
     match decl with
     | Data(data) ->
-        do checkType data.Args symbolTable |> ignore
+        do checkType data data.Args symbolTable |> ignore
     | Func(func) ->
-        do checkType func.Args symbolTable |> ignore
+        do checkType func func.Args symbolTable |> ignore
     | TypeFunc(tf) ->
         failwith "TypeFunctions not implemented yet..."
     | TypeAlias(ta) ->
@@ -275,8 +303,6 @@ let rec checkSingleArg
   | Literal(l,p) ->
       match typeDecl with
       | Arg(Id(id,_),[]) ->        
-          checkLiteral l typeDecl p symbolTable ctxt
-      | Arg(Id(id,_),generics) ->
           checkLiteral l typeDecl p symbolTable ctxt
       | _ ->
           failwith "Something went wrong: the type definition has an invalid structure"
