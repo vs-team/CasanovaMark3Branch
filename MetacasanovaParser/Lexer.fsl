@@ -20,9 +20,9 @@ let whitespace = [' ' '\t' ]
 let newline = ('\n' | '\r' '\n')
 let digit = ['0'-'9']
 let letter = ['a'-'z' 'A'-'Z']
-let simpleId = ['a'-'z' 'A'-'Z' '_' '0'-'9']
+let id = ['a'-'z' 'A'-'Z' '_' '0'-'9']
 let customSymbols = [':' '?' '@' '%' '$' '#' '!' '+' '*' '/']
-let idBody = simpleId | customSymbols
+let customOperator = customSymbols+ id?
 
 rule linecomment = parse
 | newline       { newline lexbuf; tokenstream lexbuf }
@@ -90,7 +90,8 @@ and tokenstream = parse
 | ['-']?digit+   { Parser.INT (Int32.Parse(LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }
 | ['-']?digit+('.'digit+)?(['e''E']digit+)?   { Parser.FLOAT (Double.Parse(LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }
 | "\"" [^'"']* "\"" { let s = LexBuffer<_>.LexemeString lexbuf in Parser.STRING ((s.Trim [|'\"'|]),(range lexbuf)) }
-| idBody+   { Parser.ID ((LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }
+| id+   { Parser.ID ((LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }
+| customOperator+ { Parser.CUSTOMOPERATOR ((LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }
 | _ {
   let pos = range lexbuf 
   raise(ParseError(sprintf "Parse Error: unidentified token %A" (LexBuffer<_>.LexemeString lexbuf), fst pos, snd pos)) }

@@ -41,6 +41,7 @@ type token =
   | EMIT of (string * (int * int))
   | UNIT of ((int * int))
   | STRING of (string * (int * int))
+  | CUSTOMOPERATOR of (System.String * (int * int))
   | ID of (System.String * (int * int))
   | FLOAT of (float * (int * int))
   | INT of (int * (int * int))
@@ -85,6 +86,7 @@ type tokenId =
     | TOKEN_EMIT
     | TOKEN_UNIT
     | TOKEN_STRING
+    | TOKEN_CUSTOMOPERATOR
     | TOKEN_ID
     | TOKEN_FLOAT
     | TOKEN_INT

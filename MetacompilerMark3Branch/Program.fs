@@ -18,6 +18,8 @@ open Microsoft.FSharp.Text.Lexing
 let parseFile (fileName : string) =
   let inputChannel = new StreamReader(fileName)
   let lexbuf = LexBuffer<char>.FromTextReader inputChannel
+  let testBuf = LexBuffer<char>.FromString "genericTest"
+  let lexerTest = Lexer.tokenstream testBuf
   let parsedAST = Parser.start Lexer.tokenstream lexbuf
   let processedAST = insertNamespaceAndFileName parsedAST fileName
   processedAST
@@ -25,10 +27,10 @@ let parseFile (fileName : string) =
 [<EntryPoint>]
 let main argv =
 //  try
-    let fileName = @"Content\Test\genericTest.mc"
+    let fileName = @"Content\Test\parentesizationTest.mc"
     let outputFileName = @"Content\Test\codeGeneration.cs"
     let parsedAST = parseFile fileName
-    let typedTest = checkProgram parsedAST
+    let typedProgram = checkProgram parsedAST
 //    let codeGenerationTest = emitProgram typedTest
 //    printfn "Type checking successful!"
 //    File.WriteAllText(outputFileName, sprintf "%s" codeGenerationTest.Code)

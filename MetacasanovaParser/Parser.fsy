@@ -13,6 +13,7 @@ open ParserUtils
 %token <int * (int * int)> INT
 %token <float * (int * int)> FLOAT
 %token <System.String * (int * int)> ID
+%token <System.String * (int * int)> CUSTOMOPERATOR
 %token <string * (int * int)> STRING
 %token <(int * int)> UNIT
 %token <string * (int * int)> EMIT
@@ -121,6 +122,7 @@ arg:
 | LBRACKET argSeq RBRACKET { NestedExpression($2) }
 | literal { $1 }
 | ID { Id({ Namespace = ""; Name = fst $1 },Position.Create(snd $1,"")) }
+| CUSTOMOPERATOR { Id({ Namespace = ""; Name = fst $1 },Position.Create(snd $1,"")) }
 
 argSeq:
 | arg argSeq { $1 :: $2 }
