@@ -600,7 +600,7 @@ and buildSubTypes (subTypesDef : List<TypeDecl * TypeDecl>) : Map<TypeDecl,List<
                               | None ->
                                   sts |> Map.add t [alias]) Map.empty
 
-and checkProgramDefinition (_module : string) (programDefinition : ProgramDefinition) : TypedProgramDefinition = 
+and checkProgramDefinition (_module : string) (imports : List<string>) (programDefinition : ProgramDefinition) : TypedProgramDefinition = 
   let symbolTable = buildSymbols programDefinition.Declarations Map.empty
   do checkSymbols programDefinition.Declarations symbolTable
   let symbolTable = { symbolTable with Subtyping = buildSubTypes programDefinition.Subtyping }
@@ -629,8 +629,9 @@ and checkProgramDefinition (_module : string) (programDefinition : ProgramDefini
       SymbolTable = symbolTable
     }
 
-and checkProgram ((moduleName,imports,def) : Program) : TypedProgramDefinition =
+and checkProgram (program : Program) : TypedProgramDefinition =
   //missing support for imports
-  checkProgramDefinition moduleName def
+  let _namespace,imports,def = program.Namespace,program.Imports,program.Program
+  checkProgramDefinition _namespace imports def
 
 

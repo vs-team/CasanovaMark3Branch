@@ -42,18 +42,20 @@ newLineSeq:
 | NEWLINE {  }
 | EOF {  }
 
-program: 
-| NAMESPACE dottedPath newLineSeq includeOrOpenStmts subtypes declarations rules {
-  let programDefinition = { Declarations = $6; Rules = $7; Subtyping = $5 }
-  $2,$4,programDefinition }
+optionalNewLines:
+| newLineSeq {  }
+| {  }
+
+program:
+| optionalNewLines NAMESPACE dottedPath newLineSeq includeOrOpenStmts declarations subtypes rules {
+  let programDefinition = { Declarations = $6; Rules = $8; Subtyping = $7 }
+  { Namespace = $3; Imports = $5; Program = programDefinition } }
+| newLineSeq includeOrOpenStmts subtypes declarations rules { reportErrorAtPos "A program in Metacasanova must start with a namespace definition" parseState 1 }
 
 dottedPath:
 | ID DOT dottedPath { (fst $1) + "." + $3 }
 | ID { (fst $1) }
-
-typeArg:
-| LBRACKET ID COLON typeDeclaration RBRACKET {
-   { Variable = { Namespace = ""; Name = fst $2 }; Type = $4 } }
+| error { reportErrorAtPos "The name of the namespace has an invalid form" parseState 1 }
 
 commaPath:
 | ID COMMA commaPath { ({Namespace = ""; Name = fst $1}) :: $3 }
@@ -62,6 +64,7 @@ commaPath:
 genericSeq:
 | LSQUARE commaPath RSQUARE { $2 }
 | { [] }
+| error { reportErrorAtPos "Generics should be enclosed by square brackets and separated by a comma" parseState 1 }
 
 includeOrOpenStmts:
 | includeOrOpenStmt includeOrOpenStmts { $1 :: $2 }
@@ -70,6 +73,7 @@ includeOrOpenStmts:
 includeOrOpenStmt:
 | INCLUDE dottedPath newLineSeq { $2 }
 | OPEN dottedPath newLineSeq { $2 }
+| error { reportErrorAtPos "Malformed include or open statement" parseState 1 }
 
 declarations:
 | declaration declarations { 
@@ -85,6 +89,10 @@ declaration:
     Func(processParsedArgs $3 $5 (fst $1) (snd $1) $2 $6) }
 | DATA genericSeq typeOrNameDeclarations COLON typeDeclaration priority newLineSeq {
     Data(processParsedArgs $3 $5 (fst $1) (snd $1) $2 $6) }
+| FUNC genericSeq typeOrNameDeclarations error {
+    reportErrorAtPos "Function definition is missing a return type or priority is not well defined" parseState 3 }
+| DATA genericSeq typeOrNameDeclarations error {
+    reportErrorAtPos "Data definition is missing a return type or priority is not well defined" parseState 3 }
 
 typeOrNameDeclarations:
 | typeOrNameDeclaration ARROW typeOrNameDeclarations { $1 :: $3 }
@@ -93,8 +101,7 @@ typeOrNameDeclarations:
 
 typeOrNameDeclaration:
 | STRING { ParserUtils.Name(fst $1) }
-| typeDeclaration {
-      ParserUtils.Type($1) }
+| typeDeclaration { ParserUtils.Type($1) }
 
 typeVarsSeq:
 | typeDeclaration COMMA typeVarsSeq { $1 :: $3 }
@@ -107,6 +114,7 @@ genericTypeDef:
 typeDeclaration:
 | LBRACKET lambdaTypeDeclaration RBRACKET { $2 }
 | ID genericTypeDef { Arg(Id({ Namespace = ""; Name = fst $1 },Position.Create(snd $1,"")),$2) }
+| error { reportErrorAtPos "Invalid type name" parseState 1 }
 
 lambdaTypeDeclaration: 
 | typeDeclaration ARROW lambdaTypeDeclaration { Arrow($1,$3,true) }
@@ -123,6 +131,7 @@ arg:
 | literal { $1 }
 | customOperator { $1 }
 | ID { Id({ Namespace = ""; Name = fst $1 },Position.Create(snd $1,"")) }
+| error { reportErrorAtPos "Invalid argument name" parseState 1 }
 
 argSeq:
 | arg argSeq { $1 :: $2 }
@@ -165,11 +174,15 @@ premises:
 | ID BIND arg newLineSeq premises { (Bind({ Namespace = ""; Name = fst $1 },Position.Create(snd $1,""),$3)) :: $5 }
 | arg comparisonOp arg newLineSeq premises { (Conditional($1,$2,$3)) :: $5 }
 | { [] }
+| error { reportErrorAtPos "Malformed premise" parseState 1 }
 
 conclusion:
 | argSeq ARROW argSeq newLineSeq { ValueOutput($1,$3) }
+| error { reportErrorAtPos "Malformed conclusion" parseState 1  }
 
-subtype: ID IS ID newLineSeq { Arg(Id( { Namespace = ""; Name = fst $1  },Position.Create(snd $1,"")),[]),Arg(Id({ Namespace = ""; Name = fst $3 },Position.Create(snd $1,"")),[]) }
+subtype: 
+| ID IS ID newLineSeq { Arg(Id( { Namespace = ""; Name = fst $1  },Position.Create(snd $1,"")),[]),Arg(Id({ Namespace = ""; Name = fst $3 },Position.Create(snd $1,"")),[]) }
+| error { reportErrorAtPos "Malformed subtype definition" parseState 1  }
 
 subtypes:
 | subtype subtypes { $1 :: $2 }

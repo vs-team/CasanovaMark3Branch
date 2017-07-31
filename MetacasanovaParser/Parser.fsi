@@ -94,9 +94,9 @@ type nonTerminalId =
     | NONTERM__startstart
     | NONTERM_start
     | NONTERM_newLineSeq
+    | NONTERM_optionalNewLines
     | NONTERM_program
     | NONTERM_dottedPath
-    | NONTERM_typeArg
     | NONTERM_commaPath
     | NONTERM_genericSeq
     | NONTERM_includeOrOpenStmts

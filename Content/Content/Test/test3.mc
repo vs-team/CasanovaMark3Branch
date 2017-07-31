@@ -1,7 +1,5 @@
 ﻿namespace TestModule
 
-Value is Expr
-
 Func int -> "!" -> int : Expr
 Data "$" -> int : Value
 Data "%" -> int : Expr
@@ -14,6 +12,8 @@ Func "test0" -> int : Value
 Func "test1" -> Value : Expr
 Func "h" -> int : Expr
 Func "k" -> Value : int
+
+Value is Expr
 
 
 

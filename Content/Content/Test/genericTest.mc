@@ -17,7 +17,7 @@ length xs -> l
 length (x :: xs) -> res
 
 ---------------
-fst (x , y) -> x
+fst (x,y) -> x
 
 ---------------
-snd (x , y) -> y
+snd (x,y) -> y

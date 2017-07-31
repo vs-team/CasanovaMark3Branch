@@ -14,14 +14,9 @@ let checkSymbol ((id,position) : string * (int * int)) (matchingSymbol : string)
   if id <> matchingSymbol then
     raise(ParseError(sprintf "Expected %s but given %s" matchingSymbol id,fst position, snd position))
 
-let isTypeNameValid (s : TypeDecl) =
-  match s with
-  | Arg(Id(s,_),_) ->
-      s.Name.ToCharArray() |>
-      Array.forall(fun c -> (c > 'A' && c < 'z') ||
-                            (c > '0' && c < '9') || 
-                             c = '*')
-  | _ -> false
+let reportErrorAtPos (error : string) (parseState : IParseState) (i : int) =
+  let position = rhs parseState i
+  raise(ParseError(error,fst position,snd position))
 
 let genericNamespace = "__generic"
 
@@ -117,7 +112,7 @@ let processParsedArgs (parsedArgs : TypeDeclOrName list) (retType : TypeDecl) (r
       buildDeclarationRecord opOrder {Namespace =  ""; Name = name} argType retType (row, column) gen -1
 
 let insertNamespaceAndFileName (program : Program) (fileName : string) : Program =  
-  let nameSpace,imports,parsedProgram = program
+  let nameSpace,imports,parsedProgram = program.Namespace,program.Imports,program.Program
   let rec processTypeDecl (t : TypeDecl) =
     match t with
     | Arrow(left,right,n) -> Arrow(processTypeDecl left,processTypeDecl right,n)
@@ -199,5 +194,5 @@ let insertNamespaceAndFileName (program : Program) (fileName : string) : Program
               | Arg(leftArg,[]),Arg(rightArg,[]) -> Arg(processArg leftArg,[]),Arg(processArg rightArg,[])
               | _ -> failwith "Something went wrong while parsing the subtypes")
   
-  nameSpace,imports,{ Declarations = processedDeclarations; Rules = processedRules; Subtyping = processedSubTypes}
+  { Namespace = nameSpace;Imports = imports;Program = { Declarations = processedDeclarations; Rules = processedRules; Subtyping = processedSubTypes} }
         

@@ -18,7 +18,13 @@ let builtInTypes =
     "unit"
   ]
 
-type Program = string * List<string> * ProgramDefinition
+type Program = 
+  {
+    Namespace             : string
+    Imports               : List<string>
+    Program               : ProgramDefinition
+  }
+ 
 
 and ProgramDefinition = 
   {
