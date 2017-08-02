@@ -5,17 +5,38 @@ open ParserAST
 
 exception TypeError of string
 
+type GenericId =
+  {
+    Name              : Id
+    Index             : int
+  }
+
 type LocalContext =
   {
-    Variables : Map<Id,TypeDecl * Position>
-    Generics  : Map<Id,TypeDecl>
+    Variables                 : Map<Id,TypeDecl * Position>
+    Generics                  : Map<GenericId,TypeDecl option>
+    NextGenericIndex          : int
   }
   with
     static member Empty =
       {
         Variables = Map.empty
         Generics = Map.empty
+        NextGenericIndex = 0
       }
+    member this.IsGeneric (generic : Id) =
+      match this.Generics |> Map.tryFindKey (fun k _ -> k.Name.Name = generic.Name) with
+      | Some k -> true
+      | None -> false
+    member this.AddGenericWithOptionalType (generic : Id) (optType : TypeDecl option) =
+      if this.IsGeneric generic then
+        { 
+          this with 
+            Generics = this.Generics.Add({ Name = generic; Index = this.NextGenericIndex },optType)
+            NextGenericIndex = this.NextGenericIndex + 1
+        }
+      else
+        { this with Generics = this.Generics.Add({ Name = generic; Index = this.NextGenericIndex },optType) }
 
 type TypedProgramDefinition =
   {
@@ -166,47 +187,69 @@ let rec normalizeDataOrFunctionCall (_symbolTable : SymbolContext) (args : List<
 //If the type is an argument we check that it has the correct form.
 //If it is an ID we look it up in the symbol table and among the built-in types.
 //If this lookup fails we throw an exception.
-let rec checkType (currentDecl : SymbolDeclaration) (_type : TypeDecl) (symbolTable : SymbolContext) : TypeDecl =
+let rec checkType (_type : TypeDecl) (genericsInScope : List<Id>) (symbolTable : SymbolContext) : TypeDecl =
   match _type with
   | Zero -> _type
   | Arrow(left,right,n) ->
-      let leftType = checkType currentDecl left symbolTable
-      let rightType = checkType currentDecl right symbolTable
+      let leftType = checkType left genericsInScope symbolTable
+      let rightType = checkType right genericsInScope symbolTable
       Arrow(leftType,rightType,n)
   | Arg(arg,genericArgs) ->
       match arg with
       | Id(arg,pos) ->
-          let typeOpt = symbolTable.DataTable |> Map.tryFindKey(fun (k : Id) (s : SymbolDeclaration) -> 
-                                                    match s.Return with
-                                                    | Arg(sarg,_) ->
-                                                        match sarg with
-                                                        | Id(arg1,_) -> arg = arg1
-                                                        | _ -> false
-                                                    | _ -> false)
+          let typeOpt = symbolTable.GetSymbol arg
           match typeOpt with
           | Some id ->
+              let checkGenericArgArity id givenGenericAmount =
+                let symbolArgDecl = symbolTable.DataTable.[id]
+                let correctGenericAmount = symbolArgDecl.Generics.Length
+                if correctGenericAmount <> givenGenericAmount then
+                  raise(TypeError(sprintf "Type Error: Invalid amount of generics, given %d, expected %d, at %A" givenGenericAmount correctGenericAmount (pos.Line,pos.Col))) 
               let givenGenericAmount = genericArgs.Length
               //the type could require generic parameters to be used. If this is the case
-              //we check that the arity is correct.
+              //we check that the arity is correct and, in case of a specific type, that the type has been defined and possibly that its generic are used correctly.
               if givenGenericAmount > 0 then
-                let correctGenericAmount = symbolTable.DataTable.[id].Generics.Length
-                if correctGenericAmount = givenGenericAmount then
-                  _type
-                else
-                  raise(TypeError(sprintf "Type Error: Invalid amount of generics, given %d, expected %d, at %A" givenGenericAmount correctGenericAmount (pos.Line,pos.Col)))
+                do checkGenericArgArity id givenGenericAmount             
+                let rec checkGenericTypeArgument (args : TypeDecl list) : unit =
+                  match args with
+                  | [] -> ()
+                  | arg :: args ->
+                      match arg with
+                      | Arg(Id(id,pos),[]) ->
+                          let typeOpt = symbolTable.GetSymbol id
+                          match typeOpt with
+                          | None ->
+                              if genericsInScope |> List.exists(fun gen -> gen.Name = id.Name) |> not &&
+                                  (builtInTypes |> List.tryFind(fun t -> id.Name = t)).IsNone then
+                                raise(TypeError(sprintf "Type Error: Undefined type %s at %A" (arg.ToString()) (pos.Line,pos.Col)))
+                              do checkGenericTypeArgument args
+                          | Some _ -> do checkGenericTypeArgument args
+                      | Arg(Id(id,pos),generics)->
+                          let typeOpt = symbolTable.GetSymbol id
+                          match typeOpt with
+                          | None ->
+                              raise(TypeError(sprintf "Type Error: Undefined type %s at %A" (arg.ToString()) (pos.Line,pos.Col)))
+                          | Some typeId ->
+                            do checkGenericArgArity typeId generics.Length
+                            do checkGenericTypeArgument generics
+                            do checkGenericTypeArgument args
+                      | _ -> 
+                        raise(TypeError(sprintf "Type Error: Undefined type %s at %A" (arg.ToString()) (pos.Line,pos.Col)))
+                do checkGenericTypeArgument genericArgs
+                _type
               else
                  _type
           | None ->
               //The argument could be a type name or a generic type. If the declaration contains no generic arguments then
               //we are left with the only option of the type being a built-in type. Ohterwise, the argument is indeed generic
               //and we need to check whether it is defined or not.
-              if currentDecl.Generics.Length = 0 then
+              if genericsInScope.Length = 0 then
                 let builtInTypeOpt = builtInTypes |> List.tryFind(fun t -> arg.Name = t)
                 match builtInTypeOpt with
                 | Some _ -> _type
                 | None ->
                 raise(TypeError(sprintf "Type Error: Undefined type %s at %A" (_type.ToString()) (pos.Line,pos.Col)))
-              else if currentDecl.ContainsGeneric arg then
+              elif genericsInScope |> List.exists(fun gen -> gen.Name = arg.Name) then
                 _type
               else
                 raise(TypeError(sprintf "Type Error: Undefined type %s at %A" (_type.ToString()) (pos.Line,pos.Col)))
@@ -239,9 +282,9 @@ let checkSymbols (declarations : List<Declaration>) (symbolTable : SymbolContext
   for decl in declarations do
     match decl with
     | Data(data) ->
-        do checkType data data.Args symbolTable |> ignore
+        do checkType data.Args data.Generics symbolTable |> ignore
     | Func(func) ->
-        do checkType func func.Args symbolTable |> ignore
+        do checkType func.Args func.Generics symbolTable |> ignore
     | TypeFunc(tf) ->
         failwith "TypeFunctions not implemented yet..."
     | TypeAlias(ta) ->
@@ -291,6 +334,27 @@ let checkLiteral (l : Literal) (typeDecl : TypeDecl) (p : Position) (ctxt : Symb
     | Unit ->
       !!!"unit", checkTypeDecl !!!"unit" typeDecl p ctxt locals
 
+let getLiteralType l =
+  match l with
+  | I64(_) ->
+    !!!"int64"
+  | I32(_) ->
+    !!!"int"
+  | U64(_) ->
+    !!!"uint64"
+  | U32(_) ->
+    !!!"uint32"
+  | F64(_) ->
+    !!!"double"
+  | F32(_) ->
+    !!!"float"
+  | String(_) ->
+    !!!"string"
+  | Bool(_) ->
+    !!!"bool"
+  | Unit ->
+    !!!"unit"
+
 
 let rec checkSingleArg
   (arg : ParserAST.CallArg)
@@ -302,8 +366,16 @@ let rec checkSingleArg
   match arg with
   | Literal(l,p) ->
       match typeDecl with
-      | Arg(Id(id,_),[]) ->        
-          checkLiteral l typeDecl p symbolTable ctxt
+      | Arg(Id(id,_),[]) ->
+              if ctxt.IsGeneric id then
+                  //if the expected type is generic we must bind the generic variable to the literal type
+                let literalType = getLiteralType l
+                literalType,ctxt.AddGenericWithOptionalType id (Some literalType)
+              else  
+                checkLiteral l typeDecl p symbolTable ctxt
+      | Arg(Id(id,_),_) ->
+          //a literal is never compatible with a type requiring generic arguments.
+          raise(TypeError(sprintf "Type Error: Given literal but expected data constructor or function accepting generics arguments at line %d column %d" p.Line p.Col))
       | _ ->
           failwith "Something went wrong: the type definition has an invalid structure"
   | Id(id,p) ->
@@ -365,7 +437,8 @@ and checkNormalizedCall
     elif call.Length = 1 then
       decl.Return,ctxt
     else
-      checkNormalizedArgs args symbolTable decl.FullType ctxt buildLocals
+      let generics = decl.Generics |> List.map(fun gen -> ({ Name = gen; Index = 0 },None)) |> Map.ofList
+      checkNormalizedArgs args symbolTable decl.FullType { ctxt with Generics = generics } buildLocals
 
   match call with
   | arg :: args ->

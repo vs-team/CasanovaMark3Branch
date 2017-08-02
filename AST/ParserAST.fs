@@ -64,9 +64,8 @@ and TypeDecl =
   static member (=!=) (t1 : TypeDecl, t2 : TypeDecl) = not (t1 === t2)
   static member (===) (t1 : TypeDecl, t2 : TypeDecl) =
     match t1,t2 with
-    | Arg(Id(id1,_),gen1),Arg(Id(id2,_),gen2) ->
-        id1 = id2 && 
-        (List.forall2(fun g1 g2 -> g1 === g2) gen1 gen2)
+    | Arg(Id(id1,_),_),Arg(Id(id2,_),_) ->
+        id1 = id2
     | Arrow(l1,r1,_),Arrow(l2,r2,_) ->
         if l1 =!= l2 then
           false
@@ -245,6 +244,15 @@ type SymbolContext =
     Subtyping             : Map<TypeDecl,List<TypeDecl>>
   }
   with
+    member this.GetSymbol (id : Id) =
+      this.DataTable |> 
+      Map.tryFindKey(fun (k : Id) (s : SymbolDeclaration) -> 
+                        match s.Return with
+                        | Arg(sarg,_) ->
+                            match sarg with
+                            | Id(arg1,_) -> id = arg1
+                            | _ -> false
+                        | _ -> false)
     static member Empty
       with get() =
         {
