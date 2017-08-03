@@ -198,6 +198,7 @@ let rec normalizeDataOrFunctionCall (_symbolTable : SymbolContext) (args : List<
 let rec checkType (_type : TypeDecl) (genericsInScope : List<Id>) (symbolTable : SymbolContext) : TypeDecl =
   match _type with
   | Zero -> _type
+  | External _ -> _type
   | Arrow(left,right,n) ->
       let leftType = checkType left genericsInScope symbolTable
       let rightType = checkType right genericsInScope symbolTable
@@ -226,6 +227,7 @@ let rec checkType (_type : TypeDecl) (genericsInScope : List<Id>) (symbolTable :
                   | [] -> ()
                   | arg :: args ->
                       match arg with
+                      | External _ -> ()
                       | Arg(Id(id,pos),[]) ->
                           let typeOpt = symbolTable.GetSymbol id
                           match typeOpt with
@@ -446,15 +448,24 @@ let rec checkSingleArg
       | Arg(Id(id,_),_) ->
           //a literal is never compatible with a type requiring generic arguments.
           raise(TypeError(sprintf "Type Error: Given literal but expected data constructor or function accepting generics arguments at line %d column %d" p.Line p.Col))
+      | External _ -> typeDecl,ctxt
       | _ ->
           failwith "Something went wrong: the type definition has an invalid structure"
   | Id(id,p) ->
-      if buildLocals then
-        Arg(Id(id,p),[]),{ctxt with Variables = ctxt.Variables |> Map.add id (typeDecl,p)}
-      else
-        let t = getLocalType id ctxt p
+      let typeNoArgsOpt = symbolTable.DataTable |> Map.tryFindKey(fun k _ -> k.Name = id.Name)
+      match typeNoArgsOpt with
+      | None ->
+        if buildLocals then
+          Arg(Id(id,p),[]),{ctxt with Variables = ctxt.Variables |> Map.add id (typeDecl,p)}
+        else
+          let t = getLocalType id ctxt p
+          do checkTypeEquivalence t typeDecl p symbolTable ctxt
+          t,ctxt
+      //data with no arguments
+      | Some decl ->
+        let t = symbolTable.DataTable.[decl].Return
         do checkTypeEquivalence t typeDecl p symbolTable ctxt
-        t,ctxt             
+        t,ctxt   
   | Lambda(_) -> failwith "Anonymous functions not supported yet"   
   | NestedExpression(call) ->
       let nestedType,nestedCtxt = checkNormalizedCall call symbolTable ctxt buildLocals
@@ -643,7 +654,8 @@ and checkPremise (premise : Premise) (symbolTable : SymbolContext) (locals : Loc
           | None ->
               undefinedVarError id.Name pos
       | Lambda _ -> failwith "Anonymous functions not supported yet"
-              
+  | Emit(_,ret,pos) ->
+      { locals with Variables = locals.Variables |> Map.add ret (Unsafe,pos)},premise    
   | Conditional(left,op,right) ->
       match op with
       | Equal
@@ -701,7 +713,8 @@ and checkPremise (premise : Premise) (symbolTable : SymbolContext) (locals : Loc
                   raise(TypeError(sprintf "The type %s at %s is not valid for this comparison" (literalType.ToString()) (litPos.ToString())))
           | Literal(l1,p1),Literal(l2,p2) ->
               let type1 = getLiteralType l1
-              let type2,_ = checkSingleArg right symbolTable type1 locals false
+              let type2 = getLiteralType l2
+              do checkTypeEquivalence type1 type2 p1 symbolTable locals
               locals,premise
           | _ -> raise(TypeError("With this operator you cannot compare data structures"))
       | _ -> failwith "Predicate not implemented yet..."
@@ -721,6 +734,10 @@ and checkRule (rule : RuleDefinition) (symbolTable : SymbolContext) =
                                   loc,prem :: pr) (locals,[])
         let normPremises = normPremises |> List.rev
         match result with
+        | [NestedExpression(expr)] ->
+            let normalizedRes = normalizeDataOrFunctionCall symbolTable expr LocalContext.Empty
+            do checkNormalizedCall normalizedRes symbolTable localsAfterPremises false |> ignore
+            (Rule( { Main = r.Main; Premises = normPremises; Conclusion = ValueOutput(normalizedCall,normalizedRes)})),(callType,localsAfterPremises) 
         | [arg] ->
             do checkSingleArg arg symbolTable callType localsAfterPremises false |> ignore
             (Rule( { Main = r.Main; Premises = normPremises; Conclusion = ValueOutput(normalizedCall,result)})),(callType,localsAfterPremises)

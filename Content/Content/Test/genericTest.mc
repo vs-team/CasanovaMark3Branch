@@ -5,7 +5,7 @@ Data[a,b] a -> "," -> b : Tuple[a,b]
 Data[a] a -> "::" -> List[a] : List[a]
 Data[a] "nil" : List[a]
 Func[a] "length" -> List[a] : int
-Func "sum" -> List[int] : int
+Func "sum" -> List[<<int>>] : <<int>>
 Func[a] List[a] -> "@" -> List[a] : List[a]
 Func[a] "single" -> a : List[a]
 Func[a,b] "fst" -> Tuple[a,b] : a

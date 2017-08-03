@@ -117,6 +117,7 @@ let insertNamespaceAndFileName (program : Program) (fileName : string) : Program
     match t with
     | Arrow(left,right,n) -> Arrow(processTypeDecl left,processTypeDecl right,n)
     | Arg(arg,gen) -> Arg((processArg arg), gen |> List.map processTypeDecl)
+    | External(s,pos) -> External(s,{ pos with File = fileName })
     | Zero -> Zero
 
   and processSymbolDecl (decl : SymbolDeclaration) =

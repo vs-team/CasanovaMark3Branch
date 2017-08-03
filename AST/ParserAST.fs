@@ -54,12 +54,16 @@ and TypeDecl =
 | Arrow of TypeDecl * TypeDecl * bool //left, right, nested
 | TypeArrow of TypeCall
 | Arg of CallArg * (TypeDecl list) //name of the type, types to construct a generic data
+| External of string * Position //used for external types, like <<int>>
+| Unsafe //used as type placeholder as return type of external function calls
 | Zero
   member this.Length =
     match this with
     | Arrow(left,right,_) -> 1 + right.Length
     | TypeArrow tc -> tc.Length
     | Arg(_) -> 1
+    | External _ -> 1
+    | Unsafe -> 0
     | Zero -> 0
   static member (=!=) (t1 : TypeDecl, t2 : TypeDecl) = not (t1 === t2)
   static member (===) (t1 : TypeDecl, t2 : TypeDecl) =
@@ -71,6 +75,10 @@ and TypeDecl =
           false
         else
           r1 === r2
+    | External _,_
+    | _,External _ 
+    | Unsafe, _
+    | _, Unsafe -> true
     | Zero, Zero -> true
     | _ -> false
   static member SubtypeOf (t1 : TypeDecl) (t2 : TypeDecl) (subtypeDefinitions : Map<TypeDecl,List<TypeDecl>>) =
@@ -105,6 +113,8 @@ and TypeDecl =
           "[" + (gen |> List.map(fun g ->  string g) |> List.reduce (fun x y -> x + "," + y)) + "]"
         else
           "")
+    | External(s,_) -> "<<" + s + ">>"
+    | Unsafe -> "unsafe"
     | Zero -> "zero"
 
 and Declaration =
