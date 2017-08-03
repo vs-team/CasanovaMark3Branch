@@ -363,8 +363,13 @@ let rec checkGenericTypeEquivalence (t1 : TypeDecl) (t2 : TypeDecl) (p : Positio
   //the two types are equivalent if data types are equivalent and
   //if all generic arguments are equivalent
   | Arg(Id(id1,_),genericArgs1),Arg(Id(id2,_),genericArgs2) ->
-      //placeholder
-      locals
+      do checkTypeEquivalence t1 t2 p ctxt locals
+      List.fold2(fun newLocals arg1 arg2 ->
+                   match arg1,arg2 with
+                   | Arg(Id(_,p1),_),Arg(_,_) ->
+                     checkGenericTypeEquivalence arg1 arg2 p1 ctxt newLocals
+                   | _ -> failwith "Something went wrong with the parser: generic arguments are not variables" ) locals genericArgs1 genericArgs2
+  | _ -> failwith "Something went wrong: the type definition has an invalid structure"
 
 let getLocalType id locals p =
   let idOpt = locals.Variables |> Map.tryFind id
