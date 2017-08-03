@@ -5,16 +5,11 @@ open ParserAST
 
 exception TypeError of string
 
-type GenericId =
-  {
-    Name              : Id
-    Index             : int
-  }
-
 type LocalContext =
   {
     Variables                 : Map<Id,TypeDecl * Position>
-    Generics                  : Map<GenericId,TypeDecl option>
+    Generics                  : Map<Id,TypeDecl option>
+    GenericEquivalence        : Map<Id,List<Id>>
     NextGenericIndex          : int
   }
   with
@@ -22,21 +17,34 @@ type LocalContext =
       {
         Variables = Map.empty
         Generics = Map.empty
+        GenericEquivalence = Map.empty
         NextGenericIndex = 0
       }
+    member this.SetGenericEquivalence (generic1 : Id) (generic2 : Id) =
+      match Map.tryFind generic1 this.GenericEquivalence,Map.tryFind generic2 this.GenericEquivalence with
+      | Some l1,Some l2 ->
+          { this with GenericEquivalence = this.GenericEquivalence |> Map.add generic1 (generic2 :: l1) |> Map.add generic2 (generic1 :: l2) }
+      | Some l1, None ->
+          { this with GenericEquivalence = this.GenericEquivalence |> Map.add generic1 (generic2 :: l1) |> Map.add generic2 [generic1]  }
+      | None,Some l2 ->
+          { this with GenericEquivalence = this.GenericEquivalence |> Map.add generic1 [generic2] |> Map.add generic2 (generic1 :: l2)  }
+      | None,None ->
+          { this with GenericEquivalence = this.GenericEquivalence |> Map.add generic1 [generic2] |> Map.add generic2 [generic1]  }
     member this.IsGeneric (generic : Id) =
-      match this.Generics |> Map.tryFindKey (fun k _ -> k.Name.Name = generic.Name) with
+      match this.Generics.TryFind(generic) with
       | Some k -> true
       | None -> false
     member this.AddGenericWithOptionalType (generic : Id) (optType : TypeDecl option) =
       if this.IsGeneric generic then
+        let genericName,newGenericIndex =
+          generic.Name + (string this.NextGenericIndex),this.NextGenericIndex + 1
         { 
           this with 
-            Generics = this.Generics.Add({ Name = generic; Index = this.NextGenericIndex },optType)
-            NextGenericIndex = this.NextGenericIndex + 1
+            Generics = this.Generics.Add({ Name = genericName; Namespace = generic.Namespace },optType)
+            NextGenericIndex = newGenericIndex
         }
       else
-        { this with Generics = this.Generics.Add({ Name = generic; Index = this.NextGenericIndex },optType) }
+        { this with Generics = this.Generics.Add({ Name = generic.Name; Namespace = generic.Namespace },optType) }
 
 type TypedProgramDefinition =
   {
@@ -209,7 +217,10 @@ let rec checkType (_type : TypeDecl) (genericsInScope : List<Id>) (symbolTable :
               //the type could require generic parameters to be used. If this is the case
               //we check that the arity is correct and, in case of a specific type, that the type has been defined and possibly that its generic are used correctly.
               if givenGenericAmount > 0 then
-                do checkGenericArgArity id givenGenericAmount             
+                do checkGenericArgArity id givenGenericAmount
+                
+                //this recursive function checks that the generic argument of a data type requiring generic arguments are used correctly.
+                //This is to check nested generic type definitions like List[Tuple[List[a],b]]         
                 let rec checkGenericTypeArgument (args : TypeDecl list) : unit =
                   match args with
                   | [] -> ()
@@ -290,16 +301,70 @@ let checkSymbols (declarations : List<Declaration>) (symbolTable : SymbolContext
     | TypeAlias(ta) ->
         failwith "TypeAliases not implemented yet..."
 
+let areTypesEquivalent t1 t2 ctxt = 
+  t1 === t2 || (TypeDecl.SubtypeOf t1 t2 ctxt.Subtyping)
 
-let checkTypeWithErrorMsg t1 t2 p ctxt msg =
-  if t1 === t2 || (TypeDecl.SubtypeOf t1 t2 ctxt.Subtyping) then
+let checkTypeWithErrorMsg t1 t2 p (ctxt : SymbolContext) (locals : LocalContext) msg =
+  if areTypesEquivalent t1 t2 ctxt then
     ()
   else
     raise(TypeError(msg))
-      
+     
+let checkTypeEquivalence (t1: TypeDecl) (t2 : TypeDecl) (p : Position) (ctxt : SymbolContext) (locals : LocalContext)  =
+  checkTypeWithErrorMsg t1 t2 p ctxt locals (sprintf "Type Error: given %s but expected %s at %s" (t1.ToString()) (t2.ToString()) (p.ToString()))
 
-let checkTypeEquivalence (t1: TypeDecl) (t2 : TypeDecl) (p : Position) (ctxt : SymbolContext)  =
-  checkTypeWithErrorMsg t1 t2 p ctxt (sprintf "Type Error: given %s but expected %s at %s" (t1.ToString()) (t2.ToString()) (p.ToString()))
+//note that this function should be used when t1 is a generic type or a data structure requiring generic parameters
+let rec checkGenericTypeEquivalence (t1 : TypeDecl) (t2 : TypeDecl) (p : Position) (ctxt : SymbolContext) (locals : LocalContext) =
+  let checkGenericWithNonGeneric generic nonGeneric (genericId : Id) ctxt =
+    match generic with
+    | Some genericType ->
+        if areTypesEquivalent genericType nonGeneric ctxt then
+          locals
+        else
+          raise(TypeError(sprintf "Type Error: The generic variable %s has been bound to type %s but %s was expected at %s" genericId.Name (string genericType) (string t2) (string p)))
+    | None ->
+        let newGenerics = locals.Generics.Add(genericId,Some nonGeneric)
+        { locals with Generics = newGenerics }
+  match t1,t2 with
+  | Arg(Id(id1,_),[]),Arg(Id(id2,_),[]) ->
+      match locals.Generics |> Map.tryFind id1 ,locals.Generics |> Map.tryFind id2 with
+      //both types are generic
+      //- if both generics have already been bound to a specific type we must check their equivalence
+      //- if t2 has been bound to a specic type and t1 has not then, we assign the type of t2 to t1 (also the other way around)
+      //- if t1 and t2 are unbound generics then they are simply added to the equivalence table.
+      | Some gen1,Some gen2 ->
+          match gen1,gen2 with
+          | Some genericType1,Some genericType2 ->
+              if areTypesEquivalent genericType1 genericType2 ctxt then
+                locals
+              else
+                raise(TypeError(sprintf "Type Error: Generic variable %s has been bound to type %s but %s was given at %s" id2.Name (string genericType2) (string genericType1) (string p)))
+          | Some genericType1,None ->
+              let newGenerics = locals.Generics.Add(id2, Some genericType1)
+              { locals with Generics = newGenerics }
+          | None,Some genericType2 ->
+              let newGenerics = locals.Generics.Add(id1, Some genericType2)
+              { locals with Generics = newGenerics }
+          | None,None ->
+              locals.SetGenericEquivalence id1 id2
+      //t1 is generic and t2 is specific
+      //- if t1 has already been bound to a specific type check the equivalence of the types.
+      //- if t1 has no specific type then set the specific type of t1 to be the one of t2.
+      | Some gen1, None ->
+          checkGenericWithNonGeneric gen1 t2 id1 ctxt
+      //t1 is specific and t2 is generic. Same as above             
+      | None,Some gen2 ->
+          checkGenericWithNonGeneric gen2 t1 id2 ctxt
+      //t1 and t2 are specific. Use the normal function
+      | None,None ->
+          do checkTypeEquivalence t1 t2 p ctxt locals
+          locals
+  //t1 and t2 are data types requiring generic arguments
+  //the two types are equivalent if data types are equivalent and
+  //if all generic arguments are equivalent
+  | Arg(Id(id1,_),genericArgs1),Arg(Id(id2,_),genericArgs2) ->
+      //placeholder
+      locals
 
 let getLocalType id locals p =
   let idOpt = locals.Variables |> Map.tryFind id
@@ -309,8 +374,8 @@ let getLocalType id locals p =
   | None ->
       undefinedVarError id.Name p
 
-let checkTypeDecl t1 t2 p  ctxt locals =
-  do checkTypeEquivalence t1 t2 p ctxt
+let checkTypeDecl t1 t2 p ctxt locals =
+  do checkTypeEquivalence t1 t2 p ctxt locals
   locals
     
 let checkLiteral (l : Literal) (typeDecl : TypeDecl) (p : Position) (ctxt : SymbolContext) (locals : LocalContext) : TypeDecl * LocalContext =
@@ -383,7 +448,7 @@ let rec checkSingleArg
         Arg(Id(id,p),[]),{ctxt with Variables = ctxt.Variables |> Map.add id (typeDecl,p)}
       else
         let t = getLocalType id ctxt p
-        do checkTypeEquivalence t typeDecl p symbolTable
+        do checkTypeEquivalence t typeDecl p symbolTable ctxt
         t,ctxt             
   | Lambda(_) -> failwith "Anonymous functions not supported yet"   
   | NestedExpression(call) ->
@@ -393,13 +458,13 @@ let rec checkSingleArg
           let dataOpt = symbolTable.DataTable |> Map.tryFind(id)
           match dataOpt with
           | Some decl ->
-              checkTypeEquivalence nestedType typeDecl p symbolTable
+              checkTypeEquivalence nestedType typeDecl p symbolTable ctxt
               nestedType,nestedCtxt
           | None -> 
               let funcOpt = symbolTable.FuncTable |> Map.tryFind(id)
               match funcOpt with
               | Some decl ->
-                checkTypeEquivalence nestedType typeDecl p symbolTable
+                checkTypeEquivalence nestedType typeDecl p symbolTable ctxt
                 nestedType,nestedCtxt
               | None ->
                   failwith "Something went wrong: apparently the term is neither a data constructor nor a function call"
@@ -437,7 +502,7 @@ and checkNormalizedCall
     elif call.Length = 1 then
       decl.Return,ctxt
     else
-      let generics = decl.Generics |> List.map(fun gen -> ({ Name = gen; Index = 0 },None)) |> Map.ofList
+      let generics = decl.Generics |> List.map(fun gen -> (gen,None)) |> Map.ofList
       checkNormalizedArgs args symbolTable decl.FullType { ctxt with Generics = generics } buildLocals
 
   match call with
@@ -503,7 +568,7 @@ and checkPremise (premise : Premise) (symbolTable : SymbolContext) (locals : Loc
             | Some _ -> raise(TypeError(sprintf "Type Error: It is not allowed to call a function in the return part of a premise at %s" (pos.ToString())))
             | None ->
                 let dataType,newLocals = checkNormalizedCall normalizedData symbolTable locals true
-                do checkTypeEquivalence dataType funcType Position.Zero symbolTable
+                do checkTypeEquivalence dataType funcType Position.Zero symbolTable locals
                 newLocals,normalizedData
           | _ -> failwith "Something went wrong with the function normalizer: the first element is not an id"
       | _ -> failwith "Something went wrong: the return argument of a premise is empty"

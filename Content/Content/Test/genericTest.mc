@@ -1,6 +1,6 @@
 ﻿namespace GenericTest
 
-Func[a,b] "foo" -> List[Tuple[int,b]] -> List[Tuple[a,b]] : double
+Func[a,b] "foo" -> List[Tuple[int,b]] -> List[Tuple[List[a],b]] : double
 Data[a,b] a -> "," -> b : Tuple[a,b]
 Data[a] a -> "::" -> List[a] : List[a]
 Data[a] "nil" : List[a]
