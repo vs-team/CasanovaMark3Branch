@@ -144,20 +144,22 @@ and ModuleDeclaration =
 
 and SymbolDeclaration =
   {
-    Name      : Id
-    FullType  : TypeDecl
-    Args      : TypeDecl
-    Return    : TypeDecl
-    Order     : OpOrder
-    Priority  : int
-    Position  : Position
-    Associativity : Associativity
-    Premises : List<Premise>
-    Generics : List<Id>
+    Name            : Id
+    FullType        : TypeDecl
+    Args            : TypeDecl
+    Return          : TypeDecl
+    Order           : OpOrder
+    LeftArity       : int
+    RightArity      : int
+    Priority        : int
+    Position        : Position
+    Associativity   : Associativity
+    Premises        : List<Premise>
+    Generics        : List<Id>
   }
   with
     member this.ContainsGeneric (id : Id) = this.Generics |> List.exists(fun gen -> gen.Name = id.Name)
-    static member Create(name,_type,args,ret,order,priority,pos,ass,prem,gen) =
+    static member Create(name,_type,args,ret,order,priority,pos,ass,prem,gen,larity,rarity) =
       {
         Name = name
         FullType = _type
@@ -169,6 +171,8 @@ and SymbolDeclaration =
         Associativity = ass
         Premises = prem
         Generics = gen
+        LeftArity = larity
+        RightArity = rarity
       }
     override this.ToString() =
       sprintf "Name = %s\n
@@ -230,6 +234,11 @@ and Conditional = CallArg *  Predicate * CallArg
 and Conclusion = 
 | ValueOutput of List<CallArg> * List<CallArg>
 | ModuleOutput of List<CallArg> * List<CallArg> * Program
+with
+  override this.ToString() =
+    match this with
+    | ValueOutput(left,right) -> left.ToString() + " -> " + right.ToString()
+    | ModuleOutput(left,right,program) -> left.ToString() + " => " + right.ToString() + "{\n\t" + program.ToString() + "\n}"
 
 and LambdaConclusion = List<CallArg*TypeDecl> * List<CallArg>
 

@@ -2,6 +2,7 @@
 
 open Common
 open ParserAST
+open ParserUtils
 
 exception TypeError of string
 
@@ -116,14 +117,24 @@ let rec parentesization (_symbolTable : SymbolContext) (operators : SymbolDeclar
                                           | _ -> false) args
         let leftPar = parentesizeExpression _symbolTable left
         let rightPar = parentesizeExpression _symbolTable right
+        let leftArgs,parentesizedleftArgs = 
+          if (leftPar.Length < minPriorityOp.LeftArity) then
+            [],leftPar
+          else
+            leftPar |> List.splitAt (leftPar.Length - minPriorityOp.LeftArity)
+        let parentesizedRightArgs,rightArgs = 
+          if (rightPar.Length < minPriorityOp.RightArity) then 
+            rightPar,[]
+          else
+            rightPar |> List.splitAt minPriorityOp.RightArity
         match minPriorityOp.Order with
         | Prefix when minPriorityOp.Args.Length > 0 ->
-            leftPar @ [NestedExpression (operatorArg :: rightPar)]
+            leftArgs @ [NestedExpression (operatorArg :: parentesizedRightArgs)] @ rightArgs
         | Suffix when minPriorityOp.Args.Length > 0 ->
-            (NestedExpression (leftPar @ [operatorArg])) :: rightPar
+            leftArgs @ ((NestedExpression (parentesizedleftArgs @ [operatorArg])) :: rightArgs)
         | Infix when minPriorityOp.Args.Length > 0 ->
-            [NestedExpression (leftPar @ [operatorArg] @ rightPar)]
-        | _ -> leftPar @ [operatorArg] @ rightPar
+            leftArgs @ [NestedExpression (parentesizedleftArgs @ [operatorArg] @ parentesizedRightArgs)] @ rightArgs
+        | _ -> leftArgs @ parentesizedleftArgs @ [operatorArg] @ parentesizedRightArgs @ rightArgs
       else
         args
 
@@ -546,6 +557,8 @@ and checkNormalizedCall
                 Associativity = Left
                 Premises = []
                 Generics = []
+                LeftArity = 0
+                RightArity = 0
               }
             checkArgsWithCorrectCardinality args localSym
         | None ->

@@ -53,6 +53,26 @@ let rec combineArgsAndRet args ret =
   | Zero
   | Arg _ -> Arrow(args,ret,false)
 
+let rec splitAtElement (pred : 'a -> bool) (list : 'a list) : ('a list) * ('a list) =
+  match list with
+  | [] -> failwith "The provided element does not exist in the list"
+  | x :: xs ->
+      if pred x then
+        [],xs
+      else
+        let left,right = splitAtElement pred xs
+        (x :: left,right)
+
+let getLeftAndRightArity (parsedArgs : TypeDeclOrName list) : int * int =
+  let isName =
+    fun arg ->
+          match arg with
+          | Name _ -> true
+          | Type _ -> false
+  let left,right =
+    parsedArgs |> splitAtElement isName
+  left |> List.filter (fun arg -> not (isName arg)) |> List.length,right |> List.filter (fun arg -> not (isName arg)) |> List.length
+
 let opPos (parsedArgs : TypeDeclOrName list) : OpOrder =
   match parsedArgs with
   | [] -> Prefix
@@ -86,7 +106,7 @@ let rec buildArgType (args : TypeDecl list) =
       | Zero -> failwith "Invalid arg type in buildArgType"
       | _ -> x --> (buildArgType xs)
 
-let buildDeclarationRecord opOrder name args ret pos gen priority =
+let buildDeclarationRecord opOrder name args ret pos gen priority larity rarity =
   {
     Name = name
     FullType = combineArgsAndRet args ret
@@ -98,18 +118,21 @@ let buildDeclarationRecord opOrder name args ret pos gen priority =
     Associativity = Left
     Premises = []
     Generics = gen
+    LeftArity = larity
+    RightArity = rarity
   }
 
 let processParsedArgs (parsedArgs : TypeDeclOrName list) (retType : TypeDecl) (row : int) (column : int) (gen : List<Id>) (priority : int option) =
   let opOrder = opPos parsedArgs
+  let larity,rarity = getLeftAndRightArity parsedArgs
   let Some(name),args = checkDecl parsedArgs row column
   let argType = buildArgType args
   match priority with
   | Some priority when priority < 0 -> raise(ParseError("Priority cannot be negative",row,column))
   | Some priority ->
-      buildDeclarationRecord opOrder {Namespace =  ""; Name = name} argType retType (row, column) gen priority
+      buildDeclarationRecord opOrder {Namespace =  ""; Name = name} argType retType (row, column) gen priority larity rarity
   | None ->
-      buildDeclarationRecord opOrder {Namespace =  ""; Name = name} argType retType (row, column) gen -1
+      buildDeclarationRecord opOrder {Namespace =  ""; Name = name} argType retType (row, column) gen -1 larity rarity
 
 let insertNamespaceAndFileName (program : Program) (fileName : string) : Program =  
   let nameSpace,imports,parsedProgram = program.Namespace,program.Imports,program.Program
