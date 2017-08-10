@@ -129,12 +129,19 @@ let rec parentesization (_symbolTable : SymbolContext) (operators : SymbolDeclar
             rightPar |> List.splitAt minPriorityOp.RightArity
         match minPriorityOp.Order with
         | Prefix when minPriorityOp.Args.Length > 0 ->
-            leftArgs @ [NestedExpression (operatorArg :: parentesizedRightArgs)] @ rightArgs
+            let l = parentesizeExpression _symbolTable leftArgs
+            let c = [NestedExpression (operatorArg :: parentesizedRightArgs)]
+            let r = (parentesizeExpression _symbolTable rightArgs)
+            l @ c @ r
         | Suffix when minPriorityOp.Args.Length > 0 ->
-            leftArgs @ ((NestedExpression (parentesizedleftArgs @ [operatorArg])) :: rightArgs)
+            (parentesizeExpression _symbolTable leftArgs) @ [NestedExpression (parentesizedleftArgs @ [operatorArg])] @ (parentesizeExpression _symbolTable rightArgs)
         | Infix when minPriorityOp.Args.Length > 0 ->
-            leftArgs @ [NestedExpression (parentesizedleftArgs @ [operatorArg] @ parentesizedRightArgs)] @ rightArgs
-        | _ -> leftArgs @ parentesizedleftArgs @ [operatorArg] @ parentesizedRightArgs @ rightArgs
+            let l = parentesizeExpression _symbolTable leftArgs
+            let c = [NestedExpression (parentesizedleftArgs @ [operatorArg] @ parentesizedRightArgs)]
+            let r = parentesizeExpression _symbolTable rightArgs
+            let res = l @ c @ r
+            res
+        | _ -> (parentesizeExpression _symbolTable leftArgs) @ parentesizedleftArgs @ [operatorArg] @ parentesizedRightArgs @ (parentesizeExpression _symbolTable rightArgs)
       else
         args
 
