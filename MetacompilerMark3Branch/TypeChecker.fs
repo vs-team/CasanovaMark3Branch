@@ -85,36 +85,51 @@ let fetchDataOrFunctionSymbols (_symbolTable : SymbolContext) (args : CallArg li
                 | _ -> dataOrFunctions) [] |>
   List.sortBy (fun decl -> decl.Priority) |> List.rev
 
-let rec splitAtElement (pred : 'a -> bool) (list : 'a list) : ('a list) * ('a list) =
-  match list with
-  | [] -> failwith "The provided element does not exist in the list"
-  | x :: xs ->
-      if pred x then
-        [],xs
-      else
-        let left,right = splitAtElement pred xs
-        (x :: left,right)
+let findAllIndices (p : 'a -> bool) (l : 'a list) =
+  l |> 
+  List.map (fun x -> x,false) |>
+  List.fold (fun (indices,i) (x,picked) ->
+                if p x then
+                  i :: indices,i + 1
+                else
+                  indices,i + 1) ([],0) |> fst |> List.rev
 
 let rec parentesization (_symbolTable : SymbolContext) (operators : SymbolDeclaration list) (args : CallArg list) =
   match args with
   | [] -> []
   | [Literal(l,p)] -> [Literal (l,p)]
   | [Id(id,p)] -> [Id (id,p)]
-  | [NestedExpression expr] -> parentesizeExpression _symbolTable expr
+  | [NestedExpression expr] -> 
+      let par = parentesizeExpression _symbolTable expr
+      match par with
+      | [NestedExpression _] -> par
+      | _ -> [NestedExpression par]
   | _ ->
       if args |> List.exists(fun arg -> 
                                 match arg with
                                 | Id(id,_) -> operators |> List.exists(fun op -> op.Name = id)
                                 | _ -> false) then
         let minPriorityOp = operators |> List.minBy(fun op -> op.Priority)
+        let minPriorityOpsIndices = findAllIndices (fun arg ->
+                                                      match arg with
+                                                      | Id(id,_) -> id = minPriorityOp.Name
+                                                      | _ -> false) args
         let operatorArg = args |> List.find(fun arg ->
                                               match arg with
                                               | Id(id,_) -> id = minPriorityOp.Name
                                               | _ -> false)
-        let left,right = splitAtElement (fun x ->
-                                          match x with
-                                          | Id(id,_) -> id = minPriorityOp.Name
-                                          | _ -> false) args
+//        let left,right = splitAtElement (fun x ->
+//                                          match x with
+//                                          | Id(id,_) -> id = minPriorityOp.Name
+//                                          | _ -> false) args
+        let left,right =
+          match minPriorityOp.Associativity with
+          | Left -> 
+              let l,r = args |> List.splitAt (minPriorityOpsIndices |> List.last)
+              l,r.Tail
+          | Right ->
+              let l,r = args |> List.splitAt minPriorityOpsIndices.Head
+              l,r.Tail
         let leftPar = parentesizeExpression _symbolTable left
         let rightPar = parentesizeExpression _symbolTable right
         let leftArgs,parentesizedleftArgs = 
@@ -129,19 +144,26 @@ let rec parentesization (_symbolTable : SymbolContext) (operators : SymbolDeclar
             rightPar |> List.splitAt minPriorityOp.RightArity
         match minPriorityOp.Order with
         | Prefix when minPriorityOp.Args.Length > 0 ->
-            let l = parentesizeExpression _symbolTable leftArgs
+            let l = leftArgs//parentesizeExpression _symbolTable leftArgs
             let c = [NestedExpression (operatorArg :: parentesizedRightArgs)]
-            let r = (parentesizeExpression _symbolTable rightArgs)
+            let r = rightArgs//(parentesizeExpression _symbolTable rightArgs)
             l @ c @ r
         | Suffix when minPriorityOp.Args.Length > 0 ->
-            (parentesizeExpression _symbolTable leftArgs) @ [NestedExpression (parentesizedleftArgs @ [operatorArg])] @ (parentesizeExpression _symbolTable rightArgs)
+            let l = leftArgs//parentesizeExpression _symbolTable leftArgs
+            let c = [NestedExpression (parentesizedleftArgs @ [operatorArg])]
+            let r = rightArgs//parentesizeExpression _symbolTable rightArgs
+            l @ c @ r
         | Infix when minPriorityOp.Args.Length > 0 ->
-            let l = parentesizeExpression _symbolTable leftArgs
+            let l = leftArgs//parentesizeExpression _symbolTable leftArgs
             let c = [NestedExpression (parentesizedleftArgs @ [operatorArg] @ parentesizedRightArgs)]
-            let r = parentesizeExpression _symbolTable rightArgs
+            let r = rightArgs//parentesizeExpression _symbolTable rightArgs
             let res = l @ c @ r
             res
-        | _ -> (parentesizeExpression _symbolTable leftArgs) @ parentesizedleftArgs @ [operatorArg] @ parentesizedRightArgs @ (parentesizeExpression _symbolTable rightArgs)
+        | _ -> 
+            let l = leftArgs//parentesizeExpression _symbolTable leftArgs
+            let c = parentesizedleftArgs @ [operatorArg] @ parentesizedRightArgs
+            let r = rightArgs//parentesizeExpression _symbolTable rightArgs
+            l @ c @ r
       else
         args
 
