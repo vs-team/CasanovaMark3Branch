@@ -19,7 +19,7 @@ open ParserUtils
 %token <string * (int * int)> EMIT
 %token <System.Int32 * System.Int32> ARROW DARROW EQUAL
 %token <int> BAR
-%token<System.String * (int * int)> COMMA DOT HASH
+%token<System.String * (int * int)> COMMA DOT HASH LASSOC RASSOC
 %token LBRACKET RBRACKET COLON NEWLINE  BIND LBRACE RBRACE LSQUARE RSQUARE
 %token <int * int> FUNC TYPEFUNC OPEN INCLUDE DATA NAMESPACE IS FUN GT GEQ LT LEQ NEQ MAIN ARITHMETIC MODULE PRIORITY LEMIT REMIT
 
@@ -84,15 +84,20 @@ priority:
 | PRIORITY INT { Some (fst $2) }
 | { None }
 
+associativity:
+| LASSOC { Left }
+| RASSOC { Right}
+| { Left }
+
 declaration:
-| FUNC genericSeq typeOrNameDeclarations COLON typeDeclaration priority newLineSeq {
-    Func(processParsedArgs $3 $5 (fst $1) (snd $1) $2 $6) }
-| DATA genericSeq typeOrNameDeclarations COLON typeDeclaration priority newLineSeq {
-    Data(processParsedArgs $3 $5 (fst $1) (snd $1) $2 $6) }
+| FUNC genericSeq typeOrNameDeclarations COLON typeDeclaration priority associativity newLineSeq {
+    Func(processParsedArgs $3 $5 (fst $1) (snd $1) $2 $6 $7) }
+| DATA genericSeq typeOrNameDeclarations COLON typeDeclaration priority associativity newLineSeq {
+    Data(processParsedArgs $3 $5 (fst $1) (snd $1) $2 $6 $7) }
 | FUNC genericSeq typeOrNameDeclarations error {
-    reportErrorAtPos "Function definition is missing a return type or priority is not well defined" parseState 3 }
+    reportErrorAtPos "Function definition is missing a return type or priority/associativity is not well defined" parseState 3 }
 | DATA genericSeq typeOrNameDeclarations error {
-    reportErrorAtPos "Data definition is missing a return type or priority is not well defined" parseState 3 }
+    reportErrorAtPos "Data definition is missing a return type or priority/associativity is not well defined" parseState 3 }
 
 typeOrNameDeclarations:
 | typeOrNameDeclaration ARROW typeOrNameDeclarations { $1 :: $3 }
@@ -125,6 +130,8 @@ customOperator:
 | COMMA { Id({ Namespace = ""; Name = fst $1 },Position.Create(snd $1,"")) }
 | DOT { Id({ Namespace = ""; Name = fst $1 },Position.Create(snd $1,"")) } 
 | HASH { Id({ Namespace = ""; Name = fst $1 },Position.Create(snd $1,"")) }
+| LASSOC { Id({ Namespace = ""; Name = fst $1 },Position.Create(snd $1,"")) }
+| RASSOC { Id({ Namespace = ""; Name = fst $1 },Position.Create(snd $1,"")) }
 | CUSTOMOPERATOR { Id({ Namespace = ""; Name = fst $1 },Position.Create(snd $1,"")) }
 
 arg:

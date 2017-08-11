@@ -77,6 +77,8 @@ and tokenstream = parse
 | "<>" { Parser.NEQ (range lexbuf) }
 | "()" { Parser.UNIT (range lexbuf) }
 | "Priority" { Parser.PRIORITY (range lexbuf) }
+| "||>" { Parser.RASSOC ((LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }
+| "<||" { Parser.LASSOC ((LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }
 | "Module" { Parser.MODULE (range lexbuf) }
 | "Func" { Parser.FUNC (range lexbuf) } 
 | "TypeFunc" { Parser.TYPEFUNC (range lexbuf) }

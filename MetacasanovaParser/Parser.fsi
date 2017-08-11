@@ -33,6 +33,8 @@ type token =
   | COMMA of (System.String * (int * int))
   | DOT of (System.String * (int * int))
   | HASH of (System.String * (int * int))
+  | LASSOC of (System.String * (int * int))
+  | RASSOC of (System.String * (int * int))
   | BAR of (int)
   | ARROW of (System.Int32 * System.Int32)
   | DARROW of (System.Int32 * System.Int32)
@@ -77,6 +79,8 @@ type tokenId =
     | TOKEN_COMMA
     | TOKEN_DOT
     | TOKEN_HASH
+    | TOKEN_LASSOC
+    | TOKEN_RASSOC
     | TOKEN_BAR
     | TOKEN_ARROW
     | TOKEN_DARROW
@@ -103,6 +107,7 @@ type nonTerminalId =
     | NONTERM_includeOrOpenStmt
     | NONTERM_declarations
     | NONTERM_priority
+    | NONTERM_associativity
     | NONTERM_declaration
     | NONTERM_typeOrNameDeclarations
     | NONTERM_typeOrNameDeclaration

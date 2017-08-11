@@ -106,7 +106,7 @@ let rec buildArgType (args : TypeDecl list) =
       | Zero -> failwith "Invalid arg type in buildArgType"
       | _ -> x --> (buildArgType xs)
 
-let buildDeclarationRecord opOrder name args ret pos gen priority larity rarity =
+let buildDeclarationRecord opOrder name args ret pos gen priority associativity larity rarity =
   {
     Name = name
     FullType = combineArgsAndRet args ret
@@ -115,14 +115,14 @@ let buildDeclarationRecord opOrder name args ret pos gen priority larity rarity 
     Order = opOrder
     Priority = priority
     Position = Position.Create(pos, "missing")
-    Associativity = Left
+    Associativity = associativity
     Premises = []
     Generics = gen
     LeftArity = larity
     RightArity = rarity
   }
 
-let processParsedArgs (parsedArgs : TypeDeclOrName list) (retType : TypeDecl) (row : int) (column : int) (gen : List<Id>) (priority : int option) =
+let processParsedArgs (parsedArgs : TypeDeclOrName list) (retType : TypeDecl) (row : int) (column : int) (gen : List<Id>) (priority : int option) (associativity : Associativity) =
   let opOrder = opPos parsedArgs
   let larity,rarity = getLeftAndRightArity parsedArgs
   let Some(name),args = checkDecl parsedArgs row column
@@ -130,9 +130,9 @@ let processParsedArgs (parsedArgs : TypeDeclOrName list) (retType : TypeDecl) (r
   match priority with
   | Some priority when priority < 0 -> raise(ParseError("Priority cannot be negative",row,column))
   | Some priority ->
-      buildDeclarationRecord opOrder {Namespace =  ""; Name = name} argType retType (row, column) gen priority larity rarity
+      buildDeclarationRecord opOrder {Namespace =  ""; Name = name} argType retType (row, column) gen priority associativity larity rarity
   | None ->
-      buildDeclarationRecord opOrder {Namespace =  ""; Name = name} argType retType (row, column) gen -1 larity rarity
+      buildDeclarationRecord opOrder {Namespace =  ""; Name = name} argType retType (row, column) gen -1 associativity larity rarity
 
 let insertNamespaceAndFileName (program : Program) (fileName : string) : Program =  
   let nameSpace,imports,parsedProgram = program.Namespace,program.Imports,program.Program
