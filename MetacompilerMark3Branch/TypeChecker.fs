@@ -94,16 +94,17 @@ let findAllIndices (p : 'a -> bool) (l : 'a list) =
                 else
                   indices,i + 1) ([],0) |> fst |> List.rev
 
+
 let rec parentesization (_symbolTable : SymbolContext) (operators : SymbolDeclaration list) (args : CallArg list) =
   match args with
   | [] -> []
-  | [Literal(l,p)] -> [Literal (l,p)]
-  | [Id(id,p)] -> [Id (id,p)]
-  | [NestedExpression expr] -> 
-      let par = parentesizeExpression _symbolTable expr
-      match par with
-      | [NestedExpression _] -> par
-      | _ -> [NestedExpression par]
+//  | [Literal(l,p)] -> [Literal (l,p)]
+//  | [Id(id,p)] -> [Id (id,p)]
+//  | [NestedExpression expr] -> 
+//      let par = parentesizeExpression _symbolTable expr
+//      match par with
+//      | [NestedExpression _] -> par
+//      | _ -> [NestedExpression par]
   | _ ->
       if args |> List.exists(fun arg -> 
                                 match arg with
@@ -165,9 +166,19 @@ let rec parentesization (_symbolTable : SymbolContext) (operators : SymbolDeclar
             let r = rightArgs//parentesizeExpression _symbolTable rightArgs
             l @ c @ r
       else
-        args
+        let par =
+          args |>
+          List.fold(fun p arg ->
+                      match arg with
+                      | NestedExpression expr -> 
+                          let par = parentesizeExpression _symbolTable expr
+                          match par with
+                          | [NestedExpression _] -> p @ par
+                          | _ -> p @ [NestedExpression par]
+                      | _ -> p @ [arg]) []
+        par
 
-and parentesizeExpression (_symbolTable : SymbolContext) (args : CallArg list) =
+and parentesizeExpression (_symbolTable : SymbolContext) (args : CallArg list) : CallArg list =
   let operatorsOrderedByPriority = fetchDataOrFunctionSymbols _symbolTable args
   let par = parentesization _symbolTable operatorsOrderedByPriority args
   par
