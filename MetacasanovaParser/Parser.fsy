@@ -47,8 +47,8 @@ optionalNewLines:
 | {  }
 
 program:
-| optionalNewLines NAMESPACE dottedPath newLineSeq includeOrOpenStmts declarations subtypes rules {
-  let programDefinition = { Declarations = $6; Rules = $8; Subtyping = $7 }
+| optionalNewLines NAMESPACE dottedPath newLineSeq includeOrOpenStmts subtypes declarations rules {
+  let programDefinition = { Declarations = $7; Rules = $8; Subtyping = $6 }
   { Namespace = $3; Imports = $5; Program = programDefinition } }
 | newLineSeq includeOrOpenStmts subtypes declarations rules { reportErrorAtPos "A program in Metacasanova must start with a namespace definition" parseState 1 }
 

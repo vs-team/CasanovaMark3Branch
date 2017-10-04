@@ -152,7 +152,7 @@ let insertNamespaceAndFileName (program : Program) (fileName : string) : Program
         Return = processTypeDecl decl.Return
         Position = { decl.Position with File = fileName }
         Premises = decl.Premises |> List.map processPremise
-        Generics = decl.Generics |> List.map (fun id -> { id with Namespace = genericNamespace })
+        Generics = decl.Generics |> List.map (fun id -> { id with Namespace = nameSpace })
     }
   
   and processArg =

@@ -46,6 +46,10 @@ type LocalContext =
         }
       else
         { this with Generics = this.Generics.Add({ Name = generic.Name; Namespace = generic.Namespace },optType) }
+    member this.AddGenerics (l : List<Id>) =
+      l |>
+      List.fold(fun (newLocals : LocalContext) (generic : Id) ->
+                  newLocals.AddGenericWithOptionalType generic None) this
 
 type TypedProgramDefinition =
   {
@@ -379,8 +383,13 @@ let rec checkGenericTypeEquivalence (t1 : TypeDecl) (t2 : TypeDecl) (p : Positio
         let newGenerics = locals.Generics.Add(genericId,Some nonGeneric)
         { locals with Generics = newGenerics }
   match t1,t2 with
+  | Unsafe _,_
+  | _,Unsafe _ ->
+    do checkTypeEquivalence t1 t2 p ctxt locals
+    locals
   | Arg(Id(id1,_),[]),Arg(Id(id2,_),[]) ->
-      match locals.Generics |> Map.tryFind id1 ,locals.Generics |> Map.tryFind id2 with
+      match locals.Generics |> Map.tryFind(id1),
+            locals.Generics |> Map.tryFind(id2) with
       //both types are generic
       //- if both generics have already been bound to a specific type we must check their equivalence
       //- if t2 has been bound to a specic type and t1 has not then, we assign the type of t2 to t1 (also the other way around)
@@ -421,6 +430,8 @@ let rec checkGenericTypeEquivalence (t1 : TypeDecl) (t2 : TypeDecl) (p : Positio
                    match arg1,arg2 with
                    | Arg(Id(_,p1),_),Arg(_,_) ->
                      checkGenericTypeEquivalence arg1 arg2 p1 ctxt newLocals
+                   | External _,_
+                   | _,External _ -> newLocals
                    | _ -> failwith "Something went wrong with the parser: generic arguments are not variables" ) locals genericArgs1 genericArgs2
   | _ -> failwith "Something went wrong: the type definition has an invalid structure"
 
@@ -433,8 +444,8 @@ let getLocalType id locals p =
       undefinedVarError id.Name p
 
 let checkTypeDecl t1 t2 p ctxt locals =
-  do checkTypeEquivalence t1 t2 p ctxt locals
-  locals
+  let newLocals = checkGenericTypeEquivalence t1 t2 p ctxt locals
+  newLocals
     
 let checkLiteral (l : Literal) (typeDecl : TypeDecl) (p : Position) (ctxt : SymbolContext) (locals : LocalContext) : TypeDecl * LocalContext =
     match l with
@@ -510,13 +521,14 @@ let rec checkSingleArg
           Arg(Id(id,p),[]),{ctxt with Variables = ctxt.Variables |> Map.add id (typeDecl,p)}
         else
           let t = getLocalType id ctxt p
-          do checkTypeEquivalence t typeDecl p symbolTable ctxt
-          t,ctxt
+          let newLocals = checkGenericTypeEquivalence t typeDecl p symbolTable ctxt
+          t,newLocals
       //data with no arguments
       | Some decl ->
         let t = symbolTable.DataTable.[decl].Return
-        do checkTypeEquivalence t typeDecl p symbolTable ctxt
-        t,ctxt   
+        let ctxtWithGenercis = ctxt.AddGenerics symbolTable.DataTable.[decl].Generics
+        let newLocals = checkGenericTypeEquivalence t typeDecl p symbolTable ctxtWithGenercis
+        t,newLocals   
   | Lambda(_) -> failwith "Anonymous functions not supported yet"   
   | NestedExpression(call) ->
       let nestedType,nestedCtxt = checkNormalizedCall call symbolTable ctxt buildLocals
@@ -525,14 +537,15 @@ let rec checkSingleArg
           let dataOpt = symbolTable.DataTable |> Map.tryFind(id)
           match dataOpt with
           | Some decl ->
-              checkTypeEquivalence nestedType typeDecl p symbolTable ctxt
-              nestedType,nestedCtxt
+              let newNestedCtxt = checkGenericTypeEquivalence nestedType typeDecl p symbolTable nestedCtxt
+              nestedType,newNestedCtxt
           | None -> 
               let funcOpt = symbolTable.FuncTable |> Map.tryFind(id)
               match funcOpt with
               | Some decl ->
-                checkTypeEquivalence nestedType typeDecl p symbolTable ctxt
-                nestedType,nestedCtxt
+                let ctxtWithGenerics = ctxt.AddGenerics decl.Generics
+                let newNestedCtxt = checkGenericTypeEquivalence nestedType typeDecl p symbolTable ctxtWithGenerics
+                nestedType,newNestedCtxt
               | None ->
                   failwith "Something went wrong: apparently the term is neither a data constructor nor a function call"
       | _ ->
@@ -569,8 +582,8 @@ and checkNormalizedCall
     elif call.Length = 1 then
       decl.Return,ctxt
     else
-      let generics = decl.Generics |> List.map(fun gen -> (gen,None)) |> Map.ofList
-      checkNormalizedArgs args symbolTable decl.FullType { ctxt with Generics = generics } buildLocals
+      let generics = decl.Generics
+      checkNormalizedArgs args symbolTable decl.FullType (ctxt.AddGenerics generics) buildLocals
 
   match call with
   | arg :: args ->
@@ -637,8 +650,8 @@ and checkPremise (premise : Premise) (symbolTable : SymbolContext) (locals : Loc
             | Some _ -> raise(TypeError(sprintf "Type Error: It is not allowed to call a function in the return part of a premise at %s" (pos.ToString())))
             | None ->
                 let dataType,newLocals = checkNormalizedCall normalizedData symbolTable locals true
-                do checkTypeEquivalence dataType funcType Position.Zero symbolTable locals
-                newLocals,normalizedData
+                let localsAfterGenerics = checkGenericTypeEquivalence dataType funcType Position.Zero symbolTable newLocals
+                localsAfterGenerics,normalizedData
           | _ -> failwith "Something went wrong with the function normalizer: the first element is not an id"
       | _ -> failwith "Something went wrong: the return argument of a premise is empty"
 
