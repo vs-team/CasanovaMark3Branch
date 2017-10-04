@@ -10,7 +10,7 @@ type LocalContext =
   {
     Variables                 : Map<Id,TypeDecl * Position>
     Generics                  : Map<Id,TypeDecl option>
-    GenericEquivalence        : Map<Id,List<Id>>
+    GenericEquivalence        : Map<Id,Set<Id>>
     NextGenericIndex          : int
   }
   with
@@ -24,27 +24,21 @@ type LocalContext =
     member this.SetGenericEquivalence (generic1 : Id) (generic2 : Id) =
       match Map.tryFind generic1 this.GenericEquivalence,Map.tryFind generic2 this.GenericEquivalence with
       | Some l1,Some l2 ->
-          { this with GenericEquivalence = this.GenericEquivalence |> Map.add generic1 (generic2 :: l1) |> Map.add generic2 (generic1 :: l2) }
+          { this with GenericEquivalence = this.GenericEquivalence |> Map.add generic1 (l1.Add(generic2)) |> Map.add generic2 (l2.Add(generic1)) }
       | Some l1, None ->
-          { this with GenericEquivalence = this.GenericEquivalence |> Map.add generic1 (generic2 :: l1) |> Map.add generic2 [generic1]  }
+          { this with GenericEquivalence = this.GenericEquivalence |> Map.add generic1 (l1.Add(generic2)) |> Map.add generic2 (Set.empty.Add(generic1))  }
       | None,Some l2 ->
-          { this with GenericEquivalence = this.GenericEquivalence |> Map.add generic1 [generic2] |> Map.add generic2 (generic1 :: l2)  }
+          { this with GenericEquivalence = this.GenericEquivalence |> Map.add generic1 (Set.empty.Add(generic2)) |> Map.add generic2 (l2.Add(generic1))  }
       | None,None ->
-          { this with GenericEquivalence = this.GenericEquivalence |> Map.add generic1 [generic2] |> Map.add generic2 [generic1]  }
+          { this with GenericEquivalence = this.GenericEquivalence |> Map.add generic1 (Set.empty.Add(generic2)) |> Map.add generic2 (Set.empty.Add(generic1))  }
     member this.IsGeneric (generic : Id) =
       match this.Generics.TryFind(generic) with
       | Some k -> true
       | None -> false
     member this.AddGenericWithOptionalType (generic : Id) (optType : TypeDecl option) =
-      if this.IsGeneric generic then
-        let genericName,newGenericIndex =
-          generic.Name + (string this.NextGenericIndex),this.NextGenericIndex + 1
-        { 
-          this with 
-            Generics = this.Generics.Add({ Name = genericName; Namespace = generic.Namespace },optType)
-            NextGenericIndex = newGenericIndex
-        }
-      else
+      match this.Generics.TryFind(generic) with
+      | Some _ -> this
+      | None ->
         { this with Generics = this.Generics.Add({ Name = generic.Name; Namespace = generic.Namespace },optType) }
     member this.AddGenerics (l : List<Id>) =
       l |>

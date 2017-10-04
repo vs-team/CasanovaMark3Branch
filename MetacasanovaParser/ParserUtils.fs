@@ -136,27 +136,29 @@ let processParsedArgs (parsedArgs : TypeDeclOrName list) (retType : TypeDecl) (r
 
 let insertNamespaceAndFileName (program : Program) (fileName : string) : Program =  
   let nameSpace,imports,parsedProgram = program.Namespace,program.Imports,program.Program
-  let rec processTypeDecl (t : TypeDecl) =
+  let rec processTypeDecl (g : List<Id>) (i : int) (t : TypeDecl) =
     match t with
-    | Arrow(left,right,n) -> Arrow(processTypeDecl left,processTypeDecl right,n)
-    | Arg(arg,gen) -> Arg((processArg arg), gen |> List.map processTypeDecl)
+    | Arrow(left,right,n) -> Arrow(processTypeDecl g i left,processTypeDecl g i right,n)
+    | Arg(arg,gen) -> 
+        Arg((processArg g i arg), gen |> List.map (processTypeDecl g i))
     | External(s,pos) -> External(s,{ pos with File = fileName })
     | Zero -> Zero
 
-  and processSymbolDecl (decl : SymbolDeclaration) =
+  and processSymbolDecl (decl : SymbolDeclaration) (i : int) =
     {
       decl with
         Name = { decl.Name with Namespace = nameSpace }
-        FullType = processTypeDecl decl.FullType
-        Args = processTypeDecl decl.Args
-        Return = processTypeDecl decl.Return
+        FullType = processTypeDecl decl.Generics i decl.FullType
+        Args = processTypeDecl decl.Generics i decl.Args
+        Return = processTypeDecl decl.Generics i decl.Return
         Position = { decl.Position with File = fileName }
         Premises = decl.Premises |> List.map processPremise
-        Generics = decl.Generics |> List.map (fun id -> { id with Namespace = nameSpace })
+        Generics = decl.Generics |> List.map (fun id -> { id with 
+                                                            Name = id.Name + (string i) 
+                                                            Namespace = nameSpace })
     }
   
-  and processArg =
-    fun arg ->
+  and processArg g i arg =
       match arg with
       | Literal(l,p) -> Literal(l, { p with File = fileName })
       | Id(id,p) -> 
@@ -165,12 +167,16 @@ let insertNamespaceAndFileName (program : Program) (fileName : string) : Program
           | Some native ->
               Id({ id with Namespace = systemNamespace },{ p with File = fileName })
           | None ->
-              Id({ id with Namespace = nameSpace },{ p with File = fileName })
-      | NestedExpression(expr) -> NestedExpression(expr |> List.map processArg)
+              if g |> List.contains(id) then
+                Id({ id with Name = id.Name + (string i); Namespace = nameSpace },{ p with File = fileName })
+              else
+                Id({ id with Namespace = nameSpace },{ p with File = fileName })
+      | NestedExpression(expr) -> NestedExpression(expr |> List.map (processArg g i))
       | _ -> failwith "Lambdas not parsed yet"
+  
   and processArgs left right =
-    let processedLeft = left |> List.map processArg
-    let processedRight = right |> List.map processArg
+    let processedLeft = left |> List.map (processArg [] 0)
+    let processedRight = right |> List.map (processArg [] 0)
     processedLeft,processedRight
 
   and processExpr (expr : ArithExpr) =
@@ -181,7 +187,7 @@ let insertNamespaceAndFileName (program : Program) (fileName : string) : Program
     | Div(left,right) -> Div (processExpr left,processExpr right)
     | Mod(left,right) -> Mod (processExpr left,processExpr right)
     | Nested(expr) -> Nested(processExpr expr)
-    | Value arg -> Value (processArg arg)
+    | Value arg -> Value (processArg [] 0 arg)
   and processPremise (p : Premise) =
     match p with
     | Emit(args,res,position) ->
@@ -190,21 +196,23 @@ let insertNamespaceAndFileName (program : Program) (fileName : string) : Program
         Arithmetic(processExpr expr,{ res with Namespace = nameSpace },{ position with File = fileName })
     | FunctionCall(left,right) ->                
         FunctionCall(processArgs left right)
-    | Bind(id,pos,arg) -> Bind({ id with Namespace = nameSpace },{ pos with File = fileName },processArg arg)
+    | Bind(id,pos,arg) -> Bind({ id with Namespace = nameSpace },{ pos with File = fileName },processArg [] 0 arg)
     | Conditional(left,c,right) ->
-        Conditional(processArg left,c,processArg right)
+        Conditional(processArg [] 0 left,c,processArg [] 0 right)
   let processConclusion (c : Conclusion) =
     match c with
     | ValueOutput(left,right) -> ValueOutput(processArgs left right)
     | _ -> failwith "Modules not supported yet"
 
   let processedDeclarations =
-    parsedProgram.Declarations |> List.map (fun d -> 
-                                              match d with
-                                              | Data(decl) -> Data(processSymbolDecl decl)
-                                              | Func(decl) -> Func(processSymbolDecl decl)
-                                              | TypeFunc(decl) -> TypeFunc(processSymbolDecl decl)
-                                              | TypeAlias(decl) -> TypeAlias(processSymbolDecl decl))
+    parsedProgram.Declarations |> 
+    List.mapi (fun i x -> (i,x)) |>
+    List.map (fun (i,d) -> 
+                match d with
+                | Data(decl) -> Data(processSymbolDecl decl i)
+                | Func(decl) -> Func(processSymbolDecl decl i)
+                | TypeFunc(decl) -> TypeFunc(processSymbolDecl decl i)
+                | TypeAlias(decl) -> TypeAlias(processSymbolDecl decl i))
   let processedRules =
     parsedProgram.Rules |> 
     List.map(fun r ->
@@ -215,7 +223,7 @@ let insertNamespaceAndFileName (program : Program) (fileName : string) : Program
     parsedProgram.Subtyping |>
     List.map(fun (lt,rt) -> 
               match lt,rt with
-              | Arg(leftArg,[]),Arg(rightArg,[]) -> Arg(processArg leftArg,[]),Arg(processArg rightArg,[])
+              | Arg(leftArg,[]),Arg(rightArg,[]) -> Arg(processArg [] 0 leftArg,[]),Arg(processArg [] 0 rightArg,[])
               | _ -> failwith "Something went wrong while parsing the subtypes")
   
   { Namespace = nameSpace;Imports = imports;Program = { Declarations = processedDeclarations; Rules = processedRules; Subtyping = processedSubTypes} }
