@@ -118,7 +118,7 @@ genericTypeDef:
 
 typeDeclaration:
 | LBRACKET lambdaTypeDeclaration RBRACKET { $2 }
-| EMIT { External(fst $1, Position.Create(snd $1,"")) }
+| EMIT { External(processExternals (fst $1), Position.Create(snd $1,"")) }
 | ID genericTypeDef { Arg(Id({ Namespace = ""; Name = fst $1 },Position.Create(snd $1,"")),$2) }
 | error { reportErrorAtPos "Invalid type name" parseState 1 }
 

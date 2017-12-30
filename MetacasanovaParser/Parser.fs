@@ -975,7 +975,7 @@ let _fsyacc_reductions ()  =    [|
                 (
                    (
 # 121 "Parser.fsy"
-                              External(fst _1, Position.Create(snd _1,"")) 
+                              External(processExternals (fst _1), Position.Create(snd _1,"")) 
                    )
 # 121 "Parser.fsy"
                  : 'typeDeclaration));

@@ -20,6 +20,11 @@ let reportErrorAtPos (error : string) (parseState : IParseState) (i : int) =
 
 let genericNamespace = "__generic"
 
+let processExternals (externalType : string) =
+  externalType.ToCharArray() |>
+  Array.filter(fun c -> c <> ' ') |>
+  Array.fold(fun s x -> s + (string x)) ""
+
 let decomposeLiteral (arg : CallArg) =
   match arg with
   | Literal (l,_) -> l

@@ -2,8 +2,8 @@
 
 Value is Expr
 
-Data "$i" -> <<int>> : Value Priority 5
-Data "$f" -> float : Value Priority 5
+Data "$i" -> << int >> : Value Priority 5
+Data "$f" -> << float >> : Value Priority 5
 Data Value -> "+" -> Value : Expr
 Func "eval" -> Expr : Value
 Func "start" : int
