@@ -27,13 +27,13 @@ let parseFile (fileName : string) =
 [<EntryPoint>]
 let main argv =
 //  try
-    let fileName = @"Content\Test\genericTest.mc"
+    let fileName = @"Content\Test\expressions.mc"
     let outputFileName = @"Content\Test\codeGeneration.cs"
     let parsedAST = parseFile fileName
     let typedProgram = checkProgram parsedAST
-//    let codeGenerationTest = emitProgram typedTest
-//    printfn "Type checking successful!"
-//    File.WriteAllText(outputFileName, sprintf "%s" codeGenerationTest.Code)
+    printfn "Type checking successful!"
+    let codeGenerationTest = emitProgram typedProgram
+    File.WriteAllText(outputFileName, sprintf "%s" codeGenerationTest.Code)
     0
 //  with
 //  | TypeError(msg) -> 

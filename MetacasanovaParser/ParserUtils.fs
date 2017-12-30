@@ -50,6 +50,7 @@ let rec combineArgsAndRet args ret =
       | Arg _
       | _ ->
           Arrow(left,combineArgsAndRet right ret,false)
+  | External _ 
   | Zero
   | Arg _ -> Arrow(args,ret,false)
 

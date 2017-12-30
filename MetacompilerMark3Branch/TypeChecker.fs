@@ -377,8 +377,8 @@ let rec checkGenericTypeEquivalence (t1 : TypeDecl) (t2 : TypeDecl) (p : Positio
         let newGenerics = locals.Generics.Add(genericId,Some nonGeneric)
         { locals with Generics = newGenerics }
   match t1,t2 with
-  | Unsafe _,_
-  | _,Unsafe _ ->
+  | External _,_
+  | _,External _ ->
     do checkTypeEquivalence t1 t2 p ctxt locals
     locals
   | Arg(Id(id1,_),[]),Arg(Id(id2,_),[]) ->
@@ -427,6 +427,7 @@ let rec checkGenericTypeEquivalence (t1 : TypeDecl) (t2 : TypeDecl) (p : Positio
                    | External _,_
                    | _,External _ -> newLocals
                    | _ -> failwith "Something went wrong with the parser: generic arguments are not variables" ) locals genericArgs1 genericArgs2
+  
   | _ -> failwith "Something went wrong: the type definition has an invalid structure"
 
 let getLocalType id locals p =

@@ -173,7 +173,7 @@ let rec emitStructuralCheck (ctxt : CodeGenerationCtxt) (pattern : List<CallArg>
                   | None ->
                       match newCtxt.Program.SymbolTable.DataTable.TryFind(id) with
                       | Some _ ->
-                          i + 1,emitStructuralCheck newCtxt [NestedExpression(pattern)]
+                          i + 1,emitStructuralCheck newCtxt [NestedExpression([arg])]
                       | None ->
                           let varCopyCode =
                             sprintf "%s%s = %s__arg%d;\n"
