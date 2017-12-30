@@ -751,7 +751,6 @@ and checkPremise (premise : Premise) (symbolTable : SymbolContext) (locals : Loc
               let literalType = getLiteralType l
               let dataType,_ = checkSingleArg (NestedExpression(expr)) symbolTable literalType locals false
               locals,premise
-          // Add the case of the comparison of two nested expressions
           | _ -> failwith "Equality case not implemented yet"
       | Less
       | LessEqual

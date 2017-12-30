@@ -199,7 +199,7 @@ let rec emitStructuralCheck (ctxt : CodeGenerationCtxt) (pattern : List<CallArg>
                   let ctxtWithDataTemp = newCtxt.AddTemp
                   let ctxtWithDataTemp = { ctxtWithDataTemp with CurrentDataTemp = newCtxt.TempIndex }
                   let castCode =
-                    sprintf "%s%s.%s %s = (%s.%s)%s__arg%d"
+                    sprintf "%s%s.%s %s = (%s.%s)%s__arg%d;\n"
                       tabs
                       id.Namespace
                       (renameOperator id.Name)
@@ -222,11 +222,17 @@ let emitRuleCase (ctxt : CodeGenerationCtxt) =
   let localVarsCode =
     tr.Locals.Variables |>
     Map.fold (fun code id (decl,_) ->
-                sprintf "%s%s %s = default(%s);\n"
+                let typeName = getTypeFullName decl
+                let _default =
+                  match decl with
+                  | External _
+                  | Unsafe -> ";\n"
+                  | _ -> sprintf " = default(%s);\n" typeName
+                sprintf "%s%s %s%s"
                   caseBodyTabs
-                  (getTypeFullName decl)
+                  typeName
                   id.Name
-                  (getTypeFullName decl)) ""
+                  _default) ""
   let structuralCheckCtxt =
     emitStructuralCheck { ctxt with CurrentTabs = ctxt.CurrentTabs + 2; Code = "" } left
   let caseCode =
@@ -335,7 +341,7 @@ let emitProgram (program : TypedProgramDefinition) =
   let ctxtWithInterfaces = emitDataInterfaces startingCtxt
   let ctxtWithDataClasses = emitDataClasses ctxtWithInterfaces
   let ctxtWithFunctionClasses = emitFunctionClasses ctxtWithDataClasses
-  { startingCtxt with Code = startingCtxt.Code + (emitDataInterfaces startingCtxt).Code }
+  { startingCtxt with Code = startingCtxt.Code + (ctxtWithFunctionClasses.Code)}
   
   
 

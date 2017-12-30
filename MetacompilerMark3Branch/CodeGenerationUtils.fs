@@ -17,6 +17,8 @@ let getTypeSimpleName (t : TypeDecl) =
 
 let getTypeFullName (t : TypeDecl) =
   match t with
+  | External(s,_) -> s
+  | Unsafe -> "var"
   | Arg(Id(id,_),_) -> 
       if (id.Namespace = systemNamespace) then id.Name
       else (string id)
@@ -32,6 +34,7 @@ let rec extractTypeNamesFromTypeDecl (_type : TypeDecl) (nameFunction : TypeDecl
   | Arrow(left,right,_) ->
       (string left) :: (extractTypeNamesFromTypeDecl right nameFunction)
   | Arg _ -> [nameFunction _type]
+  | External(s,_) -> [s]
   | Zero -> []
 
 
