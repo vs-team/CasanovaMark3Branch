@@ -221,11 +221,66 @@ let rec emitStructuralCheck (ctxt : CodeGenerationCtxt) (pattern : List<CallArg>
                   let argumentStructuralCtxt = emitStructuralCheck { newCtxt with CurrentDataTemp = ctxtWithDataTemp.TempIndex} (dataName :: args)
                   i + 1,{ argumentStructuralCtxt with Code = newCtxt.Code + checkCode + castCode + argumentStructuralCtxt.Code }) (0,ctxt) |> snd
 
+let rec copySingleArgument (ctxt : CodeGenerationCtxt) (currentTemp : int) (arg : CallArg) (argIndex : int) =
+  let tabs = emitTabs ctxt.CurrentTabs
+  match arg with
+  | Literal(l,_) ->
+      let code = 
+        sprintf "%s__tmp%d.__arg%d = %s;\n"
+          tabs
+          currentTemp
+          argIndex
+          (string l)
+      { ctxt with Code = ctxt.Code + code }
+  | Id(id,_) ->
+      match ctxt.Program.SymbolTable.DataTable |> Map.tryFind(id) with
+      | Some dataDecl -> //data structure with no arguments
+        let code =
+          sprintf "%s__tmp%d.__arg%d = new %s();\n"
+            tabs
+            currentTemp
+            argIndex
+            (getSymbolFullName dataDecl)
+        { ctxt with Code = ctxt.Code + code }
+      | None ->  
+        let code =
+          sprintf "%s__tmp%d.__arg%d = %s;\n"
+            tabs
+            currentTemp
+            argIndex
+            id.Name
+        { ctxt with Code = ctxt.Code + code }
+  | NestedExpression(expr) ->
+      //generate the temp for the data structure
+      let ctxt = ctxt.AddTemp
+      let ctxt = { ctxt with CurrentDataTemp = ctxt.TempIndex }
+      let (Id(dName,_)) = expr.Head
+      let decl = ctxt.Program.SymbolTable.DataTable.[dName]
+      let dataTempCode =
+        sprintf "%s%s__tmp%d = new %s();\n"
+          tabs
+          (getSymbolFullName decl)
+          currentTemp
+          (getSymbolFullName decl)
+      let ctxt = { ctxt with Code = ctxt.Code + dataTempCode }
+      let ctxt =
+        expr.Tail |>
+        List.fold(fun (i,newCtxt) arg ->
+                       i + 1,copySingleArgument newCtxt ctxt.CurrentDataTemp arg i) (0,ctxt) |> snd
+      let code =
+        sprintf "%s__tmp%d.__arg%d = __tmp%d;\n"
+          tabs
+          currentTemp
+          argIndex
+          ctxt.CurrentDataTemp
+      { ctxt with Code = ctxt.Code + code }
+
 //FUNCTION CALL GENERATION: we have to instantiate the class representing the function. We then copy one by one the arguments of the call
 //in the fields of the class representing the function parameters. In the case of a variable or literal, the copy is immediate. In the case
 //of a NestedExpression or meta-data with no argument we must also instantiate it and then copy it in the argument field. This process can be
 //recursive since the argument of the meta-data can be meta-data themselves.
 let emitFunctionCall (ctxt : CodeGenerationCtxt) (callArgs : CallArg list) =
+  let tabs = emitTabs ctxt.CurrentTabs
   let (Id(fName,_)) = callArgs.Head
   let functionArgs = callArgs.Tail
   let fDecl = ctxt.Program.SymbolTable.FuncTable.[fName]
@@ -234,23 +289,34 @@ let emitFunctionCall (ctxt : CodeGenerationCtxt) (callArgs : CallArg list) =
   let ctxt = { ctxt with CurrentFuncTemp = ctxt.TempIndex }
   let instantiationCode =
     let className = getSymbolFullName fDecl
-    sprintf "%s %s = new %s();\n"
+    sprintf "%s%s %s = new %s();\n"
+      tabs
       className
       ctxt.CurrentTempCode
       className
   let ctxt = { ctxt with Code = ctxt.Code + instantiationCode }
-  ctxt
+  functionArgs |>
+  List.fold(fun (i,newCtxt) arg ->
+              i + 1,copySingleArgument newCtxt ctxt.CurrentFuncTemp arg i) (0,ctxt) |> snd
 
-//let copyFunctionArgument (ctxt : CodeGenerationCtxt) (arg : CallArg) (argIndex : int) =
-//  match arg with
-//  | Literal(l,_) ->
-//      let code = sprintf "__tmp%d.__arg%d = "
+
+let emitExternalCall (ctxt : CodeGenerationCtxt) (code : string) (id : Id) =
+  let tabs = emitTabs ctxt.CurrentTabs
+  let code = 
+    sprintf "var %s = %s;\n"
+      id.Name
+      code
+  { ctxt with Code = ctxt.Code + code }
+          
+      
+
 
 let emitPremises (ctxt : CodeGenerationCtxt) (premises : Premise list) =
   premises |>
   List.fold (fun newCtxt p ->
                 match p with
-                | FunctionCall call -> emitFunctionCall newCtxt (fst call)) ctxt
+                | FunctionCall call -> emitFunctionCall newCtxt (fst call)
+                | Emit(code,id,_) -> emitExternalCall ctxt code id) ctxt
   
 
 
