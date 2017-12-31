@@ -37,4 +37,7 @@ let rec extractTypeNamesFromTypeDecl (_type : TypeDecl) (nameFunction : TypeDecl
   | External(s,_) -> [s]
   | Zero -> []
 
+let getSymbolFullName (decl : SymbolDeclaration) =
+  (decl.Name.Namespace) + "." + (renameOperator decl.Name.Name)
+
 

@@ -26,6 +26,7 @@ type CodeGenerationCtxt =
     CurrentFuncId             : Id //used
     RulesMatchingFunction     : int //used
     CurrentDataTemp           : int
+    CurrentFuncTemp           : int //used
   }
   static member Init(program : TypedProgramDefinition) = 
     {
@@ -40,6 +41,7 @@ type CodeGenerationCtxt =
       CurrentFuncId = { Name = ""; Namespace = "" } 
       RulesMatchingFunction = 0
       CurrentDataTemp = -1
+      CurrentFuncTemp = -1
     }
   member this.DataTemp = if this.CurrentDataTemp = -1 then "" else (this.TempName this.CurrentDataTemp) + "."
   member this.TempName index = "__tmp" + (string index)
@@ -54,6 +56,14 @@ type CodeGenerationCtxt =
 //  member this.TempDottedPath = if this.GeneratedTemps.Length = 0 then "" else this.LastTempCode//this.GeneratedTemps |> List.reduce(fun temp1 temp2 -> temp1 + "." + temp2)
   member this.ResetArgs = { this with ArgIndex = 0 }
   member this.AddCode (code : string) = { this with Code = this.Code + code }
+  member this.CopyTemp (ctxt : CodeGenerationCtxt) =
+    { 
+      this with
+        GeneratedTemps = ctxt.GeneratedTemps
+        CurrentDataTemp = ctxt.CurrentDataTemp
+        CurrentFuncTemp = ctxt.CurrentFuncTemp
+        TempIndex = ctxt.TempIndex
+    }
 
 let rec emitTabs tabs =
    if tabs = 0 then
@@ -211,13 +221,44 @@ let rec emitStructuralCheck (ctxt : CodeGenerationCtxt) (pattern : List<CallArg>
                   let argumentStructuralCtxt = emitStructuralCheck { newCtxt with CurrentDataTemp = ctxtWithDataTemp.TempIndex} (dataName :: args)
                   i + 1,{ argumentStructuralCtxt with Code = newCtxt.Code + checkCode + castCode + argumentStructuralCtxt.Code }) (0,ctxt) |> snd
 
+//FUNCTION CALL GENERATION: we have to instantiate the class representing the function. We then copy one by one the arguments of the call
+//in the fields of the class representing the function parameters. In the case of a variable or literal, the copy is immediate. In the case
+//of a NestedExpression or meta-data with no argument we must also instantiate it and then copy it in the argument field. This process can be
+//recursive since the argument of the meta-data can be meta-data themselves.
+let emitFunctionCall (ctxt : CodeGenerationCtxt) (callArgs : CallArg list) =
+  let (Id(fName,_)) = callArgs.Head
+  let functionArgs = callArgs.Tail
+  let fDecl = ctxt.Program.SymbolTable.FuncTable.[fName]
+  //instantiate the object for the function
+  let ctxt = ctxt.AddTemp
+  let ctxt = { ctxt with CurrentFuncTemp = ctxt.TempIndex }
+  let instantiationCode =
+    let className = getSymbolFullName fDecl
+    sprintf "%s %s = new %s();\n"
+      className
+      ctxt.CurrentTempCode
+      className
+  let ctxt = { ctxt with Code = ctxt.Code + instantiationCode }
+  ctxt
+
+//let copyFunctionArgument (ctxt : CodeGenerationCtxt) (arg : CallArg) (argIndex : int) =
+//  match arg with
+//  | Literal(l,_) ->
+//      let code = sprintf "__tmp%d.__arg%d = "
+
+let emitPremises (ctxt : CodeGenerationCtxt) (premises : Premise list) =
+  premises |>
+  List.fold (fun newCtxt p ->
+                match p with
+                | FunctionCall call -> emitFunctionCall newCtxt (fst call)) ctxt
+  
+
 
 //Each case of a rule declares a set of local variables corresponding to the local variables of the rule
-let emitRuleCase (ctxt : CodeGenerationCtxt) =
+let emitRuleCase (ctxt : CodeGenerationCtxt) (tr : TypedRule) =
   let tabs = emitTabs ctxt.CurrentTabs
   let caseTabs = emitTabs (ctxt.CurrentTabs + 1)
   let caseBodyTabs = emitTabs (ctxt.CurrentTabs + 2)
-  let (TypedRule(tr)) = ctxt.Program.TypedRules.[ctxt.RuleIndex]
   let (ValueOutput(left,right)) = tr.Conclusion
   let localVarsCode =
     tr.Locals.Variables |>
@@ -235,6 +276,7 @@ let emitRuleCase (ctxt : CodeGenerationCtxt) =
                   _default) ""
   let structuralCheckCtxt =
     emitStructuralCheck { ctxt with CurrentTabs = ctxt.CurrentTabs + 2; Code = "" } left
+  let premisesCtxt = emitPremises structuralCheckCtxt tr.Premises
   let caseCode =
     sprintf "%scase %d:\n%s{\n%s%s%sbreak;\n%s}\n"
       tabs
@@ -256,7 +298,7 @@ let emitRulesCode (ctxt : CodeGenerationCtxt) =
     List.filter(fun rule ->
                   match rule with
                   | TypedRule(tr) ->
-                      //The parser should ensure that the output of a rule is always a value and not a module.
+                      //The parser should ensure that the output of a typed rule is always a value and not a module.
                       let (ValueOutput(args,_)) = tr.Conclusion
                       args |> List.exists(fun arg ->
                                               match arg with
@@ -266,11 +308,12 @@ let emitRulesCode (ctxt : CodeGenerationCtxt) =
   let casesCode =
     rulesCallingCurrentFunction |>
     List.fold(fun (i,newCtxt) rule ->
+                let (TypedRule(tr)) = rule
                 i + 1,
                 emitRuleCase 
                   { newCtxt with
                       CurrentTabs = ctxt.CurrentTabs + 1 
-                      RuleIndex = i}) (0,{ ctxt with RulesMatchingFunction = rulesCallingCurrentFunction.Length }) |> snd
+                      RuleIndex = i} tr) (0,{ ctxt with RulesMatchingFunction = rulesCallingCurrentFunction.Length }) |> snd
   let switchCode =
     sprintf "%sswitch (__ruleIndex)\n%s{\n%s%s}"
       tabs
