@@ -14,7 +14,7 @@ open ParserUtils
 %token <float * (int * int)> FLOAT
 %token <string * (int * int)> STRING
 %token <System.String * (int * int)> ID
-%token <System.String * (int * int)> CUSTOMOPERATOR
+%token <System.String * (int * int)> CUSTOMOPERATOR 
 %token <(int * int)> UNIT
 %token <string * (int * int)> EMIT
 %token <System.Int32 * System.Int32> ARROW DARROW EQUAL

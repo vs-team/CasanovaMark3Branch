@@ -45,7 +45,7 @@ type CodeGenerationCtxt =
     }
   member this.DataTemp = if this.CurrentDataTemp = -1 then "" else (this.TempName this.CurrentDataTemp) + "."
   member this.TempName index = "__tmp" + (string index)
-  member this.LastTempCode = if (this.TempIndex -  1) < 0 then "" else (this.TempName (this.TempIndex - 1))
+  member this.LastTempCode = if (this.TempIndex) < 0 then "" else (this.TempName (this.TempIndex))
   member this.CurrentTempCode = this.TempName this.TempIndex
   member this.AddTemp =
     let newIndex = this.TempIndex + 1 
@@ -100,7 +100,7 @@ let emitDataInterfaces (ctxt : CodeGenerationCtxt) =
                 match ctxt.Program.SymbolTable.Subtyping |> Map.tryFindKey(fun k _ -> k === decl.Return) with
                 | None ->                  
                       { newCtxt with 
-                          Code = newCtxt.Code + (sprintf "%spublic interface %s{ }\n" tabs typeCode)
+                          Code = newCtxt.Code + (sprintf "%spublic interface %s { }\n" tabs typeCode)
                           GeneratedInterfaces = typeCode :: newCtxt.GeneratedInterfaces }
                 | Some _type ->
                     let subtypes = ctxt.Program.SymbolTable.Subtyping.[_type]
@@ -109,7 +109,7 @@ let emitDataInterfaces (ctxt : CodeGenerationCtxt) =
                       List.map(fun decl -> getTypeSimpleName decl) |>
                       List.reduce(fun x y -> x + ", " + y)
                     let interfaceString =
-                      sprintf "%spublic interface %s{ } : %s\n" tabs (getTypeSimpleName decl.Return) subtypesString
+                      sprintf "%spublic interface %s : %s { }\n" tabs (getTypeSimpleName decl.Return) subtypesString
                     { newCtxt with 
                         Code = newCtxt.Code + interfaceString 
                         GeneratedInterfaces = typeCode :: newCtxt.GeneratedInterfaces}) ctxt
@@ -140,7 +140,7 @@ let emitDataClasses (ctxt : CodeGenerationCtxt) =
                   List.fold(fun code i -> code + (sprintf " + \" \" + %s" i)) ""
                 sprintf "%s%s{\n%sreturn \"(\" + __name %s + \")\";\n%s}\n" methodName classTabs methodTabs argNames classTabs
             let classCode =
-              sprintf "%spublic class %s : %s \n%s{\n%spublic string name = \"%s\";\n%s%s%s}\n" 
+              sprintf "%spublic class %s : %s \n%s{\n%spublic string __name = \"%s\";\n%s%s%s}\n" 
                 tabs 
                 (renameOperator decl.Name.Name)
                 (getTypeSimpleName decl.Return)
@@ -381,10 +381,11 @@ let emitRulesCode (ctxt : CodeGenerationCtxt) =
                       CurrentTabs = ctxt.CurrentTabs + 1 
                       RuleIndex = i} tr) (0,{ ctxt with RulesMatchingFunction = rulesCallingCurrentFunction.Length }) |> snd
   let switchCode =
-    sprintf "%sswitch (__ruleIndex)\n%s{\n%s%s}"
+    sprintf "%sswitch (__ruleIndex)\n%s{\n%s%sdefault: { break; }\n%s}"
       tabs
       tabs
       casesCode.Code
+      (emitTabs (ctxt.CurrentTabs + 1))
       tabs
   ctxt.AddCode(switchCode)
 
@@ -399,7 +400,7 @@ let emitRunMethod (ctxt : CodeGenerationCtxt) =
           Code = ""
           CurrentTabs = ctxt.CurrentTabs + 1 }
   let runCode =
-    sprintf "%spublic void Run()\n%s{\n%sint __ruleIndex = 0;\n%sres = new %s<%s>();\n%s__res.Value = default(%s);\n%s__res.HasValue = false;\n%s\n%s}\n"
+    sprintf "%spublic void Run()\n%s{\n%sint __ruleIndex = 0;\n%s__res = new %s<%s>();\n%s__res.Value = default(%s);\n%s__res.HasValue = false;\n%s\n%s}\n"
       tabs
       tabs
       methodTabs
@@ -445,12 +446,32 @@ let emitFunctionClasses (ctxt : CodeGenerationCtxt) =
                   tabs
               newCtxt.AddCode classCode) ctxt
 
+
+let emitInternals (ctxt : CodeGenerationCtxt) =
+  let tabs = emitTabs 1
+  let resultStruct =
+    sprintf "%spublic struct %s<T>\n%s{\n%spublic bool HasValue;\n%spublic T Value;\n%s}"
+      tabs
+      resultStruct
+      tabs
+      (emitTabs 2)
+      (emitTabs 2)
+      tabs
+  { ctxt with 
+      Code =
+        sprintf "namespace %s\n{\n%s\n%s\n}"
+          ctxt.Program.Module
+          resultStruct
+          ctxt.Code
+  }
+
 let emitProgram (program : TypedProgramDefinition) = 
   let startingCtxt = CodeGenerationCtxt.Init(program)
-  let ctxtWithInterfaces = emitDataInterfaces startingCtxt
+  let ctxtWithInterfaces = emitDataInterfaces { startingCtxt with CurrentTabs = 1 }
   let ctxtWithDataClasses = emitDataClasses ctxtWithInterfaces
   let ctxtWithFunctionClasses = emitFunctionClasses ctxtWithDataClasses
-  { startingCtxt with Code = startingCtxt.Code + (ctxtWithFunctionClasses.Code)}
+  let finalCtxt = emitInternals ctxtWithFunctionClasses
+  finalCtxt
   
   
 
