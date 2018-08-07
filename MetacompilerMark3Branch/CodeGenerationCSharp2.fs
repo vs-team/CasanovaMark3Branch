@@ -25,8 +25,8 @@ type CodeGenerationCtxt =
     CurrentRuleRetType        : TypeDecl //used
     CurrentFuncId             : Id //used
     RulesMatchingFunction     : int //used
-    CurrentDataTemp           : int
-    CurrentFuncTemp           : int //used
+    CurrentDataTemp           : string //used
+    CurrentFuncTemp           : string //used
   }
   static member Init(program : TypedProgramDefinition) = 
     {
@@ -40,13 +40,12 @@ type CodeGenerationCtxt =
       CurrentRuleRetType = Zero
       CurrentFuncId = { Name = ""; Namespace = "" } 
       RulesMatchingFunction = 0
-      CurrentDataTemp = -1
-      CurrentFuncTemp = -1
+      CurrentDataTemp = ""
+      CurrentFuncTemp = ""
     }
-  member this.DataTemp = if this.CurrentDataTemp = -1 then "" else (this.TempName this.CurrentDataTemp) + "."
-  member this.TempName index = "__tmp" + (string index)
-  member this.LastTempCode = if (this.TempIndex) < 0 then "" else (this.TempName (this.TempIndex))
-  member this.CurrentTempCode = this.TempName this.TempIndex
+  static member TempName index = "__tmp" + (string index)
+  member this.LastTempCode = if this.TempIndex - 1 < 0 then "" else CodeGenerationCtxt.TempName (this.TempIndex - 1)
+  member this.CurrentTempCode = if this.TempIndex < 0 then "" else CodeGenerationCtxt.TempName this.TempIndex
   member this.AddTemp =
     let newIndex = this.TempIndex + 1 
     { this with 
@@ -83,6 +82,9 @@ let emitGotoNextRule (ctxt : CodeGenerationCtxt) =
     "goto default;"
   else
     sprintf "goto case %d;" (ctxt.RuleIndex + 1)
+
+let getDataAccessor (temp : string) (argIndex : int) =
+  if temp = "" then sprintf "__arg%d" argIndex else sprintf "%s.__arg%d" temp argIndex
 
 
 //[[Data "dataName" -> ... : Metatype1]]
@@ -165,9 +167,9 @@ let rec emitStructuralCheck (ctxt : CodeGenerationCtxt) (pattern : List<CallArg>
               match arg with
               | Literal(l,_) ->
                   let checkCode =
-                      sprintf "%sif(__arg%d != %s)\n%s{\n%s%s;\n%s}"
+                      sprintf "%sif(%s != %s)\n%s{\n%s%s\n%s}\n"
                         tabs
-                        i
+                        (getDataAccessor newCtxt.CurrentDataTemp i)
                         (string l)
                         tabs
                         ifBodyTabs
@@ -186,19 +188,17 @@ let rec emitStructuralCheck (ctxt : CodeGenerationCtxt) (pattern : List<CallArg>
                           i + 1,emitStructuralCheck newCtxt [NestedExpression([arg])]
                       | None ->
                           let varCopyCode =
-                            sprintf "%s%s = %s__arg%d;\n"
+                            sprintf "%s%s = %s;\n"
                               tabs
                               id.Name
-                              newCtxt.DataTemp
-                              i
+                              (getDataAccessor ctxt.CurrentDataTemp i)
                           i + 1,{ newCtxt with Code = newCtxt.Code + varCopyCode }
               | NestedExpression(dataName :: args) ->
                   let (Id(id,_)) = dataName
                   let checkCode =
-                    sprintf "%sif (!(%s__arg%d is %s.%s))\n%s{\n%s%s\n%s}\n"
+                    sprintf "%sif (!(%s is %s.%s))\n%s{\n%s%s\n%s}\n"
                       tabs
-                      newCtxt.DataTemp
-                      i
+                      (getDataAccessor newCtxt.CurrentDataTemp i)
                       id.Namespace
                       (renameOperator id.Name)
                       tabs
@@ -207,73 +207,72 @@ let rec emitStructuralCheck (ctxt : CodeGenerationCtxt) (pattern : List<CallArg>
                       tabs
                   //data structures must be cast to a temporary variable to get their concrete type
                   let ctxtWithDataTemp = newCtxt.AddTemp
-                  let ctxtWithDataTemp = { ctxtWithDataTemp with CurrentDataTemp = newCtxt.TempIndex }
+                  let ctxtWithDataTemp = { ctxtWithDataTemp with CurrentDataTemp = ctxtWithDataTemp.CurrentTempCode }
                   let castCode =
-                    sprintf "%s%s.%s %s = (%s.%s)%s__arg%d;\n"
+                    sprintf "%s%s.%s %s = (%s.%s)%s;\n"
                       tabs
                       id.Namespace
                       (renameOperator id.Name)
-                      ctxtWithDataTemp.LastTempCode
+                      ctxtWithDataTemp.CurrentTempCode
                       id.Namespace
                       (renameOperator id.Name)
-                      newCtxt.DataTemp
-                      i
-                  let argumentStructuralCtxt = emitStructuralCheck { newCtxt with CurrentDataTemp = ctxtWithDataTemp.TempIndex} (dataName :: args)
-                  i + 1,{ argumentStructuralCtxt with Code = newCtxt.Code + checkCode + castCode + argumentStructuralCtxt.Code }) (0,ctxt) |> snd
+                      (getDataAccessor newCtxt.CurrentDataTemp i)
+                  let argumentStructuralCtxt = emitStructuralCheck { ctxtWithDataTemp with Code = "" } (dataName :: args)
+                  i + 1,{ argumentStructuralCtxt with
+                            CurrentDataTemp = newCtxt.CurrentDataTemp
+                            Code = newCtxt.Code + checkCode + castCode + argumentStructuralCtxt.Code }) (0,ctxt) |> snd
 
-let rec copySingleArgument (ctxt : CodeGenerationCtxt) (currentTemp : int) (arg : CallArg) (argIndex : int) =
+let rec copySingleArgument (ctxt : CodeGenerationCtxt) (arg : CallArg) (argIndex : int) =
   let tabs = emitTabs ctxt.CurrentTabs
   match arg with
   | Literal(l,_) ->
       let code = 
-        sprintf "%s__tmp%d.__arg%d = %s;\n"
+        sprintf "%s%s = %s;\n"
           tabs
-          currentTemp
-          argIndex
+          (getDataAccessor ctxt.CurrentTempCode argIndex)
           (string l)
       { ctxt with Code = ctxt.Code + code }
   | Id(id,_) ->
       match ctxt.Program.SymbolTable.DataTable |> Map.tryFind(id) with
       | Some dataDecl -> //data structure with no arguments
         let code =
-          sprintf "%s__tmp%d.__arg%d = new %s();\n"
+          sprintf "%s%s = new %s();\n"
             tabs
-            currentTemp
-            argIndex
+            (getDataAccessor ctxt.CurrentTempCode argIndex)
             (getSymbolFullName dataDecl)
         { ctxt with Code = ctxt.Code + code }
       | None ->  
         let code =
-          sprintf "%s__tmp%d.__arg%d = %s;\n"
+          sprintf "%s%s = %s;\n"
             tabs
-            currentTemp
-            argIndex
+            (getDataAccessor ctxt.CurrentTempCode argIndex)
             id.Name
         { ctxt with Code = ctxt.Code + code }
   | NestedExpression(expr) ->
       //generate the temp for the data structure
       let ctxt = ctxt.AddTemp
-      let ctxt = { ctxt with CurrentDataTemp = ctxt.TempIndex }
+      let ctxt = { ctxt with CurrentDataTemp = ctxt.CurrentTempCode }
       let (Id(dName,_)) = expr.Head
       let decl = ctxt.Program.SymbolTable.DataTable.[dName]
       let dataTempCode =
-        sprintf "%s%s__tmp%d = new %s();\n"
+        sprintf "%s%s %s = new %s();\n"
           tabs
           (getSymbolFullName decl)
-          currentTemp
+          ctxt.CurrentTempCode        
           (getSymbolFullName decl)
       let ctxt = { ctxt with Code = ctxt.Code + dataTempCode }
-      let ctxt =
+      let argCtxt =
         expr.Tail |>
         List.fold(fun (i,newCtxt) arg ->
-                       i + 1,copySingleArgument newCtxt ctxt.CurrentDataTemp arg i) (0,ctxt) |> snd
+                       i + 1,copySingleArgument newCtxt arg i) (0,{ ctxt with Code = "" }) |> snd
       let code =
-        sprintf "%s__tmp%d.__arg%d = __tmp%d;\n"
+        sprintf "%s%s = %s;\n%s%s.Run();\n"
           tabs
-          currentTemp
-          argIndex
+          (getDataAccessor ctxt.CurrentFuncTemp argIndex)
           ctxt.CurrentDataTemp
-      { ctxt with Code = ctxt.Code + code }
+          tabs
+          ctxt.CurrentFuncTemp
+      { ctxt with Code = ctxt.Code + argCtxt.Code + code }
 
 //FUNCTION CALL GENERATION: we have to instantiate the class representing the function. We then copy one by one the arguments of the call
 //in the fields of the class representing the function parameters. In the case of a variable or literal, the copy is immediate. In the case
@@ -286,7 +285,7 @@ let emitFunctionCall (ctxt : CodeGenerationCtxt) (callArgs : CallArg list) =
   let fDecl = ctxt.Program.SymbolTable.FuncTable.[fName]
   //instantiate the object for the function
   let ctxt = ctxt.AddTemp
-  let ctxt = { ctxt with CurrentFuncTemp = ctxt.TempIndex }
+  let ctxt = { ctxt with CurrentFuncTemp = ctxt.CurrentTempCode }
   let instantiationCode =
     let className = getSymbolFullName fDecl
     sprintf "%s%s %s = new %s();\n"
@@ -297,13 +296,14 @@ let emitFunctionCall (ctxt : CodeGenerationCtxt) (callArgs : CallArg list) =
   let ctxt = { ctxt with Code = ctxt.Code + instantiationCode }
   functionArgs |>
   List.fold(fun (i,newCtxt) arg ->
-              i + 1,copySingleArgument newCtxt ctxt.CurrentFuncTemp arg i) (0,ctxt) |> snd
+              i + 1,copySingleArgument newCtxt arg i) (0,ctxt) |> snd
 
 
 let emitExternalCall (ctxt : CodeGenerationCtxt) (code : string) (id : Id) =
   let tabs = emitTabs ctxt.CurrentTabs
   let code = 
-    sprintf "var %s = %s;\n"
+    sprintf "%svar %s = %s;\n"
+      tabs
       id.Name
       code
   { ctxt with Code = ctxt.Code + code }
@@ -316,7 +316,7 @@ let emitPremises (ctxt : CodeGenerationCtxt) (premises : Premise list) =
   List.fold (fun newCtxt p ->
                 match p with
                 | FunctionCall call -> emitFunctionCall newCtxt (fst call)
-                | Emit(code,id,_) -> emitExternalCall ctxt code id) ctxt
+                | Emit(code,id,_) -> emitExternalCall newCtxt code id) ctxt
   
 
 
@@ -335,21 +335,26 @@ let emitRuleCase (ctxt : CodeGenerationCtxt) (tr : TypedRule) =
                   | External _
                   | Unsafe -> ";\n"
                   | _ -> sprintf " = default(%s);\n" typeName
-                sprintf "%s%s %s%s"
-                  caseBodyTabs
-                  typeName
-                  id.Name
-                  _default) ""
+                match decl with
+                | Unsafe -> ""
+                | _ ->
+                    code + (
+                      sprintf "%s%s %s%s"
+                        caseBodyTabs
+                        typeName
+                        id.Name
+                        _default)) ""
   let structuralCheckCtxt =
     emitStructuralCheck { ctxt with CurrentTabs = ctxt.CurrentTabs + 2; Code = "" } left
-  let premisesCtxt = emitPremises structuralCheckCtxt tr.Premises
+  let premisesCtxt = emitPremises { structuralCheckCtxt with Code = "" } tr.Premises
   let caseCode =
-    sprintf "%scase %d:\n%s{\n%s%s%sbreak;\n%s}\n"
+    sprintf "%scase %d:\n%s{\n%s%s%s%sbreak;\n%s}\n"
       tabs
       ctxt.RuleIndex
       caseTabs
       localVarsCode
       structuralCheckCtxt.Code
+      premisesCtxt.Code
       caseBodyTabs
       caseTabs
   ctxt.AddCode caseCode

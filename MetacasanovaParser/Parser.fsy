@@ -7,7 +7,7 @@ open ParserUtils
 
 %}
 
-%start start
+%start start 
 
 // Regular tokens
 %token <int * (int * int)> INT
@@ -134,6 +134,14 @@ customOperator:
 | RASSOC { Id({ Namespace = ""; Name = fst $1 },Position.Create(snd $1,"")) }
 | CUSTOMOPERATOR { Id({ Namespace = ""; Name = fst $1 },Position.Create(snd $1,"")) }
 
+subtype: 
+| ID IS ID newLineSeq { Arg(Id( { Namespace = ""; Name = fst $1  },Position.Create(snd $1,"")),[]),Arg(Id({ Namespace = ""; Name = fst $3 },Position.Create(snd $1,"")),[]) }
+| error { reportErrorAtPos "Malformed subtype definition" parseState 1  }
+
+subtypes:
+| subtype subtypes { $1 :: $2 }
+| { [] }
+
 arg:
 | LBRACKET argSeq RBRACKET { NestedExpression($2) }
 | literal { $1 }
@@ -187,14 +195,6 @@ premises:
 conclusion:
 | argSeq ARROW argSeq newLineSeq { ValueOutput($1,$3) }
 | error { reportErrorAtPos "Malformed conclusion" parseState 1  }
-
-subtype: 
-| ID IS ID newLineSeq { Arg(Id( { Namespace = ""; Name = fst $1  },Position.Create(snd $1,"")),[]),Arg(Id({ Namespace = ""; Name = fst $3 },Position.Create(snd $1,"")),[]) }
-| error { reportErrorAtPos "Malformed subtype definition" parseState 1  }
-
-subtypes:
-| subtype subtypes { $1 :: $2 }
-| { [] }
 
 mainOpt:
 | MAIN COLON newLineSeq { true }

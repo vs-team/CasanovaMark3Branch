@@ -116,6 +116,8 @@ type nonTerminalId =
     | NONTERM_typeDeclaration
     | NONTERM_lambdaTypeDeclaration
     | NONTERM_customOperator
+    | NONTERM_subtype
+    | NONTERM_subtypes
     | NONTERM_arg
     | NONTERM_argSeq
     | NONTERM_literal
@@ -126,8 +128,6 @@ type nonTerminalId =
     | NONTERM_comparisonOp
     | NONTERM_premises
     | NONTERM_conclusion
-    | NONTERM_subtype
-    | NONTERM_subtypes
     | NONTERM_mainOpt
     | NONTERM_rule
     | NONTERM_rules
