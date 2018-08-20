@@ -17,9 +17,10 @@ eval ($f x) -> ($f x)
 
 <<x + y>> -> res
 ------------------
-eval $i x + $i y -> ($i res)
+eval $i x + $i y -> $i res
 
 main:
 eval ($i 5) -> ($i x)
+res := $i x
 -----------------------
 start -> x

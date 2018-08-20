@@ -700,21 +700,27 @@ and checkPremise (premise : Premise) (symbolTable : SymbolContext) (locals : Loc
       locals,FunctionCall(normFunc,normalizedRes)
   | Bind(id,pos,expr) ->
       match expr with
-      | NestedExpression(expr) ->
+      | [NestedExpression(expr)] ->
           let normData = normalizeDataOrFunctionCall symbolTable expr locals
           let dataType,_ = checkNormalizedCall normData symbolTable locals false
-          { locals with Variables = locals.Variables |> Map.add id (dataType,pos) },Bind(id,pos,NestedExpression(normData))
-      | Literal(l,p) ->
+          { locals with Variables = locals.Variables |> Map.add id (dataType,pos) },Bind(id,pos,[NestedExpression(normData)])
+      | [Literal(l,p)] ->
           let litType = getLiteralType l
           { locals with Variables = locals.Variables |> Map.add id (litType,pos) },premise
-      | Id(rightId,pos) ->
+      | [Id(rightId,pos)] ->
           let idOpt = locals.Variables.TryFind(rightId)
           match idOpt with
           | Some(idType,_) -> 
               { locals with Variables = locals.Variables |> Map.add id (idType,pos) },premise
           | None ->
               undefinedVarError id.Name pos
-      | Lambda _ -> failwith "Anonymous functions not supported yet"
+      | [Lambda _] -> failwith "Anonymous functions not supported yet"
+      | arg :: args ->
+          let newLocals,normBind = checkPremise (Bind(id,pos,[NestedExpression(expr)])) symbolTable locals
+          let (Bind(id,pos,[normCall])) = normBind
+          let (NestedExpression(normData)) = normCall
+          newLocals,Bind(id,pos,normData)
+
   | Emit(_,ret,pos) ->
       { locals with Variables = locals.Variables |> Map.add ret (Unsafe,pos)},premise    
   | Conditional(left,op,right) ->

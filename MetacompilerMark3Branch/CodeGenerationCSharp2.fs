@@ -317,8 +317,9 @@ let emitFunctionCall (ctxt : CodeGenerationCtxt) (callArgs : CallArg list) (resu
       (getTypeFullName fDecl.Return)
       ctxt.CurrentTempCode
       ctxt.CurrentFuncTemp
-  let ctxtStructuralCheck = emitStructuralCheck { ctxt with  Code = "" } result (Some(ctxt.CurrentDataTemp))
-  { ctxt with Code = ctxt.Code + resultCheckCode + ctxtStructuralCheck.Code }
+  let currentCode = ctxt.Code
+  let ctxt = emitStructuralCheck { ctxt with  Code = "" } result (Some(ctxt.CurrentDataTemp))
+  { ctxt with Code = currentCode + resultCheckCode + ctxt.Code }
 
 
 let emitExternalCall (ctxt : CodeGenerationCtxt) (code : string) (id : Id) =
@@ -329,7 +330,47 @@ let emitExternalCall (ctxt : CodeGenerationCtxt) (code : string) (id : Id) =
       id.Name
       code
   { ctxt with Code = ctxt.Code + code }
-          
+
+
+let rec emitBind (ctxt : CodeGenerationCtxt) (id : Id) (args : List<CallArg>) =
+  let tabs = emitTabs ctxt.CurrentTabs
+  match args with
+  | [Literal(l,_)] ->
+      let code =
+        sprintf "%s%s = %s;\n"
+          tabs
+          id.Name
+          (string l)
+      { ctxt with Code = ctxt.Code + code }
+  | [Id(bindId,_)] ->
+      let code =
+        sprintf "%s%s = %s;\n"
+          tabs
+          id.Name
+          bindId.Name
+      { ctxt with Code = ctxt.Code + code }
+  | [NestedExpression(expr)] -> emitBind ctxt id expr
+  | arg :: args ->
+      let ((Id(dName,_))) = arg
+      let ctxt = ctxt.AddTemp
+      let dataDecl = ctxt.Program.SymbolTable.DataTable.[dName]
+      let instantiationCode =
+        sprintf "%s%s %s = new %s();\n"
+          tabs
+          (getSymbolFullName dataDecl)
+          ctxt.CurrentTempCode
+          (getSymbolFullName dataDecl)
+      let ctxt = { ctxt with Code = ctxt.Code + instantiationCode; CurrentFuncTemp = ctxt.CurrentTempCode }
+      let ctxt =
+        args |>
+        List.fold(fun (i,newCtxt) arg ->
+                    i + 1,copySingleArgument newCtxt arg i) (0,ctxt) |> snd
+      let code =
+        sprintf "%s%s = %s;\n"
+          tabs
+          id.Name
+          ctxt.CurrentTempCode
+      { ctxt with Code = ctxt.Code + code }
       
 
 
@@ -338,12 +379,12 @@ let emitPremises (ctxt : CodeGenerationCtxt) (premises : Premise list) =
   List.fold (fun newCtxt p ->
                 match p with
                 | FunctionCall call -> emitFunctionCall newCtxt (fst call) (snd call)
-                | Emit(code,id,_) -> emitExternalCall newCtxt code id) ctxt
+                | Emit(code,id,_) -> emitExternalCall newCtxt code id
+                | Bind(id,_,args) -> emitBind newCtxt id args) ctxt               
 
 
 let rec emitResult (ctxt : CodeGenerationCtxt) (result : CallArg list) (resultType : string) =
   let tabs = emitTabs ctxt.CurrentTabs
-  let ctxt = ctxt.AddTemp
   match result with
   | [Literal(l,_)] ->
       let code =
@@ -360,6 +401,7 @@ let rec emitResult (ctxt : CodeGenerationCtxt) (result : CallArg list) (resultTy
   | [NestedExpression(expr)] -> emitResult ctxt expr resultType
   | arg :: args ->
       let ((Id(dName,_))) = arg
+      let ctxt = ctxt.AddTemp
       let dataDecl = ctxt.Program.SymbolTable.DataTable.[dName]
       let instantiationCode =
         sprintf "%s%s %s = new %s();\n"

@@ -187,7 +187,7 @@ premises:
 | emit premises { $1 :: $2 }
 | functionCall premises { $1 :: $2 }
 | arithmeticCall premises { $1 :: $2 }
-| ID BIND arg newLineSeq premises { (Bind({ Namespace = ""; Name = fst $1 },Position.Create(snd $1,""),$3)) :: $5 }
+| ID BIND argSeq newLineSeq premises { (Bind({ Namespace = ""; Name = fst $1 },Position.Create(snd $1,""),$3)) :: $5 }
 | arg comparisonOp arg newLineSeq premises { (Conditional($1,$2,$3)) :: $5 }
 | { [] }
 | error { reportErrorAtPos "Malformed premise" parseState 1 }

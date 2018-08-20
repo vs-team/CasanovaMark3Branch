@@ -202,7 +202,7 @@ let insertNamespaceAndFileName (program : Program) (fileName : string) : Program
         Arithmetic(processExpr expr,{ res with Namespace = nameSpace },{ position with File = fileName })
     | FunctionCall(left,right) ->                
         FunctionCall(processArgs left right)
-    | Bind(id,pos,arg) -> Bind({ id with Namespace = nameSpace },{ pos with File = fileName },processArg [] 0 arg)
+    | Bind(id,pos,args) -> Bind({ id with Namespace = nameSpace },{ pos with File = fileName },args |> List.map (processArg [] 0))
     | Conditional(left,c,right) ->
         Conditional(processArg [] 0 left,c,processArg [] 0 right)
   let processConclusion (c : Conclusion) =

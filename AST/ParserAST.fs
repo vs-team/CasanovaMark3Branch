@@ -211,7 +211,7 @@ and Premise =
 | Emit of string * Id * Position
 | Arithmetic of ArithExpr * Id * Position
 | FunctionCall of Call
-| Bind of Id * Position * CallArg
+| Bind of Id * Position * List<CallArg>
 | Conditional of Conditional
 
 and CallArg =
