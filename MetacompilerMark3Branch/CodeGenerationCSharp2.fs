@@ -83,8 +83,11 @@ let emitGotoNextRule (ctxt : CodeGenerationCtxt) =
   else
     sprintf "goto case %d;" (ctxt.RuleIndex + 1)
 
-let getDataAccessor (temp : string) (argIndex : int) =
-  if temp = "" then sprintf "__arg%d" argIndex else sprintf "%s.__arg%d" temp argIndex
+let getDataAccessor (temp : string) (argIndex : int) (defaultTemp : Option<string>) =
+  match defaultTemp with
+  | Some tmp -> tmp
+  | None ->
+      if temp = "" then sprintf "__arg%d" argIndex else sprintf "%s.__arg%d" temp argIndex
 
 
 //[[Data "dataName" -> ... : Metatype1]]
@@ -159,17 +162,17 @@ let emitDataClasses (ctxt : CodeGenerationCtxt) =
 //must be recursively checked by testing the patterns of its arguments (which can be also explicit data structures).
 //If the whole premise contains an explicit data structure this should be inserted into a NestedExpression before using
 //this function.
-let rec emitStructuralCheck (ctxt : CodeGenerationCtxt) (pattern : List<CallArg>) =                                  
+let rec emitStructuralCheck (ctxt : CodeGenerationCtxt) (pattern : List<CallArg>) (tmpCode : Option<string>) =                                  
   let tabs = emitTabs ctxt.CurrentTabs
   let ifBodyTabs = emitTabs (ctxt.CurrentTabs + 1)
-  pattern.Tail |>
+  pattern |>
   List.fold(fun (i,newCtxt) arg ->
               match arg with
               | Literal(l,_) ->
                   let checkCode =
                       sprintf "%sif(%s != %s)\n%s{\n%s%s\n%s}\n"
                         tabs
-                        (getDataAccessor newCtxt.CurrentDataTemp i)
+                        (getDataAccessor newCtxt.CurrentDataTemp i tmpCode)
                         (string l)
                         tabs
                         ifBodyTabs
@@ -185,20 +188,20 @@ let rec emitStructuralCheck (ctxt : CodeGenerationCtxt) (pattern : List<CallArg>
                   | None ->
                       match newCtxt.Program.SymbolTable.DataTable.TryFind(id) with
                       | Some _ ->
-                          i + 1,emitStructuralCheck newCtxt [NestedExpression([arg])]
+                          i + 1,emitStructuralCheck newCtxt [NestedExpression([arg])] None
                       | None ->
                           let varCopyCode =
                             sprintf "%s%s = %s;\n"
                               tabs
                               id.Name
-                              (getDataAccessor ctxt.CurrentDataTemp i)
+                              (getDataAccessor ctxt.CurrentDataTemp i tmpCode)
                           i + 1,{ newCtxt with Code = newCtxt.Code + varCopyCode }
               | NestedExpression(dataName :: args) ->
                   let (Id(id,_)) = dataName
                   let checkCode =
                     sprintf "%sif (!(%s is %s.%s))\n%s{\n%s%s\n%s}\n"
                       tabs
-                      (getDataAccessor newCtxt.CurrentDataTemp i)
+                      (getDataAccessor newCtxt.CurrentDataTemp i tmpCode)
                       id.Namespace
                       (renameOperator id.Name)
                       tabs
@@ -216,8 +219,8 @@ let rec emitStructuralCheck (ctxt : CodeGenerationCtxt) (pattern : List<CallArg>
                       ctxtWithDataTemp.CurrentTempCode
                       id.Namespace
                       (renameOperator id.Name)
-                      (getDataAccessor newCtxt.CurrentDataTemp i)
-                  let argumentStructuralCtxt = emitStructuralCheck { ctxtWithDataTemp with Code = "" } (dataName :: args)
+                      (getDataAccessor newCtxt.CurrentDataTemp i tmpCode)
+                  let argumentStructuralCtxt = emitStructuralCheck { ctxtWithDataTemp with Code = "" } args None
                   i + 1,{ argumentStructuralCtxt with
                             CurrentDataTemp = newCtxt.CurrentDataTemp
                             Code = newCtxt.Code + checkCode + castCode + argumentStructuralCtxt.Code }) (0,ctxt) |> snd
@@ -229,7 +232,7 @@ let rec copySingleArgument (ctxt : CodeGenerationCtxt) (arg : CallArg) (argIndex
       let code = 
         sprintf "%s%s = %s;\n"
           tabs
-          (getDataAccessor ctxt.CurrentTempCode argIndex)
+          (getDataAccessor ctxt.CurrentTempCode argIndex None)
           (string l)
       { ctxt with Code = ctxt.Code + code }
   | Id(id,_) ->
@@ -238,14 +241,14 @@ let rec copySingleArgument (ctxt : CodeGenerationCtxt) (arg : CallArg) (argIndex
         let code =
           sprintf "%s%s = new %s();\n"
             tabs
-            (getDataAccessor ctxt.CurrentTempCode argIndex)
+            (getDataAccessor ctxt.CurrentTempCode argIndex None)
             (getSymbolFullName dataDecl)
         { ctxt with Code = ctxt.Code + code }
       | None ->  
         let code =
           sprintf "%s%s = %s;\n"
             tabs
-            (getDataAccessor ctxt.CurrentTempCode argIndex)
+            (getDataAccessor ctxt.CurrentTempCode argIndex None)
             id.Name
         { ctxt with Code = ctxt.Code + code }
   | NestedExpression(expr) ->
@@ -266,19 +269,17 @@ let rec copySingleArgument (ctxt : CodeGenerationCtxt) (arg : CallArg) (argIndex
         List.fold(fun (i,newCtxt) arg ->
                        i + 1,copySingleArgument newCtxt arg i) (0,{ ctxt with Code = "" }) |> snd
       let code =
-        sprintf "%s%s = %s;\n%s%s.Run();\n"
+        sprintf "%s%s = %s;\n"
           tabs
-          (getDataAccessor ctxt.CurrentFuncTemp argIndex)
+          (getDataAccessor ctxt.CurrentFuncTemp argIndex None)
           ctxt.CurrentDataTemp
-          tabs
-          ctxt.CurrentFuncTemp
       { ctxt with Code = ctxt.Code + argCtxt.Code + code }
 
 //FUNCTION CALL GENERATION: we have to instantiate the class representing the function. We then copy one by one the arguments of the call
 //in the fields of the class representing the function parameters. In the case of a variable or literal, the copy is immediate. In the case
 //of a NestedExpression or meta-data with no argument we must also instantiate it and then copy it in the argument field. This process can be
 //recursive since the argument of the meta-data can be meta-data themselves.
-let emitFunctionCall (ctxt : CodeGenerationCtxt) (callArgs : CallArg list) =
+let emitFunctionCall (ctxt : CodeGenerationCtxt) (callArgs : CallArg list) (result : CallArg list) =
   let tabs = emitTabs ctxt.CurrentTabs
   let (Id(fName,_)) = callArgs.Head
   let functionArgs = callArgs.Tail
@@ -294,9 +295,30 @@ let emitFunctionCall (ctxt : CodeGenerationCtxt) (callArgs : CallArg list) =
       ctxt.CurrentTempCode
       className
   let ctxt = { ctxt with Code = ctxt.Code + instantiationCode }
-  functionArgs |>
-  List.fold(fun (i,newCtxt) arg ->
-              i + 1,copySingleArgument newCtxt arg i) (0,ctxt) |> snd
+  let ctxt =
+    functionArgs |>
+    List.fold(fun (i,newCtxt) arg ->
+                i + 1,copySingleArgument newCtxt arg i) (0,ctxt) |> snd
+  let runCode =
+    sprintf "%s%s.Run();\n"
+      tabs
+      ctxt.CurrentFuncTemp
+  let ctxt = { ctxt with Code = ctxt.Code + runCode }
+  let ctxt = ctxt.AddTemp
+  let ctxt = { ctxt with CurrentDataTemp = ctxt.CurrentTempCode }
+  let resultCheckCode =
+    sprintf "%sif (!(%s.__res.HasValue))\n%s{\n%sgoto default;\n%s}\n%s%s %s = %s.__res.Value;\n"
+      tabs
+      ctxt.CurrentFuncTemp
+      tabs
+      (emitTabs (ctxt.CurrentTabs + 1))
+      tabs
+      tabs
+      (getTypeFullName fDecl.Return)
+      ctxt.CurrentTempCode
+      ctxt.CurrentFuncTemp
+  let ctxtStructuralCheck = emitStructuralCheck { ctxt with  Code = "" } result (Some(ctxt.CurrentDataTemp))
+  { ctxt with Code = ctxt.Code + resultCheckCode + ctxtStructuralCheck.Code }
 
 
 let emitExternalCall (ctxt : CodeGenerationCtxt) (code : string) (id : Id) =
@@ -315,8 +337,49 @@ let emitPremises (ctxt : CodeGenerationCtxt) (premises : Premise list) =
   premises |>
   List.fold (fun newCtxt p ->
                 match p with
-                | FunctionCall call -> emitFunctionCall newCtxt (fst call)
+                | FunctionCall call -> emitFunctionCall newCtxt (fst call) (snd call)
                 | Emit(code,id,_) -> emitExternalCall newCtxt code id) ctxt
+
+
+let rec emitResult (ctxt : CodeGenerationCtxt) (result : CallArg list) (resultType : string) =
+  let tabs = emitTabs ctxt.CurrentTabs
+  let ctxt = ctxt.AddTemp
+  match result with
+  | [Literal(l,_)] ->
+      let code =
+        sprintf "%s__res.Value = %s;\n"
+          tabs
+          (string l)
+      { ctxt with Code = ctxt.Code + code }
+  | [Id(id,_)] ->
+      let code =
+        sprintf "%s__res.Value = %s;\n"
+          tabs
+          id.Name
+      { ctxt with Code = ctxt.Code + code }
+  | [NestedExpression(expr)] -> emitResult ctxt expr resultType
+  | arg :: args ->
+      let ((Id(dName,_))) = arg
+      let dataDecl = ctxt.Program.SymbolTable.DataTable.[dName]
+      let instantiationCode =
+        sprintf "%s%s %s = new %s();\n"
+          tabs
+          (getSymbolFullName dataDecl)
+          ctxt.CurrentTempCode
+          (getSymbolFullName dataDecl)
+      let ctxt = { ctxt with Code = ctxt.Code + instantiationCode; CurrentFuncTemp = ctxt.CurrentTempCode }
+      let ctxt =
+        args |>
+        List.fold(fun (i,newCtxt) arg ->
+                    i + 1,copySingleArgument newCtxt arg i) (0,ctxt) |> snd
+      let resultCode =
+        sprintf "%s__res.HasValue = true;\n%s__res.Value = %s;\n"
+          tabs
+          tabs
+          ctxt.CurrentTempCode
+      { ctxt with Code = ctxt.Code + resultCode }
+
+  
   
 
 
@@ -345,16 +408,18 @@ let emitRuleCase (ctxt : CodeGenerationCtxt) (tr : TypedRule) =
                         id.Name
                         _default)) ""
   let structuralCheckCtxt =
-    emitStructuralCheck { ctxt with CurrentTabs = ctxt.CurrentTabs + 2; Code = "" } left
+    emitStructuralCheck { ctxt with CurrentTabs = ctxt.CurrentTabs + 2; Code = "" } left.Tail None
   let premisesCtxt = emitPremises { structuralCheckCtxt with Code = "" } tr.Premises
+  let resultCtxt = emitResult { premisesCtxt with Code = "" } right (getTypeFullName tr.ReturnType)
   let caseCode =
-    sprintf "%scase %d:\n%s{\n%s%s%s%sbreak;\n%s}\n"
+    sprintf "%scase %d:\n%s{\n%s%s%s%s%sbreak;\n%s}\n"
       tabs
       ctxt.RuleIndex
       caseTabs
       localVarsCode
       structuralCheckCtxt.Code
       premisesCtxt.Code
+      resultCtxt.Code
       caseBodyTabs
       caseTabs
   ctxt.AddCode caseCode
