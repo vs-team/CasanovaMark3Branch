@@ -264,16 +264,20 @@ let rec copySingleArgument (ctxt : CodeGenerationCtxt) (arg : CallArg) (argIndex
           ctxt.CurrentTempCode        
           (getSymbolFullName decl)
       let ctxt = { ctxt with Code = ctxt.Code + dataTempCode }
-      let argCtxt =
+      let funcTemp = ctxt.CurrentFuncTemp
+      let dataTemp = ctxt.CurrentDataTemp
+      let currentCode = ctxt.Code
+      let ctxt =
         expr.Tail |>
         List.fold(fun (i,newCtxt) arg ->
-                       i + 1,copySingleArgument newCtxt arg i) (0,{ ctxt with Code = "" }) |> snd
+                       i + 1,copySingleArgument newCtxt arg i) (0,{ ctxt with Code = ""; CurrentFuncTemp = ctxt.CurrentDataTemp }) |> snd
+      let ctxt = { ctxt with CurrentFuncTemp = funcTemp; CurrentDataTemp = dataTemp }
       let code =
         sprintf "%s%s = %s;\n"
           tabs
           (getDataAccessor ctxt.CurrentFuncTemp argIndex None)
           ctxt.CurrentDataTemp
-      { ctxt with Code = ctxt.Code + argCtxt.Code + code }
+      { ctxt with Code = currentCode + ctxt.Code  + code }
 
 //FUNCTION CALL GENERATION: we have to instantiate the class representing the function. We then copy one by one the arguments of the call
 //in the fields of the class representing the function parameters. In the case of a variable or literal, the copy is immediate. In the case
@@ -388,13 +392,15 @@ let rec emitResult (ctxt : CodeGenerationCtxt) (result : CallArg list) (resultTy
   match result with
   | [Literal(l,_)] ->
       let code =
-        sprintf "%s__res.Value = %s;\n"
+        sprintf "%s__res.HasValue = true;\n%s__res.Value = %s;\n"
+          tabs
           tabs
           (string l)
       { ctxt with Code = ctxt.Code + code }
   | [Id(id,_)] ->
       let code =
-        sprintf "%s__res.Value = %s;\n"
+        sprintf "%s__res.HasValue = true;\n%s__res.Value = %s;\n"
+          tabs
           tabs
           id.Name
       { ctxt with Code = ctxt.Code + code }
@@ -441,7 +447,7 @@ let emitRuleCase (ctxt : CodeGenerationCtxt) (tr : TypedRule) =
                   | Unsafe -> ";\n"
                   | _ -> sprintf " = default(%s);\n" typeName
                 match decl with
-                | Unsafe -> ""
+                | Unsafe -> code
                 | _ ->
                     code + (
                       sprintf "%s%s %s%s"
@@ -577,12 +583,49 @@ let emitInternals (ctxt : CodeGenerationCtxt) =
           ctxt.Code
   }
 
+let emitMain (ctxt : CodeGenerationCtxt) =
+  let mainFunction = ctxt.Program.TypedRules |> List.tryFind(fun (TypedRule(tr)) -> tr.Main)
+  match mainFunction with
+  | Some (TypedRule(f)) ->
+      let tabs = emitTabs ctxt.CurrentTabs
+      let classTabs = emitTabs (ctxt.CurrentTabs + 1)
+      let methodTabs = emitTabs (ctxt.CurrentTabs + 2)
+      let blockTabs = emitTabs (ctxt.CurrentTabs + 3)
+      let (ValueOutput(left,_)) = f.Conclusion
+      let (Id(fName,_)) = left.Head
+      let fDecl = ctxt.Program.SymbolTable.FuncTable.[fName]
+      let mainBody = 
+        sprintf "%spublic static void Main(string[] args)\n%s{\n%s%s mainCall = new %s();\n%smainCall.Run();\n%sif (mainCall.__res.HasValue)\n%sSystem.Console.WriteLine(mainCall.__res.Value);\n%selse\n%sSystem.Console.WriteLine(\"Evaluation failed\");\n%s}"
+          classTabs
+          classTabs
+          methodTabs
+          (getSymbolFullName fDecl)
+          (getSymbolFullName fDecl)
+          methodTabs
+          methodTabs
+          blockTabs
+          methodTabs
+          blockTabs
+          classTabs
+      let classBody =
+        sprintf "%spublic class MCnvMain\n%s{\n%s\n%s}"
+          tabs
+          tabs
+          mainBody
+          tabs
+      { ctxt with Code = ctxt.Code + classBody }
+  | None -> ctxt
+
+
+  
+
 let emitProgram (program : TypedProgramDefinition) = 
   let startingCtxt = CodeGenerationCtxt.Init(program)
   let ctxtWithInterfaces = emitDataInterfaces { startingCtxt with CurrentTabs = 1 }
   let ctxtWithDataClasses = emitDataClasses ctxtWithInterfaces
   let ctxtWithFunctionClasses = emitFunctionClasses ctxtWithDataClasses
-  let finalCtxt = emitInternals ctxtWithFunctionClasses
+  let ctxtWithMain = emitMain ctxtWithFunctionClasses
+  let finalCtxt = emitInternals ctxtWithMain
   finalCtxt
   
   

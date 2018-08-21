@@ -3,10 +3,10 @@
 Value is Expr
 
 Data "$i" -> << int >> : Value Priority 5
-Data "$f" -> << float >> : Value Priority 5
+Data "$f" -> << double >> : Value Priority 5
 Data Expr -> "+" -> Expr : Expr Priority 1
 Func "eval" -> Expr : Value Priority 0
-Func "start" : int
+Func "start" : << double >>
 
 
 ---------------------
@@ -15,12 +15,19 @@ eval ($i x) -> ($i x)
 ----------------------
 eval ($f x) -> ($f x)
 
-<<x + y>> -> res
+eval left -> ($i l)
+eval right -> ($i r)
+<< l + r >> -> res
 ------------------
-eval $i x + $i y -> $i res
+eval left + right -> $i res
+
+eval left -> ($f l)
+eval right -> ($f r)
+<< l + r >> -> res
+------------------
+eval left + right -> $f res
 
 main:
-eval ($i 5) -> ($i x)
-res := $i x
+eval ($f 3.5) + ($f 2.3) -> ($f x)
 -----------------------
 start -> x
