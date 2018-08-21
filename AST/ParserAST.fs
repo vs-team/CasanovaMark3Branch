@@ -49,6 +49,11 @@ and TypeCall =
   }
   member this.Length = this.Type.Length
 
+and Kind =
+| KindArg of CallArg * Kind
+| KindType of TypeDecl
+| Kind
+
 //nested is used to distinguish type definitions such as (int -> int) -> string from int -> (int -> string)
 and TypeDecl =
 | Arrow of TypeDecl * TypeDecl * bool //left, right, nested
@@ -120,27 +125,38 @@ and TypeDecl =
 and Declaration =
 | Data of SymbolDeclaration
 | Func of SymbolDeclaration
-| TypeFunc of SymbolDeclaration
-| TypeAlias of SymbolDeclaration
+| Functor of Functor
 | Module of ModuleDeclaration
 with
   override this.ToString() =
     match this with
     | Data(d) -> d.ToString()
     | Func(f) -> f.ToString()
-    | TypeFunc(tf) -> tf.ToString()
-    | TypeAlias(ta) -> ta.ToString()
+    | Functor(tf) -> tf.ToString()
     | Module m -> m.ToString()
 
 and ModuleDeclaration =
   {
     Name      : Id
-    FullType  : TypeDecl
-    Args      : TypeDecl
-    Return    : TypeDecl
+    Args      : List<Kind>
+    Return    : Kind
     Position  : Position
     Body      : List<Declaration>
   }
+
+and Functor =
+  {
+    Name        : Id
+    Args        : List<Kind>
+    Return      : Kind
+  }
+  with
+    static member Create(name,args,ret) =
+      {
+        Name = name
+        Args = args
+        Return = ret
+      }
 
 and SymbolDeclaration =
   {
@@ -240,7 +256,7 @@ with
     | ValueOutput(left,right) -> left.ToString() + " -> " + right.ToString()
     | ModuleOutput(left,right,program) -> left.ToString() + " => " + right.ToString() + "{\n\t" + program.ToString() + "\n}"
 
-and LambdaConclusion = List<CallArg*TypeDecl> * List<CallArg>
+and LambdaConclusion = List<CallArg * TypeDecl> * List<CallArg>
 
 and Rule = 
   {

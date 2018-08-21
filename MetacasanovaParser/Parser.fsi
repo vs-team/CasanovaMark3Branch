@@ -3,7 +3,7 @@ module Parser
 type token = 
   | EOF
   | FUNC of (int * int)
-  | TYPEFUNC of (int * int)
+  | FUNCTOR of (int * int)
   | OPEN of (int * int)
   | INCLUDE of (int * int)
   | DATA of (int * int)
@@ -21,6 +21,7 @@ type token =
   | PRIORITY of (int * int)
   | LEMIT of (int * int)
   | REMIT of (int * int)
+  | STAR of (int * int)
   | LBRACKET
   | RBRACKET
   | COLON
@@ -49,7 +50,7 @@ type token =
 type tokenId = 
     | TOKEN_EOF
     | TOKEN_FUNC
-    | TOKEN_TYPEFUNC
+    | TOKEN_FUNCTOR
     | TOKEN_OPEN
     | TOKEN_INCLUDE
     | TOKEN_DATA
@@ -67,6 +68,7 @@ type tokenId =
     | TOKEN_PRIORITY
     | TOKEN_LEMIT
     | TOKEN_REMIT
+    | TOKEN_STAR
     | TOKEN_LBRACKET
     | TOKEN_RBRACKET
     | TOKEN_COLON
@@ -109,6 +111,8 @@ type nonTerminalId =
     | NONTERM_priority
     | NONTERM_associativity
     | NONTERM_declaration
+    | NONTERM_kind
+    | NONTERM_kindSeq
     | NONTERM_typeOrNameDeclarations
     | NONTERM_typeOrNameDeclaration
     | NONTERM_typeVarsSeq

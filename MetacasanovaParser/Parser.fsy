@@ -21,7 +21,7 @@ open ParserUtils
 %token <int> BAR
 %token<System.String * (int * int)> COMMA DOT HASH LASSOC RASSOC
 %token LBRACKET RBRACKET COLON NEWLINE  BIND LBRACE RBRACE LSQUARE RSQUARE
-%token <int * int> FUNC TYPEFUNC OPEN INCLUDE DATA NAMESPACE IS FUN GT GEQ LT LEQ NEQ MAIN ARITHMETIC MODULE PRIORITY LEMIT REMIT
+%token <int * int> FUNC FUNCTOR OPEN INCLUDE DATA NAMESPACE IS FUN GT GEQ LT LEQ NEQ MAIN ARITHMETIC MODULE PRIORITY LEMIT REMIT STAR
 
 %token EOF
  
@@ -90,6 +90,8 @@ associativity:
 | { Left }
 
 declaration:
+| FUNCTOR STRING DARROW kindSeq COLON kind newLineSeq {
+    Functor(Functor.Create({ Namespace = ""; Name = fst $2 },$4,$6))}
 | FUNC genericSeq typeOrNameDeclarations COLON typeDeclaration priority associativity newLineSeq {
     Func(processParsedArgs $3 $5 (fst $1) (snd $1) $2 $6 $7) }
 | DATA genericSeq typeOrNameDeclarations COLON typeDeclaration priority associativity newLineSeq {
@@ -98,6 +100,15 @@ declaration:
     reportErrorAtPos "Function definition is missing a return type or priority/associativity is not well defined" parseState 3 }
 | DATA genericSeq typeOrNameDeclarations error {
     reportErrorAtPos "Data definition is missing a return type or priority/associativity is not well defined" parseState 3 }
+
+kind:
+| STAR { Kind.Kind }
+| typeDeclaration { KindType($1) }
+
+kindSeq:
+| kind DARROW kindSeq { $1 :: $3 }
+| kind { [$1] }
+| { [] }
 
 typeOrNameDeclarations:
 | typeOrNameDeclaration ARROW typeOrNameDeclarations { $1 :: $3 }

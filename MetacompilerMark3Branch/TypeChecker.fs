@@ -332,11 +332,7 @@ let buildSymbols (declarations : List<Declaration>) (symbols : Map<Id,SymbolDecl
                                   | _ -> raise(TypeError(sprintf "Type Error: invalid type %s for the data %s" (data.Return.ToString()) data.Name.Name))
                               | Func(func) ->
                                   //do checkType func.Args sym |> ignore
-                                  {sym with FuncTable = sym.FuncTable.Add(func.Name,func)}
-                              | TypeFunc(tf) ->
-                                  {sym with TypeFuncTable = sym.TypeFuncTable.Add(tf.Name,tf)}
-                              | TypeAlias(ta) ->
-                                  {sym with TypeAliasTable = sym.TypeAliasTable.Add(ta.Name,ta)}) SymbolContext.Empty
+                                  {sym with FuncTable = sym.FuncTable.Add(func.Name,func)}) SymbolContext.Empty
 
 
 //check that the type of the declarations are consistent, i.e. that the type used are defined.
@@ -347,10 +343,8 @@ let checkSymbols (declarations : List<Declaration>) (symbolTable : SymbolContext
         do checkType data.Args data.Generics symbolTable |> ignore
     | Func(func) ->
         do checkType func.Args func.Generics symbolTable |> ignore
-    | TypeFunc(tf) ->
+    | Functor(tf) ->
         failwith "TypeFunctions not implemented yet..."
-    | TypeAlias(ta) ->
-        failwith "TypeAliases not implemented yet..."
 
 let areTypesEquivalent t1 t2 ctxt = 
   t1 === t2 || (TypeDecl.SubtypeOf t1 t2 ctxt.Subtyping)

@@ -76,12 +76,13 @@ and tokenstream = parse
 | "<=" { Parser.LEQ (range lexbuf) }
 | "<>" { Parser.NEQ (range lexbuf) }
 | "()" { Parser.UNIT (range lexbuf) }
+| '*' { Parser.STAR (range lexbuf) }
 | "Priority" { Parser.PRIORITY (range lexbuf) }
 | "||>" { Parser.RASSOC ((LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }
 | "<||" { Parser.LASSOC ((LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }
 | "Module" { Parser.MODULE (range lexbuf) }
 | "Func" { Parser.FUNC (range lexbuf) } 
-| "TypeFunc" { Parser.TYPEFUNC (range lexbuf) }
+| "Functor" { Parser.FUNCTOR (range lexbuf) }
 | "Data" { Parser.DATA (range lexbuf) }
 | "<<" { Parser.EMIT ((emit lexbuf),(range lexbuf)) }
 | "namespace" { Parser.NAMESPACE (range lexbuf) }

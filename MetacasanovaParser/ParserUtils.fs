@@ -217,8 +217,7 @@ let insertNamespaceAndFileName (program : Program) (fileName : string) : Program
                 match d with
                 | Data(decl) -> Data(processSymbolDecl decl i)
                 | Func(decl) -> Func(processSymbolDecl decl i)
-                | TypeFunc(decl) -> TypeFunc(processSymbolDecl decl i)
-                | TypeAlias(decl) -> TypeAlias(processSymbolDecl decl i))
+                | Functor(decl) -> d)
   let processedRules =
     parsedProgram.Rules |> 
     List.map(fun r ->

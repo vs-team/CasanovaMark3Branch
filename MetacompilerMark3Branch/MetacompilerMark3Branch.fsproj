@@ -62,7 +62,6 @@
     <Compile Include="TypeChecker.fs" />
     <Compile Include="TypeCheckerTest.fs" />
     <Compile Include="CodeGenerationUtils.fs" />
-    <Compile Include="CodeGenerationCsharp.fs" />
     <Compile Include="CodeGenerationCSharp2.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
