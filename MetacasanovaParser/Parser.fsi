@@ -113,6 +113,7 @@ type nonTerminalId =
     | NONTERM_declaration
     | NONTERM_kind
     | NONTERM_kindSeq
+    | NONTERM_kindDecl
     | NONTERM_typeOrNameDeclarations
     | NONTERM_typeOrNameDeclaration
     | NONTERM_typeVarsSeq

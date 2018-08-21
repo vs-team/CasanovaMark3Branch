@@ -143,19 +143,37 @@ and ModuleDeclaration =
     Position  : Position
     Body      : List<Declaration>
   }
+with
+  static member Create(name,args,ret,pos,decls) =
+    {
+      Name = name
+      Args = args
+      Return = ret
+      Position = pos
+      Body = decls
+    }
+
 
 and Functor =
   {
-    Name        : Id
-    Args        : List<Kind>
-    Return      : Kind
+    Name            : Id
+    Args            : List<Kind>
+    Return          : Kind
+    Priority        : int
+    Associativity   : Associativity
   }
   with
-    static member Create(name,args,ret) =
+    static member Create(name,args,ret,priority,associativity) =
+      let priority =
+        match priority with
+        | Some i -> i
+        | None -> 0
       {
         Name = name
         Args = args
         Return = ret
+        Priority = priority
+        Associativity = associativity
       }
 
 and SymbolDeclaration =

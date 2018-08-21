@@ -1,3 +1,7 @@
 ﻿namespace Numbers
 
-Functor "fuu" => string => * : *
+Module "Record" : Record { 
+  Functor "RecordType" : *
+}
+
+Functor "EmptyRecord" : Record

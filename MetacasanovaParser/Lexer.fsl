@@ -46,6 +46,7 @@ and tokenstream = parse
 | "/*"        { comment lexbuf }
 | whitespace	{ tokenstream lexbuf }
 | newline	{ newline lexbuf; Parser.NEWLINE }
+| "Module" { Parser.MODULE (range lexbuf) }
 | "open" { Parser.OPEN (range lexbuf) }
 | "include" { Parser.INCLUDE (range lexbuf) }
 | "is" { Parser.IS (range lexbuf) }
@@ -80,7 +81,6 @@ and tokenstream = parse
 | "Priority" { Parser.PRIORITY (range lexbuf) }
 | "||>" { Parser.RASSOC ((LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }
 | "<||" { Parser.LASSOC ((LexBuffer<_>.LexemeString lexbuf),(range lexbuf)) }
-| "Module" { Parser.MODULE (range lexbuf) }
 | "Func" { Parser.FUNC (range lexbuf) } 
 | "Functor" { Parser.FUNCTOR (range lexbuf) }
 | "Data" { Parser.DATA (range lexbuf) }
