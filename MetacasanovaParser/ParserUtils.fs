@@ -229,7 +229,7 @@ let rec insertNamespaceAndFileName (program : Program) (fileName : string) : Pro
   let processConclusion (c : Conclusion) =
     match c with
     | ValueOutput(left,right) -> ValueOutput(processArgs left right)
-    | TypeOutput(left,_type) -> TypeOutput(left,{ _type with Namespace = nameSpace })//(processArgs left _type)//TypeOutput(left |> List.map (processArg [] 0),processTypeDecl [] 0 _type)
+    | TypeOutput(left,_type) -> TypeOutput(left, processTypeDecl [] 0 _type)
     | ModuleOutput(args,moduleName,_module) ->
         let processedArgs = args |> List.map (processArg [] 0)
         let processedName = { moduleName with Namespace = nameSpace }

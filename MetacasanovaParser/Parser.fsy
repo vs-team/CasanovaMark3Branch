@@ -105,6 +105,7 @@ declaration:
 
 kind:
 | STAR { Kind.Kind }
+| LBRACKET ID COLON kind RBRACKET { KindArg(Id({ Namespace = ""; Name = fst $2 },Position.Create(snd $2,"")),$4) }
 | typeDeclaration { KindType($1) }
 
 kindSeq:
@@ -226,7 +227,7 @@ moduleInstantiation:
 
 conclusion:
 | argSeq ARROW argSeq newLineSeq { ValueOutput($1,$3) }
-| argSeq DARROW ID newLineSeq { TypeOutput($1,{ Namespace = ""; Name = fst $3 }) } //For some reasons it does not work with argSeq DARROW argSeq newLineSeq
+| argSeq DARROW LBRACKET typeDeclaration RBRACKET newLineSeq { TypeOutput($1,$4) } //For some reasons it does not work without the brackets
 | argSeq DARROW moduleInstantiation newLineSeq { ModuleOutput($1,fst $3,snd $3) }
 | error { reportErrorAtPos "Malformed conclusion" parseState 1  }
 

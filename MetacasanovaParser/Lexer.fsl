@@ -21,7 +21,7 @@ let newline = ('\n' | '\r' '\n')
 let digit = ['0'-'9']
 let letter = ['a'-'z' 'A'-'Z']
 let id = ['a'-'z' 'A'-'Z' '_' '0'-'9']
-let customSymbols = [':' '?' '@' '%' '$' '#' '!' '+' '*' '/']
+let customSymbols = ['?' '@' '%' '$' '#' '!' '+' '*' '/']
 let customOperator = customSymbols+ id?
 
 rule linecomment = parse

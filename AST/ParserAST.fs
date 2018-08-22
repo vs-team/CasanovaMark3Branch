@@ -272,7 +272,7 @@ and Call = List<CallArg> * List<CallArg>
 and Conditional = CallArg *  Predicate * CallArg
 and Conclusion = 
 | ValueOutput of List<CallArg> * List<CallArg>
-| TypeOutput of List<CallArg> * Id
+| TypeOutput of List<CallArg> * TypeDecl
 | ModuleOutput of List<CallArg> * Id * Program
 with
   override this.ToString() =
