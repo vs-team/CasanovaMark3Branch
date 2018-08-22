@@ -2,6 +2,7 @@
 
 open System
 open Common
+open System.IO
 
 let systemNamespace = "__System"
 
@@ -57,19 +58,19 @@ and Kind =
 //nested is used to distinguish type definitions such as (int -> int) -> string from int -> (int -> string)
 and TypeDecl =
 | Arrow of TypeDecl * TypeDecl * bool //left, right, nested
-| TypeArrow of TypeCall
 | Arg of CallArg * (TypeDecl list) //name of the type, types to construct a generic data
 | External of string * Position //used for external types, like <<int>>
 | Unsafe //used as type placeholder as return type of external function calls
 | Zero
+| FunctorCall of List<CallArg>
   member this.Length =
     match this with
     | Arrow(left,right,_) -> 1 + right.Length
-    | TypeArrow tc -> tc.Length
     | Arg(_) -> 1
     | External _ -> 1
     | Unsafe -> 0
     | Zero -> 0
+    | FunctorCall _ -> 1
   static member (=!=) (t1 : TypeDecl, t2 : TypeDecl) = not (t1 === t2)
   static member (===) (t1 : TypeDecl, t2 : TypeDecl) =
     match t1,t2 with
@@ -121,6 +122,7 @@ and TypeDecl =
     | External(s,_) -> "<<" + s + ">>"
     | Unsafe -> "unsafe"
     | Zero -> "zero"
+    | FunctorCall(call) -> call |> List.map string |> List.reduce (fun x y -> x + " " + y)
 
 and Declaration =
 | Data of SymbolDeclaration
@@ -161,9 +163,10 @@ and Functor =
     Return          : Kind
     Priority        : int
     Associativity   : Associativity
+    Position        : Position
   }
   with
-    static member Create(name,args,ret,priority,associativity) =
+    static member Create(name,args,ret,priority,associativity,pos) =
       let priority =
         match priority with
         | Some i -> i
@@ -174,6 +177,7 @@ and Functor =
         Return = ret
         Priority = priority
         Associativity = associativity
+        Position = pos
       }
 
 and SymbolDeclaration =
@@ -227,7 +231,7 @@ and SymbolDeclaration =
 
 and RuleDefinition =
 | Rule of Rule
-| TypeRule of Rule
+| TypeRule of TypeRule
 
 and ArithExpr =
 | Add of ArithExpr * ArithExpr
@@ -239,12 +243,11 @@ and ArithExpr =
 | Value of CallArg
 
 
-    
-
 and Premise =
 | Emit of string * Id * Position
 | Arithmetic of ArithExpr * Id * Position
 | FunctionCall of Call
+| FunctorCall of Call
 | Bind of Id * Position * List<CallArg>
 | Conditional of Conditional
 
@@ -253,6 +256,7 @@ and CallArg =
 | Id of Id * Position
 | NestedExpression of List<CallArg>
 | Lambda of LambdaConclusion * List<Premise>
+| DottedPath of List<Id>
 with
   override this.ToString() =
     match this with
@@ -260,6 +264,7 @@ with
     | Id(id,_) -> id.ToString()
     | NestedExpression(args) ->
         "(" + (args |> List.fold(fun s x -> s + x.ToString()) "") + ")"
+    | DottedPath path -> path |> List.map(fun x -> (string x)) |> List.reduce (fun x y -> x + "." + y)
     | Lambda(_) -> failwith "Anonymous functions not supported yet"
 
 
@@ -267,18 +272,26 @@ and Call = List<CallArg> * List<CallArg>
 and Conditional = CallArg *  Predicate * CallArg
 and Conclusion = 
 | ValueOutput of List<CallArg> * List<CallArg>
-| ModuleOutput of List<CallArg> * List<CallArg> * Program
+| TypeOutput of List<CallArg> * Id
+| ModuleOutput of List<CallArg> * Id * Program
 with
   override this.ToString() =
     match this with
     | ValueOutput(left,right) -> left.ToString() + " -> " + right.ToString()
-    | ModuleOutput(left,right,program) -> left.ToString() + " => " + right.ToString() + "{\n\t" + program.ToString() + "\n}"
+    | TypeOutput(left,_type) -> (string left) + " => " + (string _type)
+    | ModuleOutput(left,id,program) -> left.ToString() + " => " + id.ToString() + "{\n\t" + program.ToString() + "\n}"
 
 and LambdaConclusion = List<CallArg * TypeDecl> * List<CallArg>
 
 and Rule = 
   {
     Main          : bool
+    Premises      : List<Premise>
+    Conclusion    : Conclusion
+  }
+
+and TypeRule =
+  {
     Premises      : List<Premise>
     Conclusion    : Conclusion
   }

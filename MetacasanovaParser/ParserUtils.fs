@@ -3,6 +3,8 @@
 open Common
 open ParserAST
 open Microsoft.FSharp.Text.Parsing
+open System.Diagnostics
+open System.IO
 
 exception ParseError of string * int * int
 
@@ -20,6 +22,15 @@ let reportErrorAtPos (error : string) (parseState : IParseState) (i : int) =
 
 let genericNamespace = "__generic"
 
+let generateRule (premises : List<Premise>) (conclusion : Conclusion) (isMain : bool) (parseState : IParseState) =
+  match conclusion with
+  | ValueOutput _ -> Rule({ Main = isMain; Premises = premises; Conclusion = conclusion })
+  | _ -> 
+    if (isMain) then
+      reportErrorAtPos "A Type Function cannot be declared as main" parseState 1
+    else
+      TypeRule({ Premises = premises; Conclusion = conclusion })
+
 let processExternals (externalType : string) =
   externalType.ToCharArray() |>
   Array.filter(fun c -> c <> ' ') |>
@@ -29,6 +40,11 @@ let decomposeLiteral (arg : CallArg) =
   match arg with
   | Literal (l,_) -> l
   | _ ->  failwith "You can only use decomposeLiteral with literal arguments"
+
+let splitPath (path : string) = 
+  path.Split([|'.'|]) |> 
+  Array.map(fun x -> { Namespace = ""; Name = x }) |>
+  Array.toList
 
 let buildArithExpr (opName : string) (left : ArithExpr) (right : ArithExpr) (pos : int * int) : ArithExpr =
   match opName with
@@ -57,7 +73,8 @@ let rec combineArgsAndRet args ret =
           Arrow(left,combineArgsAndRet right ret,false)
   | External _ 
   | Zero
-  | Arg _ -> Arrow(args,ret,false)
+  | Arg _ 
+  | TypeDecl.FunctorCall _ -> Arrow(args,ret,false)
 
 let rec splitAtElement (pred : 'a -> bool) (list : 'a list) : ('a list) * ('a list) =
   match list with
@@ -140,7 +157,7 @@ let processParsedArgs (parsedArgs : TypeDeclOrName list) (retType : TypeDecl) (r
   | None ->
       buildDeclarationRecord opOrder {Namespace =  ""; Name = name} argType retType (row, column) gen -1 associativity larity rarity
 
-let insertNamespaceAndFileName (program : Program) (fileName : string) : Program =  
+let rec insertNamespaceAndFileName (program : Program) (fileName : string) : Program =  
   let nameSpace,imports,parsedProgram = program.Namespace,program.Imports,program.Program
   let rec processTypeDecl (g : List<Id>) (i : int) (t : TypeDecl) =
     match t with
@@ -149,6 +166,7 @@ let insertNamespaceAndFileName (program : Program) (fileName : string) : Program
         Arg((processArg g i arg), gen |> List.map (processTypeDecl g i))
     | External(s,pos) -> External(s,{ pos with File = fileName })
     | Zero -> Zero
+    | TypeDecl.FunctorCall call-> TypeDecl.FunctorCall(call |> List.map (processArg [] 0))
 
   and processSymbolDecl (decl : SymbolDeclaration) (i : int) =
     {
@@ -178,7 +196,8 @@ let insertNamespaceAndFileName (program : Program) (fileName : string) : Program
               else
                 Id({ id with Namespace = nameSpace },{ p with File = fileName })
       | NestedExpression(expr) -> NestedExpression(expr |> List.map (processArg g i))
-      | _ -> failwith "Lambdas not parsed yet"
+      | DottedPath path -> DottedPath(path |> List.map(fun x -> { x with Namespace = nameSpace}))
+      | _ -> failwith "Unsupported arg format"
   
   and processArgs left right =
     let processedLeft = left |> List.map (processArg [] 0)
@@ -202,28 +221,61 @@ let insertNamespaceAndFileName (program : Program) (fileName : string) : Program
         Arithmetic(processExpr expr,{ res with Namespace = nameSpace },{ position with File = fileName })
     | FunctionCall(left,right) ->                
         FunctionCall(processArgs left right)
+    | FunctorCall(left,right) ->
+        FunctorCall(processArgs left right)
     | Bind(id,pos,args) -> Bind({ id with Namespace = nameSpace },{ pos with File = fileName },args |> List.map (processArg [] 0))
     | Conditional(left,c,right) ->
         Conditional(processArg [] 0 left,c,processArg [] 0 right)
   let processConclusion (c : Conclusion) =
     match c with
     | ValueOutput(left,right) -> ValueOutput(processArgs left right)
+    | TypeOutput(left,_type) -> TypeOutput(left,{ _type with Namespace = nameSpace })//(processArgs left _type)//TypeOutput(left |> List.map (processArg [] 0),processTypeDecl [] 0 _type)
+    | ModuleOutput(args,moduleName,_module) ->
+        let processedArgs = args |> List.map (processArg [] 0)
+        let processedName = { moduleName with Namespace = nameSpace }
+        let processedModule = insertNamespaceAndFileName _module fileName
+        ModuleOutput(processedArgs,processedName,processedModule)
     | _ -> failwith "Modules not supported yet"
 
-  let processedDeclarations =
-    parsedProgram.Declarations |> 
+  let rec processKind (kind : Kind) =
+    match kind with
+    | KindArg(arg,k) -> KindArg(processArg [] 0 arg,processKind k)
+    | KindType t -> KindType (processTypeDecl [] 0 t)
+    | Kind -> Kind
+    
+  let processFunctor (functor : Functor) =
+    { functor with 
+        Position = { functor.Position with File = fileName } 
+        Name = { functor.Name with Namespace = nameSpace }
+        Args = functor.Args |> List.map processKind
+        Return = processKind functor.Return 
+    }
+
+  let rec processModule (_module : ModuleDeclaration) =
+    { _module with
+        Name = { _module.Name with Namespace = nameSpace }
+        Position = { _module.Position with File = fileName } 
+        Args = _module.Args |> List.map processKind
+        Return = processKind _module.Return
+        Body = processDeclarations _module.Body
+    } 
+
+  and processDeclarations (declarations : List<Declaration>) =
+    declarations |> 
     List.mapi (fun i x -> (i,x)) |>
     List.map (fun (i,d) -> 
                 match d with
                 | Data(decl) -> Data(processSymbolDecl decl i)
                 | Func(decl) -> Func(processSymbolDecl decl i)
-                | Functor(decl) -> d)
+                | Functor(decl) -> Functor(processFunctor decl)
+                | Module(decl) -> Module(processModule decl))
+
   let processedRules =
     parsedProgram.Rules |> 
     List.map(fun r ->
               match r with
               | Rule(r) -> Rule({ Main = r.Main; Premises = r.Premises |> List.map processPremise; Conclusion = processConclusion r.Conclusion })
-              | TypeRule(tr) -> TypeRule({ Main = tr.Main; Premises = tr.Premises |> List.map processPremise; Conclusion = processConclusion tr.Conclusion }))
+              | TypeRule(tr) -> TypeRule({ Premises = tr.Premises |> List.map processPremise; Conclusion = processConclusion tr.Conclusion }))
   let processedSubTypes =
     parsedProgram.Subtyping |>
     List.map(fun (lt,rt) -> 
@@ -231,5 +283,14 @@ let insertNamespaceAndFileName (program : Program) (fileName : string) : Program
               | Arg(leftArg,[]),Arg(rightArg,[]) -> Arg(processArg [] 0 leftArg,[]),Arg(processArg [] 0 rightArg,[])
               | _ -> failwith "Something went wrong while parsing the subtypes")
   
-  { Namespace = nameSpace;Imports = imports;Program = { Declarations = processedDeclarations; Rules = processedRules; Subtyping = processedSubTypes} }
+  { 
+    Namespace = nameSpace
+    Imports = imports
+    Program = 
+      { 
+        Declarations = processDeclarations parsedProgram.Declarations
+        Rules = processedRules
+        Subtyping = processedSubTypes
+      } 
+  }
         

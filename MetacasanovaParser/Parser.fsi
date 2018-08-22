@@ -101,8 +101,9 @@ type nonTerminalId =
     | NONTERM_start
     | NONTERM_newLineSeq
     | NONTERM_optionalNewLines
+    | NONTERM_header
+    | NONTERM_programDefinition
     | NONTERM_program
-    | NONTERM_dottedPath
     | NONTERM_commaPath
     | NONTERM_genericSeq
     | NONTERM_includeOrOpenStmts
@@ -125,13 +126,16 @@ type nonTerminalId =
     | NONTERM_subtypes
     | NONTERM_arg
     | NONTERM_argSeq
+    | NONTERM_dottedPath
     | NONTERM_literal
     | NONTERM_emit
     | NONTERM_functionCall
+    | NONTERM_functorCall
     | NONTERM_arithmeticCall
     | NONTERM_arithmeticExpr
     | NONTERM_comparisonOp
     | NONTERM_premises
+    | NONTERM_moduleInstantiation
     | NONTERM_conclusion
     | NONTERM_mainOpt
     | NONTERM_rule

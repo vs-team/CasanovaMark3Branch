@@ -46,16 +46,16 @@ optionalNewLines:
 | newLineSeq {  }
 | {  }
 
-program:
-| optionalNewLines NAMESPACE dottedPath newLineSeq includeOrOpenStmts subtypes declarations rules {
-  let programDefinition = { Declarations = $7; Rules = $8; Subtyping = $6 }
-  { Namespace = $3; Imports = $5; Program = programDefinition } }
-| newLineSeq includeOrOpenStmts subtypes declarations rules { reportErrorAtPos "A program in Metacasanova must start with a namespace definition" parseState 1 }
+header:
+| optionalNewLines NAMESPACE dottedPath newLineSeq includeOrOpenStmts { $3,$5 }
+| newLineSeq includeOrOpenStmts { reportErrorAtPos "A program in Metacasanova must start with a namespace definition" parseState 1 }
 
-dottedPath:
-| ID DOT dottedPath { (fst $1) + "." + $3 }
-| ID { (fst $1) }
-| error { reportErrorAtPos "The name of the namespace has an invalid form" parseState 1 }
+programDefinition:
+| subtypes declarations rules { { Declarations = $2; Rules = $3; Subtyping = $1 } }
+
+program:
+| header programDefinition {
+  { Namespace = fst $1; Imports = snd $1; Program = $2 } }
 
 commaPath:
 | ID COMMA commaPath { ({Namespace = ""; Name = fst $1}) :: $3 }
@@ -93,7 +93,7 @@ declaration:
 | MODULE STRING kindDecl COLON kind optionalNewLines LBRACE optionalNewLines declarations optionalNewLines RBRACE newLineSeq {
     Module(ModuleDeclaration.Create({ Namespace = ""; Name = fst $2 },$3,$5,Position.Create(snd $2,""),$9))}
 | FUNCTOR STRING kindDecl COLON kind priority associativity newLineSeq {
-    Functor(Functor.Create({ Namespace = ""; Name = fst $2 },$3,$5,$6,$7))}
+    Functor(Functor.Create({ Namespace = ""; Name = fst $2 },$3,$5,$6,$7,Position.Create(snd $2,"")))}
 | FUNC genericSeq typeOrNameDeclarations COLON typeDeclaration priority associativity newLineSeq {
     Func(processParsedArgs $3 $5 (fst $1) (snd $1) $2 $6 $7) }
 | DATA genericSeq typeOrNameDeclarations COLON typeDeclaration priority associativity newLineSeq {
@@ -137,6 +137,7 @@ typeDeclaration:
 | LBRACKET lambdaTypeDeclaration RBRACKET { $2 }
 | EMIT { External(processExternals (fst $1), Position.Create(snd $1,"")) }
 | ID genericTypeDef { Arg(Id({ Namespace = ""; Name = fst $1 },Position.Create(snd $1,"")),$2) }
+| argSeq { TypeDecl.FunctorCall($1) }
 | error { reportErrorAtPos "Invalid type name" parseState 1 }
 
 lambdaTypeDeclaration: 
@@ -164,11 +165,17 @@ arg:
 | literal { $1 }
 | customOperator { $1 }
 | ID { Id({ Namespace = ""; Name = fst $1 },Position.Create(snd $1,"")) }
+| dottedPath { DottedPath(splitPath $1) }
 | error { reportErrorAtPos "Invalid argument name" parseState 1 }
 
 argSeq:
 | arg argSeq { $1 :: $2 }
 | arg { [$1] }
+
+dottedPath:
+| ID DOT dottedPath { (fst $1) + "." + $3 }
+| ID { (fst $1) }
+| error { reportErrorAtPos "The name of the namespace has an invalid form" parseState 1 }
 
 literal:
 | INT { Literal(Common.I32(fst $1),Position.Create(snd $1,"")) }
@@ -182,6 +189,9 @@ emit:
 
 functionCall:
 | argSeq ARROW argSeq newLineSeq { FunctionCall($1,$3) }
+
+functorCall:
+| argSeq DARROW argSeq newLineSeq  { FunctorCall($1,$3) }
 
 arithmeticCall:
 | ARITHMETIC arithmeticExpr ARROW ID newLineSeq { Arithmetic($2,{ Namespace = ""; Name = fst $4 },Position.Create($1,"")) } 
@@ -203,22 +213,30 @@ comparisonOp:
 premises:
 | emit premises { $1 :: $2 }
 | functionCall premises { $1 :: $2 }
+| functorCall premises { $1 :: $2 }
 | arithmeticCall premises { $1 :: $2 }
 | ID BIND argSeq newLineSeq premises { (Bind({ Namespace = ""; Name = fst $1 },Position.Create(snd $1,""),$3)) :: $5 }
 | arg comparisonOp arg newLineSeq premises { (Conditional($1,$2,$3)) :: $5 }
 | { [] }
 | error { reportErrorAtPos "Malformed premise" parseState 1 }
 
+moduleInstantiation:
+| ID optionalNewLines LBRACE optionalNewLines programDefinition RBRACE
+    { { Namespace = ""; Name = fst $1 },{ Namespace = fst $1; Imports = []; Program = $5 } }
+
 conclusion:
 | argSeq ARROW argSeq newLineSeq { ValueOutput($1,$3) }
+| argSeq DARROW ID newLineSeq { TypeOutput($1,{ Namespace = ""; Name = fst $3 }) } //For some reasons it does not work with argSeq DARROW argSeq newLineSeq
+| argSeq DARROW moduleInstantiation newLineSeq { ModuleOutput($1,fst $3,snd $3) }
 | error { reportErrorAtPos "Malformed conclusion" parseState 1  }
 
 mainOpt:
-| MAIN COLON newLineSeq { true }
+| MAIN COLON newLineSeq { true } 
 | { false }
 
-rule: mainOpt premises BAR newLineSeq conclusion {
-  Rule({ Main = $1; Premises = $2; Conclusion = $5 }) }
+rule: 
+| mainOpt premises BAR newLineSeq conclusion {
+    generateRule $2 $5 $1 parseState }
 
 rules:
 | rule rules { $1 :: $2 }
