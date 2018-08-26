@@ -36,6 +36,11 @@ let processExternals (externalType : string) =
   Array.filter(fun c -> c <> ' ') |>
   Array.fold(fun s x -> s + (string x)) ""
 
+let processModuleConstructor (args : List<CallArg>) (body : ProgramDefinition) (parseState : IParseState) =
+  match args.Head with
+  | Id(id,_) -> args,{ Namespace = id.Name; Imports = []; Program = body }
+  | _ -> reportErrorAtPos "The first argument of a module constructor call should be the module name" parseState 1
+
 let decomposeLiteral (arg : CallArg) =
   match arg with
   | Literal (l,_) -> l
@@ -230,11 +235,11 @@ let rec insertNamespaceAndFileName (program : Program) (fileName : string) : Pro
     match c with
     | ValueOutput(left,right) -> ValueOutput(processArgs left right)
     | TypeOutput(left,_type) -> TypeOutput(left, processTypeDecl [] 0 _type)
-    | ModuleOutput(args,moduleName,_module) ->
+    | ModuleOutput(args,moduleConstructor,_module) ->
         let processedArgs = args |> List.map (processArg [] 0)
-        let processedName = { moduleName with Namespace = nameSpace }
+        let processedConstructor = moduleConstructor |> List.map (processArg [] 0)
         let processedModule = insertNamespaceAndFileName _module fileName
-        ModuleOutput(processedArgs,processedName,processedModule)
+        ModuleOutput(processedArgs,processedConstructor,processedModule)
     | _ -> failwith "Modules not supported yet"
 
   let rec processKind (kind : Kind) =

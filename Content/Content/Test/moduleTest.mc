@@ -5,7 +5,8 @@ Module "Record" : Record {
 }
 
 Module "Getter" => (name : string) => (r : Record) : Getter {
-
+  Functor "GetType" : *
+  Func "get" -> r.RecordType : GetType
 }
 
 Functor "EmptyRecord" : Record
@@ -34,4 +35,40 @@ RecordField name type r => Record {
   ---------------------
   cons x xs -> (x,xs)
   
+}
+
+name = fieldName
+Recordfield name type r => thisRecord
+--------------------------------------------
+GetField fieldName (RecordField name type r) => Getter fieldName thisRecord {
+  
+  ----------------
+  GetType => (type)
+
+  --------------
+  get (x,xs) -> x
+  
+}
+
+name <> fieldName
+Recordfield name type r => thisRecord
+--------------------------------------
+GetField fieldName (RecordField name type r) => Getter fieldName type thisRecord {
+  
+  Functor "GetAnotherField" : Getter
+
+  GetField fieldName r => otherGetter
+  -----------------------------------
+  GetAnotherField => (otherGetter)
+
+  GetAnotherField => g
+  g.GetType => type
+  --------------------
+  GetType => (type)
+
+  GetAnotherField => getter
+  getter.get xs -> v
+  -------------------------
+  get (x,xs) -> v
+
 }

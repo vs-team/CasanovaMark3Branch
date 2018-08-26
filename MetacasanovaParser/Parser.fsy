@@ -222,8 +222,8 @@ premises:
 | error { reportErrorAtPos "Malformed premise" parseState 1 }
 
 moduleInstantiation:
-| ID optionalNewLines LBRACE optionalNewLines programDefinition RBRACE
-    { { Namespace = ""; Name = fst $1 },{ Namespace = fst $1; Imports = []; Program = $5 } }
+| argSeq optionalNewLines LBRACE optionalNewLines programDefinition RBRACE
+    { processModuleConstructor $1 $5 parseState }
 
 conclusion:
 | argSeq ARROW argSeq newLineSeq { ValueOutput($1,$3) }
