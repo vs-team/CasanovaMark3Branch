@@ -12,6 +12,7 @@ Module "Getter" => (name : string) => (r : Record) : Getter {
 Functor "EmptyRecord" : Record
 Functor "RecordField" => string => * => Record : Record
 Functor "GetField" => string => Record : Getter
+Functor "PhysicalBodyType" : Record
 
 -----------------
 EmptyRecord => Record {
@@ -72,3 +73,10 @@ GetField fieldName (RecordField name type r) => Getter fieldName type thisRecord
   get (x,xs) -> v
 
 }
+
+
+EmptyRecord => empty
+RecordField "Velocity" Tuple[float,float] empty => velocity
+RecordField "Position" Tuple[float,float] velocity => body
+-----------------------------------------
+PhysicalBodyType => (body)

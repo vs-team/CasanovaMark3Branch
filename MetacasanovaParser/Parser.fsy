@@ -166,6 +166,7 @@ arg:
 | literal { $1 }
 | customOperator { $1 }
 | ID { Id({ Namespace = ""; Name = fst $1 },Position.Create(snd $1,"")) }
+| ID LSQUARE typeVarsSeq RSQUARE { GenericType(Id({ Namespace = ""; Name = fst $1 },Position.Create(snd $1,"")),$3) }
 | dottedPath { DottedPath(splitPath $1) }
 | error { reportErrorAtPos "Invalid argument name" parseState 1 }
 

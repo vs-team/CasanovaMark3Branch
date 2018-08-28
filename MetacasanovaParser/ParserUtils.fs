@@ -200,6 +200,7 @@ let rec insertNamespaceAndFileName (program : Program) (fileName : string) : Pro
                 Id({ id with Name = id.Name + (string i); Namespace = nameSpace },{ p with File = fileName })
               else
                 Id({ id with Namespace = nameSpace },{ p with File = fileName })
+      | GenericType(_type,gens) -> GenericType(processArg [] 0 _type,gens |> List.map(processTypeDecl [] 0))
       | NestedExpression(expr) -> NestedExpression(expr |> List.map (processArg g i))
       | DottedPath path -> DottedPath(path |> List.map(fun x -> { x with Namespace = nameSpace}))
       | _ -> failwith "Unsupported arg format"

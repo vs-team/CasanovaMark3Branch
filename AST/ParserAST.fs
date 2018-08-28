@@ -255,6 +255,7 @@ and CallArg =
 | Literal of Literal * Position
 | Id of Id * Position
 | NestedExpression of List<CallArg>
+| GenericType of CallArg * List<TypeDecl>
 | Lambda of LambdaConclusion * List<Premise>
 | DottedPath of List<Id>
 with
@@ -262,6 +263,7 @@ with
     match this with
     | Literal(l,_) -> l.ToString()
     | Id(id,_) -> id.ToString()
+    | GenericType(_type,gens) -> (string _type) + "[" + (gens |> List.map string |> List.reduce(fun x y -> x + "," + y)) + "]"
     | NestedExpression(args) ->
         "(" + (args |> List.fold(fun s x -> s + x.ToString()) "") + ")"
     | DottedPath path -> path |> List.map(fun x -> (string x)) |> List.reduce (fun x y -> x + "." + y)
