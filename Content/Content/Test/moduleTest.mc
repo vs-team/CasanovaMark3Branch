@@ -9,10 +9,12 @@ Module "Getter" => (name : string) => (r : Record) : Getter {
   Func "get" -> r.RecordType : GetType
 }
 
+Data[a,b] a -> "," -> b : Tuple[a,b]
 Functor "EmptyRecord" : Record
 Functor "RecordField" => string => * => Record : Record
 Functor "GetField" => string => Record : Getter
 Functor "PhysicalBodyType" : Record
+Func "PhysicalBody" : PhysicalBodyType.RecordType
 
 -----------------
 EmptyRecord => Record {
@@ -80,3 +82,11 @@ RecordField "Velocity" Tuple[float,float] empty => velocity
 RecordField "Position" Tuple[float,float] velocity => body
 -----------------------------------------
 PhysicalBodyType => (body)
+
+
+v := (10.0,10.0)
+p := (10.0,10.0)
+PhysicalBodyType => pbt
+pbt.cons v (p,()) -> body
+--------------------------------------
+PhysicalBody -> body
