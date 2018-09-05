@@ -249,7 +249,7 @@ let rec insertNamespaceAndFileName (program : Program) (fileName : string) : Pro
     | KindType t -> KindType (processTypeDecl [] 0 t)
     | Kind -> Kind
     
-  let processFunctor (functor : Functor) =
+  let processFunctor (functor : FunctorDeclaration) =
     { functor with 
         Position = { functor.Position with File = fileName } 
         Name = { functor.Name with Namespace = nameSpace }

@@ -93,7 +93,7 @@ declaration:
 | MODULE STRING kindDecl COLON kind optionalNewLines LBRACE optionalNewLines declarations optionalNewLines RBRACE newLineSeq {
     Module(ModuleDeclaration.Create({ Namespace = ""; Name = fst $2 },$3,$5,Position.Create(snd $2,""),$9))}
 | FUNCTOR STRING kindDecl COLON kind priority associativity newLineSeq {
-    Functor(Functor.Create({ Namespace = ""; Name = fst $2 },$3,$5,$6,$7,Position.Create(snd $2,"")))}
+    Functor(FunctorDeclaration.Create({ Namespace = ""; Name = fst $2 },$3,$5,$6,$7,Position.Create(snd $2,"")))}
 | FUNC genericSeq typeOrNameDeclarations COLON typeDeclaration priority associativity newLineSeq {
     Func(processParsedArgs $3 $5 (fst $1) (snd $1) $2 $6 $7) }
 | DATA genericSeq typeOrNameDeclarations COLON typeDeclaration priority associativity newLineSeq {

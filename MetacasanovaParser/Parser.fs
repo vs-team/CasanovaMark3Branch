@@ -843,7 +843,7 @@ let _fsyacc_reductions ()  =    [|
                    (
 # 95 "Parser.fsy"
                                                                                              
-                         Functor(Functor.Create({ Namespace = ""; Name = fst _2 },_3,_5,_6,_7,Position.Create(snd _2,"")))
+                         Functor(FunctorDeclaration.Create({ Namespace = ""; Name = fst _2 },_3,_5,_6,_7,Position.Create(snd _2,"")))
                    )
 # 95 "Parser.fsy"
                  : 'declaration));

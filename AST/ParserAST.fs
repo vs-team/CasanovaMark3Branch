@@ -51,9 +51,21 @@ and TypeCall =
   member this.Length = this.Type.Length
 
 and Kind =
-| KindArg of CallArg * Kind
-| KindType of TypeDecl
-| Kind
+| KindArg of CallArg * Kind //module kinds in the format (arg : kind)
+| KindType of TypeDecl //explicit types in functor declarations
+| Kind //Symbol *
+  static member (===) (k1 : Kind, k2 : Kind) =
+    match k1,k2 with
+    | KindType t1,KindType t2 -> t1 === t2
+    | Kind,_
+    | _,Kind -> true
+    | _ -> false
+  static member (=!=) (k1 : Kind, k2 : Kind) = not (k1 === k2)
+  override this.ToString() =
+    match this with
+    | KindArg(arg,k) -> (string arg) + ":" + (string k)
+    | KindType _type -> (string _type)
+    | Kind -> "*"
 
 //nested is used to distinguish type definitions such as (int -> int) -> string from int -> (int -> string)
 and TypeDecl =
@@ -127,7 +139,7 @@ and TypeDecl =
 and Declaration =
 | Data of SymbolDeclaration
 | Func of SymbolDeclaration
-| Functor of Functor
+| Functor of FunctorDeclaration
 | Module of ModuleDeclaration
 with
   override this.ToString() =
@@ -156,7 +168,7 @@ with
     }
 
 
-and Functor =
+and FunctorDeclaration =
   {
     Name            : Id
     Args            : List<Kind>
@@ -306,7 +318,9 @@ let symbolTableTypeAlias : Map<string,SymbolDeclaration> = Map.empty
 type SymbolContext =
   {
     DataTable             : Map<Id,SymbolDeclaration>
-    FuncTable             : Map<Id,SymbolDeclaration>    
+    FuncTable             : Map<Id,SymbolDeclaration>
+    ModuleTable           : Map<Id,ModuleDeclaration>
+    FunctorTable          : Map<Id,FunctorDeclaration>
     TypeFuncTable         : Map<Id,SymbolDeclaration>
     TypeAliasTable        : Map<Id,SymbolDeclaration>
     Subtyping             : Map<TypeDecl,List<TypeDecl>>
@@ -326,7 +340,9 @@ type SymbolContext =
         {
           DataTable = Map.empty
           FuncTable = Map.empty
-          TypeFuncTable = Map.empty
+          ModuleTable = Map.empty
+          FunctorTable = Map.empty
+          TypeFuncTable = Map.empty 
           TypeAliasTable = Map.empty
           Subtyping = Map.empty
         }
@@ -337,3 +353,4 @@ let (!!!) s = Arg(Id({ Namespace = systemNamespace; Name = s },emptyPos),[])
 let (~~) s = Id({Namespace = ""; Name = s},emptyPos)
 let (-->) t1 t2 = Arrow(t1,t2,false)
 let (.|) ps c = { Main = false; Premises = ps; Conclusion = c }
+

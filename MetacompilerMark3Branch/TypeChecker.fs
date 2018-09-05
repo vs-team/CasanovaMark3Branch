@@ -5,6 +5,10 @@ open ParserAST
 open ParserUtils
 
 exception TypeError of string
+exception InterpreterError of string
+
+let interpreterError (message : string) (position : Option<Position>) =  
+  raise(InterpreterError(sprintf "%s at %s" message (if position.IsNone then "" else (string position.Value))))
 
 type LocalContext =
   {
@@ -65,6 +69,41 @@ and TypedRule =
     Locals          : LocalContext
     ReturnType      : TypeDecl
   }
+
+type ModuleInstance = 
+  {
+    Name     : Id
+    Args     : Map<CallArg, RuleValue>
+    Body     : ProgramDefinition
+  }
+
+and RuleValue =
+| Type of TypeDecl
+| ModuleInstance of ModuleInstance
+| Constant of CallArg //this should always be a literal argument. Check when running the functor rule
+
+type RuleCtxt =
+  {
+    Functor             : CallArg
+    Call                : List<RuleValue>
+    Arguments           : List<CallArg>
+    Variables           : Map<CallArg,RuleValue>
+    Result              : Option<RuleValue>
+  }
+  with
+    static member Create (functor : CallArg,call : List<RuleValue>,arguments : List<CallArg>) = 
+      {
+        Functor = functor
+        Call = call
+        Arguments = arguments
+        Variables = Map.empty
+        Result = None
+      }
+    member this.Add (arg : CallArg,value : RuleValue) =
+      let (Id(id,pos)) = arg
+      match this.Variables |> Map.tryFindKey(fun (Id(k,_)) _ -> id.Name = k.Name) with
+      | Some (Id(id,pos)) -> interpreterError (sprintf "Variable %s already defined" id.Name) (Some pos)
+      | None -> this.Variables.Add(arg,value)
 
 let undefinedVarError name pos =
   raise(TypeError(sprintf "Type Error: undefined variable %s at %s" name (pos.ToString())))
@@ -237,6 +276,27 @@ let rec normalizeDataOrFunctionCall (_symbolTable : SymbolContext) (args : List<
       failwith "Something went wrong when normalizing data or function call: more than a function name found"
     else
       (fArg.Head) :: argList
+
+let getLiteralType l =
+  match l with
+  | I64(_) ->
+    !!!"int64"
+  | I32(_) ->
+    !!!"int"
+  | U64(_) ->
+    !!!"uint64"
+  | U32(_) ->
+    !!!"uint32"
+  | F64(_) ->
+    !!!"double"
+  | F32(_) ->
+    !!!"float"
+  | String(_) ->
+    !!!"string"
+  | Bool(_) ->
+    !!!"bool"
+  | Unit ->
+    !!!"unit"
 
 
 //check the consistency of single types in declarations.
@@ -424,7 +484,7 @@ let rec checkGenericTypeEquivalence (t1 : TypeDecl) (t2 : TypeDecl) (p : Positio
   
   | _ -> failwith "Something went wrong: the type definition has an invalid structure"
 
-let getLocalType id locals p =
+let getLocalType id (locals : LocalContext) p =
   let idOpt = locals.Variables |> Map.tryFind id
   match idOpt with
   | Some (t,_) ->
@@ -456,27 +516,6 @@ let checkLiteral (l : Literal) (typeDecl : TypeDecl) (p : Position) (ctxt : Symb
       !!!"bool", checkTypeDecl !!!"bool" typeDecl p ctxt locals
     | Unit ->
       !!!"unit", checkTypeDecl !!!"unit" typeDecl p ctxt locals
-
-let getLiteralType l =
-  match l with
-  | I64(_) ->
-    !!!"int64"
-  | I32(_) ->
-    !!!"int"
-  | U64(_) ->
-    !!!"uint64"
-  | U32(_) ->
-    !!!"uint32"
-  | F64(_) ->
-    !!!"double"
-  | F32(_) ->
-    !!!"float"
-  | String(_) ->
-    !!!"string"
-  | Bool(_) ->
-    !!!"bool"
-  | Unit ->
-    !!!"unit"
 
 
 let rec checkSingleArg
@@ -853,5 +892,69 @@ and checkProgram (program : Program) : TypedProgramDefinition =
   //missing support for imports
   let _namespace,imports,def = program.Namespace,program.Imports,program.Program
   checkProgramDefinition _namespace imports def
+
+
+//=============== FUNCTOR INTERPRETER ================
+
+let rec checkKind (k1 : Kind) (k2 : Kind) (symbolTable : SymbolContext) (position : Position) =
+  match k1,k2 with
+  | Kind,Kind -> ()
+  | _,Kind -> ()
+  | KindType(t1),KindType(t2) -> 
+      checkTypeDecl t1 t2 position symbolTable LocalContext.Empty |> ignore
+  | KindArg(_,kind1),KindArg(_,kind2) -> checkKind kind1 kind2 symbolTable position
+  | _ -> raise(TypeError(sprintf "Kind error: expected %s but given %s" (string k1) (string k2)))
+
+
+let rec getFunctorDeclaration (functor : CallArg) (symbolTable : SymbolContext) =
+  match functor with
+  | Id(id,pos) ->
+      let declOpt =
+        symbolTable.FunctorTable |> 
+        Map.tryFindKey (fun k _ -> k.Name = id.Name)
+      match declOpt with
+      | Some id -> symbolTable.FunctorTable.[id]
+      | None -> interpreterError (sprintf "%s is not a valid functor" id.Name) (Some pos)
+  | NestedExpression expr -> getFunctorDeclaration expr.Head symbolTable
+  | _ -> interpreterError (sprintf "Invalid argument format %A" functor) None
+      
+
+let rec processInputArgs (symbolTable : SymbolContext) (ctxt : RuleCtxt) =
+  let functorDecl = getFunctorDeclaration ctxt.Functor symbolTable
+  if functorDecl.Args.Length <> ctxt.Call.Length || ctxt.Call.Length <> ctxt.Arguments.Length then
+    interpreterError (sprintf "Expected %d arguments but %d were given" functorDecl.Args.Length ctxt.Call.Length) None
+  else
+    let callInfo = 
+      List.zip ctxt.Call.Tail ctxt.Arguments |>
+      List.map2 (fun z (x,y) -> (x,y,z)) functorDecl.Args
+    let ctxt =
+      callInfo |>
+      List.fold (fun (newCtxt : RuleCtxt) (valueArg,callArg,kind) ->
+                  let value =
+                    match valueArg with
+                    | Constant(Literal(l,pos)) ->
+                        let k = KindType(getLiteralType l)
+                        checkKind k kind symbolTable pos
+                        valueArg
+                    | Type typeDecl ->
+                        checkKind (KindType typeDecl) kind symbolTable Position.Zero
+                        valueArg
+                    | ModuleInstance m ->
+                        let moduleOpt =
+                          symbolTable.ModuleTable |> 
+                          Map.tryFindKey (fun moduleName _ -> moduleName.Name = m.Name.Name)
+                        match moduleOpt with
+                        | Some id ->
+                            let moduleKind = symbolTable.ModuleTable.[id].Return
+                            checkKind moduleKind kind symbolTable Position.Zero
+                            valueArg
+                        | None -> raise(TypeError(sprintf "Module %s does not exist" m.Name.Name))
+                    | _ -> interpreterError (sprintf "Invalid functor call value %A" valueArg) None
+                  match callArg with
+                  | Id(id,_) -> { newCtxt with Variables = ctxt.Variables.Add(callArg,value) }
+                  //Add the handling of nested expression for module decomposition here.
+                  | _ -> interpreterError (sprintf "Unsupported conclusion argument format %A" callArg) None
+                    ) ctxt
+    ctxt
 
 
